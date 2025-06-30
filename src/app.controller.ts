@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Res,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -16,6 +17,7 @@ import {
   ApiBody,
   ApiParam,
   ApiResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AppService } from './app.service';
@@ -70,10 +72,19 @@ export class AppController {
   @Get('files/:filename')
   @ApiOperation({ summary: 'Download a file' })
   @ApiParam({ name: 'filename', description: 'Name of the file to download' })
+  @ApiQuery({
+    name: 'downloadAs',
+    required: false,
+    description: 'Optional new filename for the download',
+  })
   @ApiResponse({ status: 200, description: 'File downloaded successfully' })
   @ApiResponse({ status: 404, description: 'File not found' })
-  downloadFile(@Param('filename') filename: string, @Res() res: Response) {
-    return this.appService.downloadFile(filename, res);
+  downloadFile(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+    @Query('downloadAs') downloadAs?: string,
+  ) {
+    return this.appService.downloadFile(filename, res, downloadAs);
   }
 
   @Delete('files/:filename')

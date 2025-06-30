@@ -65,13 +65,16 @@ export class AppService {
     };
   }
 
-  async downloadFile(filename: string, res: Response) {
+  async downloadFile(filename: string, res: Response, downloadAs?: string) {
     try {
       const fileBuffer = await this.storageService.downloadFile(filename);
 
+      // Use downloadAs if provided, otherwise use original filename
+      const downloadFilename = downloadAs || filename;
+
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="${filename}"`,
+        `attachment; filename="${downloadFilename}"`,
       );
       res.setHeader('Content-Type', 'application/octet-stream');
       res.setHeader('Content-Length', fileBuffer.length.toString());
