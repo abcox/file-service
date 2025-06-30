@@ -10,14 +10,14 @@
     },
     "azure": {
       "connectionString": "AZURE_STORAGE_CONNECTION_STRING",
-      "container": "uploads"
+      "container": "file-service-uploads"
     },
     "options": {
-      "safeMode": false
+      "safeMode": true
     }
   },
   "logging": {
     "level": "info",
-    "enableConsole": false
+    "enableConsole": true
   }
-} 
+}
