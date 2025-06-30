@@ -4,7 +4,6 @@ import { LoggerService } from '../logging/logger.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
-import { StorageOptions } from '../config/config.interface';
 
 export interface FileInfo {
   filename: string;
@@ -12,6 +11,10 @@ export interface FileInfo {
   created: Date;
   modified: Date;
   url?: string;
+}
+
+export interface StorageOptions {
+  safeMode: boolean;
 }
 
 @Injectable()

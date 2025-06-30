@@ -73,8 +73,9 @@ export class AppConfigService {
   }
 
   getStorageOptions(): { safeMode: boolean } {
+    const { safeMode } = this.config.storage.options || {};
     return {
-      safeMode: this.config.storage.safeMode || false,
+      safeMode: Boolean(safeMode) || false,
     };
   }
 }
