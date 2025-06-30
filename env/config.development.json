@@ -1,0 +1,20 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "storage": {
+    "type": "local",
+    "local": {
+      "uploadDir": "uploads"
+    },
+    "azure": {
+      "connectionString": "",
+      "container": "uploads"
+    }
+  },
+  "logging": {
+    "level": "debug",
+    "enableConsole": true
+  }
+} 

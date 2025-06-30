@@ -1,10 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AppConfigService } from './config/config.service';
 
 async function bootstrap() {
   console.log('🚀 Starting NestJS application...');
   const app = await NestFactory.create(AppModule);
+
+  // Get config service
+  const configService = app.get(AppConfigService);
+  const serverConfig = configService.getServerConfig();
 
   // Swagger configuration
   const config = new DocumentBuilder()
@@ -19,14 +24,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(serverConfig.port, serverConfig.host);
   console.log(
-    `Application is running on: http://localhost:${process.env.PORT ?? 3000}`,
+    `Application is running on: http://${serverConfig.host}:${serverConfig.port}`,
   );
   console.log(
-    `Swagger documentation is available at: http://localhost:${
-      process.env.PORT ?? 3000
-    }/api`,
+    `Swagger documentation is available at: http://${serverConfig.host}:${serverConfig.port}/api`,
   );
 }
 bootstrap();

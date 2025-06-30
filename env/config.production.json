@@ -1,0 +1,20 @@
+{
+  "server": {
+    "port": 8080,
+    "host": "0.0.0.0"
+  },
+  "storage": {
+    "type": "azure",
+    "local": {
+      "uploadDir": "uploads"
+    },
+    "azure": {
+      "connectionString": "${AZURE_STORAGE_CONNECTION_STRING}",
+      "container": "uploads"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "enableConsole": false
+  }
+} 

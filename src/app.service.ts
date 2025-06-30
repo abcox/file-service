@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AppConfigService } from './config/config.service';
 
 interface UploadedFile {
   originalname: string;
@@ -12,10 +13,13 @@ interface UploadedFile {
 
 @Injectable()
 export class AppService {
-  private readonly uploadDir = 'uploads';
+  private readonly uploadDir: string;
 
-  constructor() {
+  constructor(private appConfigService: AppConfigService) {
+    this.uploadDir = this.appConfigService.getUploadDir();
     console.log('🚀 AppService constructor called - logging is working!');
+    console.log('📁 Upload directory configured as:', this.uploadDir);
+    console.log('🔧 Storage type:', this.appConfigService.getStorageType());
     // Ensure upload directory exists
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
