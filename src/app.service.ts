@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import { AppConfigService } from './config/config.service';
 import { StorageService } from './storage/storage.service';
+import { LoggerService } from './logging/logger.service';
 
 interface UploadedFile {
   originalname: string;
@@ -15,13 +16,16 @@ export class AppService {
   constructor(
     private appConfigService: AppConfigService,
     private storageService: StorageService,
+    private logger: LoggerService,
   ) {
-    console.log('🚀 AppService constructor called - logging is working!');
-    console.log('🔧 Storage type:', this.appConfigService.getStorageType());
+    this.logger.info('AppService constructor called - logging is working!');
+    this.logger.info('Storage type configured', {
+      storageType: this.appConfigService.getStorageType(),
+    });
   }
 
   getHello(): string {
-    console.log('👋 getHello method called');
+    this.logger.debug('getHello method called');
     return 'Hello World!';
   }
 
@@ -58,7 +62,7 @@ export class AppService {
 
   async getFiles() {
     const files = await this.storageService.getFiles();
-    console.log(`📊 Found ${files.length} files`);
+    this.logger.info('Files retrieved', { count: files.length });
     return {
       files: files,
       count: files.length,

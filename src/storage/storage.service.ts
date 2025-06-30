@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
+import { LoggerService } from '../logging/logger.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
@@ -18,7 +19,10 @@ export class StorageService {
   private azureContainerClient?: ContainerClient;
   private storageOptions: StorageOptions;
 
-  constructor(private appConfigService: AppConfigService) {
+  constructor(
+    private appConfigService: AppConfigService,
+    private logger: LoggerService,
+  ) {
     this.initializeAzureClient();
     this.storageOptions = this.appConfigService.getStorageOptions();
   }
@@ -39,17 +43,14 @@ export class StorageService {
       this.azureContainerClient
         .createIfNotExists()
         .then(() => {
-          console.log(
-            `☁️ Azure container existance assured for: '${container}'`,
-          );
+          this.logger.info('Azure container ensured', { container });
         })
         .catch((error) => {
-          console.error(
-            `❌ Failed to assure Azure container '${container}' exists:`,
-            error,
-          );
+          this.logger.error('Failed to ensure Azure container', error, {
+            container,
+          });
         });
-      console.log('🔗 Azure Blob Storage client initialized');
+      this.logger.info('Azure Blob Storage client initialized', { container });
     }
   }
 
@@ -77,12 +78,17 @@ export class StorageService {
     // Check if file already exists
     const exists = await blockBlobClient.exists();
     if (exists) {
-      console.log(`⚠️ File already exists in Azure: ${filename}`);
+      this.logger.warn('File already exists in Azure', { filename });
 
       if (this.storageOptions.safeMode) {
-        console.log(`🔄 Safe mode enabled, generating unique name`);
+        this.logger.info('Safe mode enabled, generating unique name', {
+          filename,
+        });
         filename = this.getUniqueFilename(filename);
-        console.log(`🔄 Generated unique name: ${filename}`);
+        this.logger.info('Generated unique name', {
+          originalFilename: filename,
+          newFilename: filename,
+        });
       } else {
         throw new Error(`File ${filename} already exists in Azure`);
       }
@@ -93,7 +99,11 @@ export class StorageService {
 
       await uniqueBlockBlobClient.upload(file, file.length);
 
-      console.log(`☁️ File uploaded to Azure: ${filename}`);
+      this.logger.logFileOperation('uploaded', filename, {
+        storageType: 'azure',
+        size: file.length,
+        url: uniqueBlockBlobClient.url,
+      });
 
       return {
         filename,
@@ -106,7 +116,11 @@ export class StorageService {
 
     await blockBlobClient.upload(file, file.length);
 
-    console.log(`☁️ File uploaded to Azure: ${filename}`);
+    this.logger.logFileOperation('uploaded', filename, {
+      storageType: 'azure',
+      size: file.length,
+      url: blockBlobClient.url,
+    });
 
     return {
       filename,
@@ -131,7 +145,11 @@ export class StorageService {
 
     fs.writeFileSync(filePath, file);
 
-    console.log(`💾 File uploaded locally: ${filePath}`);
+    this.logger.logFileOperation('uploaded', filename, {
+      storageType: 'local',
+      size: file.length,
+      filePath,
+    });
 
     return {
       filename,
@@ -252,7 +270,7 @@ export class StorageService {
       this.azureContainerClient.getBlockBlobClient(filename);
     await blockBlobClient.delete();
 
-    console.log(`🗑️ File deleted from Azure: ${filename}`);
+    this.logger.logFileOperation('deleted', filename, { storageType: 'azure' });
   }
 
   private deleteFromLocal(filename: string): void {
@@ -264,6 +282,9 @@ export class StorageService {
     }
 
     fs.unlinkSync(filePath);
-    console.log(`🗑️ File deleted locally: ${filename}`);
+    this.logger.logFileOperation('deleted', filename, {
+      storageType: 'local',
+      filePath,
+    });
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '../logging/logger.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AppConfig } from './config.interface';
@@ -8,7 +9,10 @@ import { AppConfig } from './config.interface';
 export class AppConfigService {
   private config: AppConfig;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private logger: LoggerService,
+  ) {
     this.loadConfig();
   }
 
@@ -20,7 +24,7 @@ export class AppConfigService {
       `config.${nodeEnv}.json`,
     );
 
-    console.log(`📋 Loading config from: ${configPath}`);
+    this.logger.info('Loading config', { configPath, environment: nodeEnv });
 
     if (!fs.existsSync(configPath)) {
       throw new Error(`Configuration file not found: ${configPath}`);
@@ -32,7 +36,7 @@ export class AppConfigService {
     // Substitute environment variables
     this.config = this.substituteEnvVars(parsedConfig);
 
-    console.log(`✅ Config loaded for environment: ${nodeEnv}`);
+    this.logger.info('Config loaded successfully', { environment: nodeEnv });
   }
 
   private substituteEnvVars(config: AppConfig): AppConfig {
@@ -70,7 +74,7 @@ export class AppConfigService {
 
   getStorageOptions(): { safeMode: boolean } {
     return {
-      safeMode: this.config.storage.options.safeMode || false,
+      safeMode: this.config.storage.safeMode || false,
     };
   }
 }
