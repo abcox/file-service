@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
-import * as fs from 'fs';
-import * as path from 'path';
 import { AppConfigService } from './config/config.service';
+import { StorageService } from './storage/storage.service';
 
 interface UploadedFile {
   originalname: string;
@@ -13,17 +12,12 @@ interface UploadedFile {
 
 @Injectable()
 export class AppService {
-  private readonly uploadDir: string;
-
-  constructor(private appConfigService: AppConfigService) {
-    this.uploadDir = this.appConfigService.getUploadDir();
+  constructor(
+    private appConfigService: AppConfigService,
+    private storageService: StorageService,
+  ) {
     console.log('🚀 AppService constructor called - logging is working!');
-    console.log('📁 Upload directory configured as:', this.uploadDir);
     console.log('🔧 Storage type:', this.appConfigService.getStorageType());
-    // Ensure upload directory exists
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-    }
   }
 
   getHello(): string {
@@ -31,68 +25,65 @@ export class AppService {
     return 'Hello World!';
   }
 
-  uploadFile(file: UploadedFile) {
+  async uploadFile(file: UploadedFile) {
     if (!file) {
       throw new Error('No file uploaded');
     }
 
-    const filename = file.originalname;
-    const filePath = path.join(this.uploadDir, filename);
+    try {
+      const fileInfo = await this.storageService.uploadFile(
+        file.buffer,
+        file.originalname,
+      );
 
-    // Write file to disk
-    fs.writeFileSync(filePath, file.buffer);
-
-    return {
-      message: 'File uploaded successfully',
-      filename: filename,
-      size: file.size,
-      mimetype: file.mimetype,
-    };
-  }
-
-  getFiles() {
-    console.log(`uploadDir`, this.uploadDir);
-    const files = fs.readdirSync(this.uploadDir);
-    const fileList = files.map((filename) => {
-      const filePath = path.join(this.uploadDir, filename);
-      console.log(`filePath`, filePath);
-      const stats = fs.statSync(filePath);
       return {
-        filename,
-        size: stats.size,
-        created: stats.birthtime,
-        modified: stats.mtime,
+        message: 'File uploaded successfully',
+        filename: fileInfo.filename,
+        size: fileInfo.size,
+        mimetype: file.mimetype,
+        url: fileInfo.url,
       };
-    });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('already exists')) {
+        return {
+          error: 'File already exists',
+          message: `A file named "${file.originalname}" already exists. Please use a different name or enable safe mode to generate unique names.`,
+          filename: file.originalname,
+          statusCode: 409,
+        };
+      }
+      throw error; // Re-throw other errors
+    }
+  }
 
+  async getFiles() {
+    const files = await this.storageService.getFiles();
+    console.log(`📊 Found ${files.length} files`);
     return {
-      files: fileList,
-      count: fileList.length,
+      files: files,
+      count: files.length,
     };
   }
 
-  downloadFile(filename: string, res: Response) {
-    const filePath = path.join(this.uploadDir, filename);
+  async downloadFile(filename: string, res: Response) {
+    try {
+      const fileBuffer = await this.storageService.downloadFile(filename);
 
-    if (!fs.existsSync(filePath)) {
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Content-Length', fileBuffer.length.toString());
+
+      res.send(fileBuffer);
+    } catch {
       throw new NotFoundException(`File ${filename} not found`);
     }
-
-    const fileStream = fs.createReadStream(filePath);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-
-    return fileStream.pipe(res);
   }
 
-  deleteFile(filename: string) {
-    const filePath = path.join(this.uploadDir, filename);
-
-    if (!fs.existsSync(filePath)) {
-      throw new NotFoundException(`File ${filename} not found`);
-    }
-
-    fs.unlinkSync(filePath);
+  async deleteFile(filename: string) {
+    await this.storageService.deleteFile(filename);
 
     return {
       message: `File ${filename} deleted successfully`,

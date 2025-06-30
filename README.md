@@ -1,3 +1,225 @@
+# File Service
+
+Authored by Adam Cox (Vorba Corp)
+Authored on June 30, 2025
+
+A NestJS-based micro-service for managing files in Azure cloud via Blob storage (Azurite emul.) local file storage support in local dev.
+
+## Features
+
+- **File Upload/Download/Delete/List** operations
+- **Swagger/OpenAPI** documentation
+- **Environment-based configuration** (local vs Azure storage)
+- **TypeScript** with full type safety
+- **Azure Blob Storage** integration
+- **Local development** with Azurite emulator
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js (v18+)
+- npm or yarn
+- Azure Storage Emulator (Azurite) for local development
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+# Start the development server
+npm run start:dev
+
+# Start Azure Storage Emulator (Azurite)
+npm run start-storage-emulator
+
+# Access Swagger UI
+# http://localhost:3000/api
+```
+
+## Configuration
+
+### Environment Setup
+
+The service uses a structured configuration approach:
+
+```
+env/
+├── .env                    ← Current environment (dev/prod/staging)
+├── config.development.json ← Development settings
+└── config.production.json  ← Production settings
+```
+
+### Environment Variables
+
+**Basic (.env file):**
+
+```env
+NODE_ENV=development
+AZURE_STORAGE_CONNECTION_STRING=your-connection-string
+```
+
+**Development Config (config.development.json):**
+
+```json
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "storage": {
+    "type": "azure",
+    "azure": {
+      "connectionString": "UseDevelopmentStorage=true",
+      "container": "uploads"
+    }
+  }
+}
+```
+
+## Development Notes
+
+### Azure Storage Emulator (Azurite)
+
+[Azurite documentation](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite?tabs=visual-studio%2Cblob-storage)
+
+**Installation:**
+
+- Comes with Visual Studio 2022
+- Located at: `C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Azure Storage Emulator\azurite.exe`
+
+**Usage:**
+
+```bash
+# Start Azurite
+npm run start-storage-emulator
+
+# Azurite runs on:
+# - Blob: http://127.0.0.1:10000
+# - Queue: http://127.0.0.1:10001
+# - Table: http://127.0.0.1:10002
+```
+
+**Connection String:**
+
+- Development: `UseDevelopmentStorage=true`
+- Production: `DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net`
+
+### Storage Types
+
+**Local Storage:**
+
+- Files stored in `uploads/` directory
+- Good for development and testing
+- Files persist between server restarts
+
+**Azure Blob Storage:**
+
+- Files stored in Azure Blob Storage
+- Scalable and persistent
+- Requires Azure Storage account
+
+### Process Management
+
+**Useful Commands:**
+
+```bash
+# Find processes on port 3000
+npm run find-process
+
+# Kill all Node.js processes
+npm run kill-node
+
+# Kill specific process by PID
+npm run kill-task-byid --pid=1234
+
+# Kill process on port 3000
+npm run kill-port-3000
+```
+
+## API Endpoints
+
+- `GET /` - Hello message
+- `POST /upload` - Upload a file
+- `GET /files` - List all files
+- `GET /files/:filename` - Download a file
+- `DELETE /files/:filename` - Delete a file
+
+## Deployment
+
+### Environment Switching
+
+**For different environments:**
+
+```bash
+# Development
+cp env/.env.development env/.env
+
+# Staging
+cp env/.env.staging env/.env
+
+# Production
+cp env/.env.production env/.env
+```
+
+### Azure Deployment
+
+1. Set `NODE_ENV=production` in `.env`
+2. Add `AZURE_STORAGE_CONNECTION_STRING` to environment variables
+3. Deploy to Azure App Service
+4. Files will automatically use Azure Blob Storage
+
+## Project Structure
+
+```
+file-service/
+├── src/
+│   ├── config/           ← Configuration management
+│   ├── storage/          ← Storage service (local/Azure)
+│   ├── app.controller.ts ← API endpoints
+│   ├── app.service.ts    ← Business logic
+│   └── main.ts          ← Application bootstrap
+├── env/                  ← Environment configuration
+├── uploads/             ← Local file storage
+└── azurite/             ← Azurite data (auto-created)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Port 3000 already in use:**
+
+```bash
+npm run kill-port-3000
+```
+
+**Azurite not starting:**
+
+- Check if Visual Studio 2022 is installed
+- Verify the path in package.json scripts
+- Try running Azurite manually first
+
+**Azure connection issues:**
+
+- Verify connection string format
+- Check if Azure Storage account exists
+- Ensure container is created
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `npm test`
+5. Submit a pull request
+
+# NESTJS README BEGINS
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

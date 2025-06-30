@@ -46,6 +46,12 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Azure Storage Emulator (Azurite)
+azurite/
+
+# Local file storage
+uploads/
+
 # Runtime data
 pids
 *.pid

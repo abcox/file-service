@@ -4,13 +4,16 @@
     "host": "localhost"
   },
   "storage": {
-    "type": "local",
+    "type": "azure",
     "local": {
       "uploadDir": "uploads"
     },
     "azure": {
-      "connectionString": "",
+      "connectionString": "UseDevelopmentStorage=true",
       "container": "uploads"
+    },
+    "options": {
+      "safeMode": false
     }
   },
   "logging": {

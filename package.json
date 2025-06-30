@@ -20,9 +20,15 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "--------------------------------------": "--------------------------------------",
     "find-process": "netstat -ano | findstr :3000",
-    "kill-node": "taskkill /F /IM node.exe"
+    "kill-node": "taskkill /F /IM node.exe",
+    "kill-task-byid": "taskkill /pid %npm_config_pid% /f",
+    "kill-task-id": "taskkill /f /pid",
+    "kill-port-3000": "powershell \"Get-NetTCPConnection | Where-Object {$_.LocalPort -eq 3000} | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force } 2>$null 1>$null\"",
+    "kill-port-3000-alt": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :3000') do taskkill //PID %a //F 2>$null 1>$null",
+    "start-storage-emulator": "cmd /c \"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\Extensions\\Microsoft\\Azure Storage Emulator\\azurite.exe\" --silent --location .\\azurite --debug .\\azurite\\debug.log\" --skipApiVersionCheck "
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.27.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

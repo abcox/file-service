@@ -9,8 +9,11 @@
       "uploadDir": "uploads"
     },
     "azure": {
-      "connectionString": "${AZURE_STORAGE_CONNECTION_STRING}",
+      "connectionString": "AZURE_STORAGE_CONNECTION_STRING",
       "container": "uploads"
+    },
+    "options": {
+      "safeMode": false
     }
   },
   "logging": {

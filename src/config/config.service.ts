@@ -27,9 +27,21 @@ export class AppConfigService {
     }
 
     const configData = fs.readFileSync(configPath, 'utf8');
-    this.config = JSON.parse(configData) as AppConfig;
+    const parsedConfig = JSON.parse(configData) as AppConfig;
+
+    // Substitute environment variables
+    this.config = this.substituteEnvVars(parsedConfig);
 
     console.log(`✅ Config loaded for environment: ${nodeEnv}`);
+  }
+
+  private substituteEnvVars(config: AppConfig): AppConfig {
+    const configStr = JSON.stringify(config);
+    const substitutedStr = configStr.replace(
+      /AZURE_STORAGE_CONNECTION_STRING/g,
+      this.configService.get<string>('AZURE_STORAGE_CONNECTION_STRING') || '',
+    );
+    return JSON.parse(substitutedStr) as AppConfig;
   }
 
   getConfig(): AppConfig {
@@ -54,5 +66,11 @@ export class AppConfigService {
 
   getStorageType(): 'local' | 'azure' {
     return this.config.storage.type;
+  }
+
+  getStorageOptions(): { safeMode: boolean } {
+    return {
+      safeMode: this.config.storage.options.safeMode || false,
+    };
   }
 }

@@ -12,10 +12,15 @@ export interface AzureStorageConfig {
   container: string;
 }
 
+export interface StorageOptions {
+  safeMode: boolean;
+}
+
 export interface StorageConfig {
   type: 'local' | 'azure';
   local: LocalStorageConfig;
   azure: AzureStorageConfig;
+  options: StorageOptions;
 }
 
 export interface LoggingConfig {
