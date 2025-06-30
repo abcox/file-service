@@ -30,20 +30,24 @@ export class StorageService {
       storageConfig.type === 'azure' &&
       storageConfig.azure.connectionString
     ) {
-      const blobServiceClient = BlobServiceClient.fromConnectionString(
-        storageConfig.azure.connectionString,
-      );
-      this.azureContainerClient = blobServiceClient.getContainerClient(
-        storageConfig.azure.container,
-      );
+      const { connectionString, container } = storageConfig.azure;
+      const blobServiceClient =
+        BlobServiceClient.fromConnectionString(connectionString);
+      this.azureContainerClient =
+        blobServiceClient.getContainerClient(container);
       // Ensure container exists
       this.azureContainerClient
         .createIfNotExists()
         .then(() => {
-          console.log('☁️ Azure container ensured');
+          console.log(
+            `☁️ Azure container existance assured for: '${container}'`,
+          );
         })
         .catch((error) => {
-          console.error('❌ Failed to ensure Azure container:', error);
+          console.error(
+            `❌ Failed to assure Azure container '${container}' exists:`,
+            error,
+          );
         });
       console.log('🔗 Azure Blob Storage client initialized');
     }
