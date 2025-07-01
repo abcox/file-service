@@ -29,6 +29,8 @@
     "start-storage-emulator": "cmd /c \"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\Extensions\\Microsoft\\Azure Storage Emulator\\azurite.exe\" --silent --location .\\azurite --debug .\\azurite\\debug.log\" --skipApiVersionCheck "
   },
   "dependencies": {
+    "@azure/identity": "^4.10.1",
+    "@azure/keyvault-secrets": "^4.10.0",
     "@azure/storage-blob": "^12.27.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -84,4 +86,3 @@
     "testEnvironment": "node"
   }
 }
-

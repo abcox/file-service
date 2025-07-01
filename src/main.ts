@@ -9,14 +9,12 @@ async function bootstrap() {
 
   // Get config service
   const configService = app.get(AppConfigService);
-  const serverConfig = configService.getServerConfig();
+  const port = configService.getPort();
 
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('File Service API')
-    .setDescription(
-      'A file service API for handling file uploads and management',
-    )
+    .setDescription('A file service supporting local and Azure Blob Storage')
     .setVersion('1.0')
     .addTag('files')
     .build();
@@ -24,12 +22,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(serverConfig.port, serverConfig.host);
-  console.log(
-    `Application is running on: http://${serverConfig.host}:${serverConfig.port}`,
-  );
-  console.log(
-    `Swagger documentation is available at: http://${serverConfig.host}:${serverConfig.port}/api`,
-  );
+  await app.listen(port);
+  console.log(`Application is running on: http://localhost:${port}`);
+  console.log(`Swagger documentation: http://localhost:${port}/api`);
 }
 bootstrap();

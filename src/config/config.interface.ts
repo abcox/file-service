@@ -1,35 +1,25 @@
-export interface ServerConfig {
-  port: number;
-  host: string;
-}
-
-export interface LocalStorageConfig {
-  uploadDir: string;
-}
-
-export interface AzureStorageConfig {
-  connectionString: string;
-  container: string;
-}
-
-export interface StorageOptions {
-  safeMode?: boolean;
-}
-
-export interface StorageConfig {
-  type: 'local' | 'azure';
-  local: LocalStorageConfig;
-  azure: AzureStorageConfig;
-  options?: StorageOptions;
-}
-
-export interface LoggingConfig {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  enableConsole: boolean;
-}
-
 export interface AppConfig {
-  server: ServerConfig;
-  storage: StorageConfig;
-  logging: LoggingConfig;
+  port: number;
+  environment: string;
+  storage: {
+    type: 'local' | 'azure' | 'emulator';
+    local: {
+      uploadPath: string;
+    };
+    azure: {
+      connectionString: string;
+      containerName: string;
+    };
+    emulator: {
+      connectionString: string;
+      containerName: string;
+    };
+    options: {
+      safeMode: boolean;
+    };
+  };
+  keyVault?: {
+    enabled: boolean;
+    vaultUrl: string;
+  };
 }

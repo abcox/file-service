@@ -1,23 +1,29 @@
 {
-  "server": {
-    "port": 3000,
-    "host": "localhost"
-  },
+  "port": 3000,
+  "environment": "development",
   "storage": {
     "type": "azure",
     "local": {
-      "uploadDir": "uploads"
+      "uploadPath": "uploads"
     },
     "azure": {
+      "connectionString": "",
+      "containerName": "uploads"
+    },
+    "emulator": {
       "connectionString": "UseDevelopmentStorage=true",
-      "container": "uploads"
+      "containerName": "uploads"
     },
     "options": {
       "safeMode": false
     }
   },
+  "keyVault": {
+    "vaultUrl": "https://vorba-sand-kv-2.vault.azure.net/",
+    "enabled": true
+  },
   "logging": {
     "level": "debug",
     "enableConsole": true
   }
-} 
+}
