@@ -196,7 +196,7 @@ export class StorageService {
 
   private uploadToLocal(file: Buffer, filename: string): FileInfo {
     const localConfig = this.appConfigService.getLocalStorageConfig();
-    const filePath = path.join(localConfig.uploadPath, filename);
+    const filePath = path.join(localConfig.subfolderPath, filename);
 
     fs.writeFileSync(filePath, file);
 
@@ -247,14 +247,15 @@ export class StorageService {
 
   private getFilesFromLocal(): FileInfo[] {
     const localConfig = this.appConfigService.getLocalStorageConfig();
+    const folderPath = path.join(process.cwd(), localConfig.subfolderPath);
 
-    if (!fs.existsSync(localConfig.uploadPath)) {
+    if (!fs.existsSync(folderPath)) {
       return [];
     }
 
-    const files = fs.readdirSync(localConfig.uploadPath);
+    const files = fs.readdirSync(folderPath);
     return files.map((filename) => {
-      const filePath = path.join(localConfig.uploadPath, filename);
+      const filePath = path.join(folderPath, filename);
       const stats = fs.statSync(filePath);
       return {
         filename,
@@ -299,7 +300,7 @@ export class StorageService {
 
   private downloadFromLocal(filename: string): Buffer {
     const localConfig = this.appConfigService.getLocalStorageConfig();
-    const filePath = path.join(localConfig.uploadPath, filename);
+    const filePath = path.join(localConfig.subfolderPath, filename);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File ${filename} not found`);
@@ -333,7 +334,7 @@ export class StorageService {
 
   private deleteFromLocal(filename: string): void {
     const localConfig = this.appConfigService.getLocalStorageConfig();
-    const filePath = path.join(localConfig.uploadPath, filename);
+    const filePath = path.join(localConfig.subfolderPath, filename);
 
     if (!fs.existsSync(filePath)) {
       throw new Error(`File ${filename} not found`);

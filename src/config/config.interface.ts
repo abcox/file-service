@@ -4,7 +4,7 @@ export interface AppConfig {
   storage: {
     type: 'local' | 'azure' | 'emulator';
     local: {
-      uploadPath: string;
+      subfolderPath: string;
     };
     azure: {
       connectionString: string;

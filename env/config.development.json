@@ -2,9 +2,9 @@
   "port": 3000,
   "environment": "development",
   "storage": {
-    "type": "azure",
+    "type": "local",
     "local": {
-      "uploadPath": "uploads"
+      "subfolderPath": "uploads"
     },
     "azure": {
       "connectionString": "",
