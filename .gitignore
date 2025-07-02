@@ -52,6 +52,9 @@ azurite/
 # Local file storage
 uploads/
 
+# JWT secrets and tokens (keep out of git!)
+scripts/token/out/*
+
 # Runtime data
 pids
 *.pid

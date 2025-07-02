@@ -21,5 +21,8 @@
   "logging": {
     "level": "info",
     "enableConsole": true
+  },
+  "auth": {
+    "secret": ""
   }
 }

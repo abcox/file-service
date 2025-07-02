@@ -25,5 +25,8 @@
   "logging": {
     "level": "debug",
     "enableConsole": true
+  },
+  "auth": {
+    "secret": ""
   }
 }

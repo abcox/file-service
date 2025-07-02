@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SecretClient } from '@azure/keyvault-secrets';
+import { KeyVaultSecret, SecretClient } from '@azure/keyvault-secrets';
 import { DefaultAzureCredential } from '@azure/identity';
 import { LoggerService } from '../logging/logger.service';
 
@@ -59,8 +59,7 @@ export class KeyVaultService {
       }
 
       try {
-        const secret = await this.secretClient!.getSecret(secretName);
-        const secretValue = secret.value;
+        const secretValue = await this.getSecret(secretName);
 
         if (secretValue) {
           const placeholder = `{{${secretName}}}`;
@@ -113,12 +112,12 @@ export class KeyVaultService {
         }
 
         try {
-          const secretValue = await this.secretClient.getSecret(secretName);
-          if (secretValue.value) {
+          const secretValue = await this.getSecret(secretName);
+          if (secretValue) {
             this.setNestedValue(
               config,
               this.secretNameToPath(secretName),
-              secretValue.value,
+              secretValue,
             );
             this.logger.debug('Config built from secret', {
               secretName,
@@ -197,7 +196,33 @@ export class KeyVaultService {
     }
 
     try {
-      const secret = await this.secretClient.getSecret(secretName);
+      this.logger.debug('Requesting secret from Key Vault', { secretName });
+      const secret: KeyVaultSecret =
+        await this.secretClient.getSecret(secretName);
+
+      if (secret.value) {
+        const valueLength = secret.value.length;
+        const valuePreview =
+          valueLength > 10
+            ? `${secret.value.substring(0, 5)}...${secret.value.substring(valueLength - 5)}`
+            : secret.value;
+
+        this.logger.debug('Secret retrieved successfully from Key Vault', {
+          secretName,
+          valueLength,
+          valuePreview,
+          version: secret.properties.version,
+          encoding: 'utf8',
+          byteLength: Buffer.byteLength(secret.value, 'utf8'),
+          hexPreview:
+            Buffer.from(secret.value).toString('hex').substring(0, 20) + '...',
+        });
+      } else {
+        this.logger.warn('Secret retrieved but value is empty', {
+          secretName,
+          version: secret.properties.version,
+        });
+      }
       return secret.value || null;
     } catch (error) {
       this.logger.error('Failed to get secret', error as Error, { secretName });
@@ -248,10 +273,19 @@ export class KeyVaultService {
       } else if (value === '' || value === null || value === undefined) {
         // Try to resolve empty value from Key Vault
         const secretName = this.configPathToSecretName(currentPath);
+        this.logger.debug(
+          'Requesting secret from Key Vault for empty config value',
+          {
+            path: currentPath,
+            secretName,
+          },
+        );
+
         try {
-          const secret = await this.secretClient!.getSecret(secretName);
-          if (secret.value) {
-            result[key] = secret.value;
+          const secretValue = await this.getSecret(secretName);
+
+          if (secretValue) {
+            result[key] = secretValue;
             this.logger.debug('Empty config value resolved from Key Vault', {
               path: currentPath,
               secretName,
@@ -263,11 +297,12 @@ export class KeyVaultService {
               secretName,
             });
           }
-        } catch {
+        } catch (error) {
           result[key] = value; // Keep original empty value
           this.logger.debug('Failed to get secret for empty config value', {
             path: currentPath,
             secretName,
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       } else {

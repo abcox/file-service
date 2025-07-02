@@ -8,6 +8,7 @@ import {
   Delete,
   Res,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -18,9 +19,11 @@ import {
   ApiParam,
   ApiResponse,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AppService } from './app.service';
+import { JwtAuthGuard } from './auth/api-key.guard';
 
 interface UploadedFile {
   originalname: string;
@@ -31,6 +34,8 @@ interface UploadedFile {
 
 @ApiTags('files')
 @Controller()
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
@@ -39,6 +44,13 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Returns hello message' })
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('debug-jwt')
+  @ApiOperation({ summary: 'Debug JWT configuration' })
+  @ApiResponse({ status: 200, description: 'JWT debug info' })
+  debugJwt() {
+    return { message: 'JWT debug endpoint - check logs for details' };
   }
 
   @Post('upload')
@@ -57,6 +69,10 @@ export class AppController {
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   @UseInterceptors(FileInterceptor('file'))
   uploadFile(@UploadedFile() file: UploadedFile) {
     return this.appService.uploadFile(file);
@@ -65,6 +81,10 @@ export class AppController {
   @Get('files')
   @ApiOperation({ summary: 'Get all files' })
   @ApiResponse({ status: 200, description: 'Returns list of files' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   getFiles() {
     return this.appService.getFiles();
   }
@@ -78,6 +98,10 @@ export class AppController {
     description: 'Optional new filename for the download',
   })
   @ApiResponse({ status: 200, description: 'File downloaded successfully' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   @ApiResponse({ status: 404, description: 'File not found' })
   downloadFile(
     @Param('filename') filename: string,
@@ -91,6 +115,10 @@ export class AppController {
   @ApiOperation({ summary: 'Delete a file' })
   @ApiParam({ name: 'filename', description: 'Name of the file to delete' })
   @ApiResponse({ status: 200, description: 'File deleted successfully' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   @ApiResponse({ status: 404, description: 'File not found' })
   deleteFile(@Param('filename') filename: string) {
     return this.appService.deleteFile(filename);

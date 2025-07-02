@@ -19,6 +19,9 @@ export class AppService {
     private logger: LoggerService,
   ) {
     this.logger.info('AppService constructor called - logging is working!');
+  }
+
+  onModuleInit() {
     this.logger.info('Storage type configured', {
       storageType: this.appConfigService.getStorageType(),
     });
