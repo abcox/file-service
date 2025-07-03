@@ -114,6 +114,8 @@ jobs:
             MAIN_JS_PATH="main.js"
           elif [ -f "deploy/src/main.js" ]; then
             MAIN_JS_PATH="src/main.js"
+          elif [ -f "deploy/dist/src/main.js" ]; then
+            MAIN_JS_PATH="dist/src/main.js"
           else
             echo "ERROR: Could not find main.js in deploy directory!"
             echo "Deploy directory contents:"
