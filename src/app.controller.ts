@@ -49,9 +49,11 @@ export class AppController {
     };
   }
 
-  @Get()
+  // TODO: review these decortors because we are effectively guarding all since auth module is loaded
+  // SEE api-key.guard.ts for public paths
+  @Get() /* 
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth() */
   @ApiOperation({ summary: 'Get hello message' })
   @ApiResponse({ status: 200, description: 'Returns hello message' })
   @ApiResponse({
@@ -101,6 +103,8 @@ export class AppController {
   }
 
   @Get('files')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all files' })
   @ApiResponse({ status: 200, description: 'Returns list of files' })
   @ApiResponse({
