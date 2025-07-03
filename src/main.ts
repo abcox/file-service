@@ -35,6 +35,13 @@ async function bootstrap() {
   // Set the loaded config on the AppConfigService instance
   const configService = app.get(AppConfigService);
   configService.setConfig(config);
+
+  // Debug port information
+  console.log('🔍 PORT DEBUG INFO:');
+  console.log(`  process.env.PORT: ${process.env.PORT || 'undefined'}`);
+  console.log(`  configService.getPort(): ${configService.getPort()}`);
+  console.log(`  config.port: ${config.port}`);
+
   const port = process.env.PORT || configService.getPort() || 3000;
   console.log(
     `🔧 Using port: ${port} (from ${process.env.PORT ? 'process.env.PORT' : 'config service'})`,
