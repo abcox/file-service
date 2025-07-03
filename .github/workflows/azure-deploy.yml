@@ -36,7 +36,37 @@ jobs:
         run: npm test
 
       - name: Build NestJS application
-        run: npm run build
+        run: |
+          echo "=== BUILD STEP DEBUG ==="
+          echo "Current directory: $(pwd)"
+          echo "Node version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Running: npm run build"
+          
+          # Run build with verbose output
+          npm run build
+          
+          echo "=== POST-BUILD DEBUG ==="
+          echo "Build exit code: $?"
+          echo "Dist directory exists: $(test -d dist && echo 'YES' || echo 'NO')"
+          echo "Dist directory contents:"
+          ls -la dist/ || echo "dist/ directory not found"
+          
+          # Check for any .js files
+          echo "JavaScript files in dist:"
+          find dist/ -name "*.js" 2>/dev/null || echo "No .js files found"
+          
+          # Check for main.js specifically
+          echo "Main.js exists: $(test -f dist/main.js && echo 'YES' || echo 'NO')"
+          
+          # If no .js files, try to run build manually with more verbose output
+          if [ ! -f dist/main.js ]; then
+            echo "=== MANUAL BUILD DEBUG ==="
+            echo "Trying manual TypeScript compilation..."
+            npx tsc --listFiles 2>&1 | head -20 || echo "TypeScript compilation failed"
+            echo "Checking for TypeScript errors..."
+            npx tsc --noEmit 2>&1 || echo "TypeScript compilation has errors"
+          fi
         env:
           NODE_ENV: production
 
