@@ -35,8 +35,10 @@ async function bootstrap() {
   // Set the loaded config on the AppConfigService instance
   const configService = app.get(AppConfigService);
   configService.setConfig(config);
-  const port = configService.getPort();
-  console.log(`🔧 Using port: ${port}`);
+  const port = process.env.PORT || configService.getPort() || 3000;
+  console.log(
+    `🔧 Using port: ${port} (from ${process.env.PORT ? 'process.env.PORT' : 'config service'})`,
+  );
 
   // Swagger configuration
   console.log('📚 Setting up Swagger documentation...');

@@ -86,49 +86,61 @@ jobs:
           
           # Create a deployment package optimized for Linux App Service
           mkdir -p deploy
+          echo "Created deploy directory"
           
-          # Copy built files - DO NOT preserve the dist structure
+          # Copy built files - preserve the dist structure
           if [ -d "dist" ]; then
-            cp -r dist deploy/
-            echo "Copied dist to deploy/"
+            echo "Copying dist/* to deploy/..."
+            cp -r dist/* deploy/
+            echo "✅ Copied dist/* to deploy/"
           else
-            echo "ERROR: dist directory not found!"
+            echo "❌ ERROR: dist directory not found!"
             exit 1
           fi
           
           # Copy package files
+          echo "Copying package files..."
           cp package*.json deploy/
-          cp nest-cli.json deploy/ 2>/dev/null || true
+          cp nest-cli.json deploy/ 2>/dev/null || echo "nest-cli.json not found (optional)"
+          echo "✅ Package files copied"
           
           # Copy configuration files
+          echo "Copying configuration files..."
           cp -r env/ deploy/
+          echo "✅ Configuration files copied"
           
           # Install production dependencies in deploy directory
-          echo "Installing production dependencies..."
+          echo "Installing production dependencies in deploy/..."
           cd deploy
           npm ci --only=production
           cd ..
+          echo "✅ Production dependencies installed"
           
           # Determine the correct main.js location based on actual build output
+          echo "🔍 Determining main.js location..."
           if [ -f "deploy/main.js" ]; then
             MAIN_JS_PATH="main.js"
+            echo "Found main.js at deploy/main.js"
           elif [ -f "deploy/src/main.js" ]; then
             MAIN_JS_PATH="src/main.js"
-          elif [ -f "deploy/dist/src/main.js" ]; then
-            MAIN_JS_PATH="dist/src/main.js"
+            echo "Found main.js at deploy/src/main.js"
           else
-            echo "ERROR: Could not find main.js in deploy directory!"
+            echo "❌ ERROR: Could not find main.js in deploy directory!"
             echo "Deploy directory contents:"
             find deploy/ -name "*.js" 2>/dev/null || echo "No .js files found"
+            echo "Full deploy directory structure:"
+            find deploy/ -type f 2>/dev/null | head -20
             exit 1
           fi
           
-          echo "Using main.js at: $MAIN_JS_PATH"
+          echo "✅ Using main.js at: $MAIN_JS_PATH"
           
           # Create startup command for Linux App Service
+          echo "Creating startup.txt with: node $MAIN_JS_PATH"
           echo "node $MAIN_JS_PATH" > deploy/startup.txt
           
           # Create .deployment file to specify startup command
+          echo "Creating .deployment file with command: node $MAIN_JS_PATH"
           #cat > deploy/.deployment << EOF
           #[config]
           #command = node $MAIN_JS_PATH
@@ -136,12 +148,6 @@ jobs:
           echo "[config]" > deploy/.deployment
           echo "command = node $MAIN_JS_PATH" >> deploy/.deployment
 
-
-          # Inspect the .deployment file
-          echo "=== .deployment file contents ==="
-          cat deploy/.deployment
-          echo "=== .deployment file contents end ==="
-          
           # Debug: List contents of deploy directory
           echo "=== DEPLOY PACKAGE DEBUG INFO ==="
           echo "Deploy directory contents:"
@@ -149,10 +155,14 @@ jobs:
           echo "Main.js exists at deploy/main.js: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
           echo "Main.js exists at deploy/src/main.js: $(test -f deploy/src/main.js && echo 'YES' || echo 'NO')"
           echo "Package.json exists: $(test -f deploy/package.json && echo 'YES' || echo 'NO')"
+          echo ".deployment file contents:"
+          cat deploy/.deployment
+          echo "startup.txt contents:"
+          cat deploy/startup.txt
           
-          # Show file sizes
-          echo "File sizes in deploy directory:"
-          du -h deploy/* || echo "Could not get file sizes"
+          # Show file sizes (commented out to reduce log noise)
+          # echo "File sizes in deploy directory:"
+          # du -h deploy/* || echo "Could not get file sizes"
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
