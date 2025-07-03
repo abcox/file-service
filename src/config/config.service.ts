@@ -12,7 +12,7 @@ export class AppConfigService {
 
   // Static async initializer for pre-bootstrap config loading
   static async init(logger: LoggerService): Promise<AppConfig> {
-    // 1. Load local config
+    // 1. Load base configuration from JSON files
     const environment = process.env.NODE_ENV || 'development';
     const configPath = path.join(
       process.cwd(),
@@ -31,35 +31,17 @@ export class AppConfigService {
       port: config.port,
     });
 
-    // TEMPORARY BYPASS: Check for environment variable first
-    // TODO: Remove this bypass once Key Vault authentication is working properly
-    const envConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
-    if (envConnectionString && config.storage.type === 'azure') {
-      logger.info(
-        'Using AZURE_STORAGE_CONNECTION_STRING from environment variable (Key Vault bypass)',
-      );
-      config.storage.azure.connectionString = envConnectionString;
-      logger.info('Storage connection string loaded from environment variable');
-    }
+    // 2. Load sensitive configuration from environment variables (development)
+    config = AppConfigService.loadSensitiveConfigFromEnv(config, logger);
 
-    // TEMPORARY BYPASS: Check for JWT secret environment variable
-    const envJwtSecret = process.env.JWT_SECRET;
-    if (envJwtSecret && config.auth) {
-      logger.info(
-        'Using JWT_SECRET from environment variable (Key Vault bypass)',
-      );
-      config.auth.secret = envJwtSecret;
-      logger.info('JWT secret loaded from environment variable');
-    }
-
-    // 2. Check for offline/dev mode
+    // 3. Check for offline/dev mode
     if (process.env.OFFLINE_MODE === 'true') {
       logger.info('Running in OFFLINE MODE. Skipping Key Vault.');
       return config;
     }
 
-    // 3. Load Key Vault secrets (only if we don't have connection string from env)
-    if (config.keyVault?.enabled && !envConnectionString && !envJwtSecret) {
+    // 4. Load Key Vault secrets (production)
+    if (config.keyVault?.enabled && environment === 'production') {
       try {
         const keyVaultService = new KeyVaultService(logger);
         keyVaultService.initializeKeyVault(config.keyVault.vaultUrl);
@@ -76,20 +58,57 @@ export class AppConfigService {
               config.auth.secret.substring(0, 9) +
               '...' +
               config.auth.secret.substring(config.auth.secret.length - 9),
-            //fullSecret: config.auth.secret,
           });
         }
       } catch (err) {
         logger.error('Failed to load secrets from Key Vault', err as Error);
-        // Don't throw error - continue with environment variable if available
-        if (!envConnectionString && !envJwtSecret) {
-          throw err;
+        // In production, Key Vault failure should be fatal
+        if (environment === 'production') {
+          throw new Error(
+            `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          );
         }
         logger.warn(
-          'Continuing with environment variable due to Key Vault failure',
+          'Continuing with environment variables due to Key Vault failure',
         );
       }
     }
+
+    return config;
+  }
+
+  // Helper method to load sensitive config from environment variables
+  private static loadSensitiveConfigFromEnv(
+    config: AppConfig,
+    logger: LoggerService,
+  ): AppConfig {
+    // Load Azure Storage connection string
+    logger.info('AZURE_STORAGE_CONNECTION_STRING', {
+      AZURE_STORAGE_CONNECTION_STRING:
+        process.env.AZURE_STORAGE_CONNECTION_STRING,
+    });
+    const envConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    if (envConnectionString && config.storage.type === 'azure') {
+      logger.info(
+        'Using AZURE_STORAGE_CONNECTION_STRING from environment variable',
+      );
+      config.storage.azure.connectionString = envConnectionString;
+    }
+
+    // Load JWT secret
+    const envJwtSecret = process.env.JWT_SECRET;
+    if (envJwtSecret && config.auth) {
+      logger.info('Using JWT_SECRET from environment variable');
+      config.auth.secret = envJwtSecret;
+    }
+
+    // Load other sensitive values as needed
+    const envApiKey = process.env.API_KEY;
+    if (envApiKey && config.auth) {
+      logger.info('Using API_KEY from environment variable');
+      config.auth.apiKey = envApiKey;
+    }
+
     return config;
   }
 
@@ -135,5 +154,18 @@ export class AppConfigService {
 
   getSafeMode(): boolean {
     return this.config.storage.options.safeMode;
+  }
+
+  // Helper methods for sensitive configuration
+  getJwtSecret(): string | undefined {
+    return this.config.auth?.secret;
+  }
+
+  getApiKey(): string | undefined {
+    return this.config.auth?.apiKey;
+  }
+
+  getAzureConnectionString(): string | undefined {
+    return this.config.storage.azure?.connectionString;
   }
 }

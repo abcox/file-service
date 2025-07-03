@@ -5,10 +5,4 @@
     "source.fixAll.eslint": "explicit"
   },
   "typescript.preferences.importModuleSpecifier": "relative",
-  "files.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
-    "**/azurite": true,
-    "**/uploads": true
-  }
 }

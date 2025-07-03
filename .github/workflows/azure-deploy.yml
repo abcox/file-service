@@ -87,7 +87,7 @@ jobs:
           # Create a deployment package optimized for Linux App Service
           mkdir -p deploy
           
-          # Copy built files
+          # Copy built files - preserve the dist structure
           if [ -d "dist" ]; then
             cp -r dist/* deploy/
             echo "Copied dist/* to deploy/"
@@ -109,7 +109,7 @@ jobs:
           npm ci --only=production
           cd ..
           
-          # Determine the correct main.js location
+          # Determine the correct main.js location based on actual build output
           if [ -f "deploy/main.js" ]; then
             MAIN_JS_PATH="main.js"
           elif [ -f "deploy/src/main.js" ]; then

@@ -2,7 +2,7 @@
   "port": 3000,
   "environment": "development",
   "storage": {
-    "type": "local",
+    "type": "emulator",
     "local": {
       "subfolderPath": "uploads"
     },

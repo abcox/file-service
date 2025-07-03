@@ -96,7 +96,7 @@ AZURE_STORAGE_CONNECTION_STRING=your-connection-string
 
 ```bash
 # Start Azurite
-npm run start-storage-emulator
+npm run start-storage-emulator  
 
 # Azurite runs on:
 # - Blob: http://127.0.0.1:10000
@@ -187,6 +187,15 @@ file-service/
 ├── uploads/             ← Local file storage
 └── azurite/             ← Azurite data (auto-created)
 ```
+
+## Configuration
+
+For detailed information about configuration management, see [CONFIGURATION.md](./CONFIGURATION.md).
+
+The application uses a layered configuration approach:
+- **Base Configuration**: JSON files for non-sensitive settings
+- **Environment Variables**: `.env` files for sensitive local development data
+- **Azure Key Vault**: Secure storage for production secrets
 
 ## Troubleshooting
 

@@ -9,5 +9,5 @@ export interface AppConfig {
     options: { safeMode: boolean };
   };
   keyVault?: { enabled: boolean; vaultUrl: string };
-  auth?: { secret: string };
+  auth?: { secret: string; apiKey?: string };
 }
