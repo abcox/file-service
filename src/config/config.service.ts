@@ -40,37 +40,45 @@ export class AppConfigService {
       return config;
     }
 
-    // 4. Load Key Vault secrets (production)
+    // 4. Load Key Vault secrets (production) - only if environment variables are not set
     if (config.keyVault?.enabled && environment === 'production') {
-      try {
-        const keyVaultService = new KeyVaultService(logger);
-        keyVaultService.initializeKeyVault(config.keyVault.vaultUrl);
-        let resolvedConfig =
-          await keyVaultService.resolveSecretsInConfig(config);
-        resolvedConfig =
-          await keyVaultService.resolveEmptyConfigValues(resolvedConfig);
-        config = resolvedConfig;
-        logger.info('Key Vault secrets loaded successfully');
-        if (config.auth?.secret) {
-          logger.info('Auth secret loaded from Key Vault', {
-            secretLength: config.auth.secret.length,
-            secretPreview:
-              config.auth.secret.substring(0, 9) +
-              '...' +
-              config.auth.secret.substring(config.auth.secret.length - 9),
-          });
-        }
-      } catch (err) {
-        logger.error('Failed to load secrets from Key Vault', err as Error);
-        // In production, Key Vault failure should be fatal
-        if (environment === 'production') {
-          throw new Error(
-            `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      // Check if we have environment variables set
+      const hasEnvVars =
+        process.env.AZURE_STORAGE_CONNECTION_STRING || process.env.JWT_SECRET;
+
+      if (hasEnvVars) {
+        logger.info('Environment variables detected, skipping Key Vault');
+      } else {
+        try {
+          const keyVaultService = new KeyVaultService(logger);
+          keyVaultService.initializeKeyVault(config.keyVault.vaultUrl);
+          let resolvedConfig =
+            await keyVaultService.resolveSecretsInConfig(config);
+          resolvedConfig =
+            await keyVaultService.resolveEmptyConfigValues(resolvedConfig);
+          config = resolvedConfig;
+          logger.info('Key Vault secrets loaded successfully');
+          if (config.auth?.secret) {
+            logger.info('Auth secret loaded from Key Vault', {
+              secretLength: config.auth.secret.length,
+              secretPreview:
+                config.auth.secret.substring(0, 9) +
+                '...' +
+                config.auth.secret.substring(config.auth.secret.length - 9),
+            });
+          }
+        } catch (err) {
+          logger.error('Failed to load secrets from Key Vault', err as Error);
+          // In production, Key Vault failure should be fatal
+          if (environment === 'production') {
+            throw new Error(
+              `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            );
+          }
+          logger.warn(
+            'Continuing with environment variables due to Key Vault failure',
           );
         }
-        logger.warn(
-          'Continuing with environment variables due to Key Vault failure',
-        );
       }
     }
 
