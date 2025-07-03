@@ -87,9 +87,9 @@ jobs:
           # Create a deployment package optimized for Linux App Service
           mkdir -p deploy
           
-          # Copy built files - preserve the dist structure
+          # Copy built files - DO NOTpreserve the dist structure
           if [ -d "dist" ]; then
-            cp -r dist/* deploy/
+            cp -r dist deploy/
             echo "Copied dist/* to deploy/"
           else
             echo "ERROR: dist directory not found!"
