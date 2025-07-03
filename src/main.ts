@@ -42,17 +42,8 @@ async function bootstrap() {
   console.log(`  configService.getPort(): ${configService.getPort()}`);
   console.log(`  config.port: ${config.port}`);
 
-  // Use a different port if Azure's assigned port is problematic
-  let port = process.env.PORT || configService.getPort() || 3000;
-
-  // If Azure assigned port 8181 (which seems to be in use), use a different port
-  if (port === '8181' || port === 8181) {
-    port = 8080; // Use the port from our production config
-    console.log(
-      '⚠️  Azure assigned port 8181 (in use), using port 8080 instead',
-    );
-  }
-
+  // Use PORT from environment (set by Azure) or fallback to config
+  const port = process.env.PORT || configService.getPort() || 3000;
   console.log(
     `🔧 Using port: ${port} (from ${process.env.PORT ? 'process.env.PORT' : 'config service'})`,
   );

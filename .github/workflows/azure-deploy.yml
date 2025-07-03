@@ -188,6 +188,7 @@ jobs:
             AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             NODE_ENV=production \
+            PORT=8081 \
             SCM_COMMAND_IDLE_TIMEOUT=600
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
