@@ -184,8 +184,8 @@ jobs:
             AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             NODE_ENV=production \
-            PORT=8081 \
-            SCM_COMMAND_IDLE_TIMEOUT=600
+            PORT=8080 \
+            SCM_COMMAND_IDLE_TIMEOUT=120
           
           # Set Node.js version
           echo "Setting Node.js version..."
@@ -218,6 +218,18 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Debug deployment package
+        run: |
+          echo "=== DEPLOYMENT PACKAGE VERIFICATION ==="
+          echo "Package directory: ./deploy"
+          echo "Package exists: $(test -d deploy && echo 'YES' || echo 'NO')"
+          echo "Package size: $(du -sh deploy 2>/dev/null || echo 'Could not get size')"
+          echo "Package contents:"
+          find deploy/ -type f 2>/dev/null | head -20
+          echo "Main.js location: $(find deploy/ -name 'main.js' 2>/dev/null || echo 'NOT FOUND')"
+          echo ".deployment file:"
+          cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
+
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
@@ -229,6 +241,28 @@ jobs:
         run: |
           echo "Waiting for deployment to complete..."
           sleep 30
+
+      - name: Verify deployment via Azure CLI
+        run: |
+          echo "=== POST-DEPLOYMENT VERIFICATION ==="
+          
+          # Check if the app service is running
+          echo "Checking app service status..."
+          az webapp show \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "{name:name, state:state, kind:kind, location:location}" \
+            --output table
+          
+          # Check deployment status
+          echo "Checking deployment status..."
+          az webapp deployment list-publishing-credentials \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "publishingUserName" \
+            --output tsv
+          
+          echo "Deployment verification complete"
 
       - name: Health check
         run: |
