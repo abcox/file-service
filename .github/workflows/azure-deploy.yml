@@ -101,8 +101,14 @@ jobs:
           
           # Copy configuration files
           echo "Copying configuration files..."
+          echo "Env directory exists: $(test -d env && echo 'YES' || echo 'NO')"
+          echo "Env directory contents:"
+          ls -la env/ || echo "env/ directory not found"
           cp -r env/ deploy/
           echo "✅ Configuration files copied"
+          echo "Deploy env directory exists: $(test -d deploy/env && echo 'YES' || echo 'NO')"
+          echo "Deploy env directory contents:"
+          ls -la deploy/env/ || echo "deploy/env/ directory not found"
           
           # Install production dependencies in deploy directory
           echo "Installing production dependencies in deploy/..."
@@ -185,9 +191,9 @@ jobs:
             AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
             JWT_SECRET="${{ secrets.JWT_SECRET }}" \
             NODE_ENV=production \
-            PORT=8081 \
+            PORT=8080 \
             WEBSITE_NODE_DEFAULT_VERSION=22.14.0 \
-            SCM_COMMAND_IDLE_TIMEOUT=600
+            SCM_COMMAND_IDLE_TIMEOUT=120
           
           # Debug: Check settings after changes
           echo "=== UPDATED APP SETTINGS ==="
@@ -210,6 +216,9 @@ jobs:
           echo "Package contents:"
           find deploy/ -type f 2>/dev/null | head -20
           echo "Main.js location: $(find deploy/ -name 'main.js' -not -path '*/node_modules/*' 2>/dev/null || echo 'NOT FOUND')"
+          echo "Env folder exists: $(test -d deploy/env && echo 'YES' || echo 'NO')"
+          echo "Env folder contents:"
+          ls -la deploy/env/ 2>/dev/null || echo "deploy/env/ not found"
           echo ".deployment file:"
           cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
 

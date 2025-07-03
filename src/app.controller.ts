@@ -41,11 +41,14 @@ export class AppController {
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   health() {
+    console.log('Health check requested');
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'vorba-file-service',
       version: process.env.npm_package_version || '1.0.0',
+      port: process.env.PORT || 'not set',
+      environment: process.env.NODE_ENV || 'not set',
     };
   }
 
@@ -61,6 +64,7 @@ export class AppController {
     description: 'Unauthorized - JWT token required',
   })
   getHello(): string {
+    console.log('Root endpoint requested');
     return this.appService.getHello();
   }
 
