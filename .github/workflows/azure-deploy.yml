@@ -109,20 +109,35 @@ jobs:
           npm ci --only=production
           cd ..
           
+          # Determine the correct main.js location
+          if [ -f "deploy/main.js" ]; then
+            MAIN_JS_PATH="main.js"
+          elif [ -f "deploy/src/main.js" ]; then
+            MAIN_JS_PATH="src/main.js"
+          else
+            echo "ERROR: Could not find main.js in deploy directory!"
+            echo "Deploy directory contents:"
+            find deploy/ -name "*.js" 2>/dev/null || echo "No .js files found"
+            exit 1
+          fi
+          
+          echo "Using main.js at: $MAIN_JS_PATH"
+          
           # Create startup command for Linux App Service
-          echo 'node main.js' > deploy/startup.txt
+          echo "node $MAIN_JS_PATH" > deploy/startup.txt
           
           # Create .deployment file to specify startup command
-          cat > deploy/.deployment << 'EOF'
+          cat > deploy/.deployment << EOF
           [config]
-          command = node main.js
+          command = node $MAIN_JS_PATH
           EOF
           
           # Debug: List contents of deploy directory
           echo "=== DEPLOY PACKAGE DEBUG INFO ==="
           echo "Deploy directory contents:"
           ls -la deploy/
-          echo "Main.js exists: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
+          echo "Main.js exists at deploy/main.js: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
+          echo "Main.js exists at deploy/src/main.js: $(test -f deploy/src/main.js && echo 'YES' || echo 'NO')"
           echo "Package.json exists: $(test -f deploy/package.json && echo 'YES' || echo 'NO')"
           
           # Show file sizes
