@@ -8,7 +8,7 @@ on:
   workflow_dispatch: # Allow manual triggers
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '22.14.0'
   AZURE_WEBAPP_NAME: 'vorba-file-service'
   AZURE_RESOURCE_GROUP: 'vorba-file-service-rg'
 
