@@ -1,6 +1,10 @@
 {
   "port": 8080,
   "host": "0.0.0.0",
+  "azure": {
+    "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
+    "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5"
+  },
   "storage": {
     "type": "azure",
     "local": {

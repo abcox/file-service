@@ -31,14 +31,35 @@ export class AppConfigService {
       port: config.port,
     });
 
+    // TEMPORARY BYPASS: Check for environment variable first
+    // TODO: Remove this bypass once Key Vault authentication is working properly
+    const envConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    if (envConnectionString && config.storage.type === 'azure') {
+      logger.info(
+        'Using AZURE_STORAGE_CONNECTION_STRING from environment variable (Key Vault bypass)',
+      );
+      config.storage.azure.connectionString = envConnectionString;
+      logger.info('Storage connection string loaded from environment variable');
+    }
+
+    // TEMPORARY BYPASS: Check for JWT secret environment variable
+    const envJwtSecret = process.env.JWT_SECRET;
+    if (envJwtSecret && config.auth) {
+      logger.info(
+        'Using JWT_SECRET from environment variable (Key Vault bypass)',
+      );
+      config.auth.secret = envJwtSecret;
+      logger.info('JWT secret loaded from environment variable');
+    }
+
     // 2. Check for offline/dev mode
     if (process.env.OFFLINE_MODE === 'true') {
       logger.info('Running in OFFLINE MODE. Skipping Key Vault.');
       return config;
     }
 
-    // 3. Load Key Vault secrets
-    if (config.keyVault?.enabled) {
+    // 3. Load Key Vault secrets (only if we don't have connection string from env)
+    if (config.keyVault?.enabled && !envConnectionString && !envJwtSecret) {
       try {
         const keyVaultService = new KeyVaultService(logger);
         keyVaultService.initializeKeyVault(config.keyVault.vaultUrl);
@@ -60,7 +81,13 @@ export class AppConfigService {
         }
       } catch (err) {
         logger.error('Failed to load secrets from Key Vault', err as Error);
-        throw err;
+        // Don't throw error - continue with environment variable if available
+        if (!envConnectionString && !envJwtSecret) {
+          throw err;
+        }
+        logger.warn(
+          'Continuing with environment variable due to Key Vault failure',
+        );
       }
     }
     return config;
