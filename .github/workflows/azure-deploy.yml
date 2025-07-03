@@ -96,19 +96,19 @@ jobs:
           cp nest-cli.json deploy/ 2>/dev/null || true
           
           # Create startup command for Linux App Service
-          echo 'node main.js' > deploy/startup.txt
+          echo 'node src/main.js' > deploy/startup.txt
           
           # Create .deployment file to specify startup command
           cat > deploy/.deployment << 'EOF'
           [config]
-          command = node main.js
+          command = node src/main.js
           EOF
           
           # Debug: List contents of deploy directory
           echo "=== DEPLOY PACKAGE DEBUG INFO ==="
           echo "Deploy directory contents:"
           ls -la deploy/
-          echo "Main.js exists: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
+          echo "Main.js exists: $(test -f deploy/src/main.js && echo 'YES' || echo 'NO')"
           echo "Package.json exists: $(test -f deploy/package.json && echo 'YES' || echo 'NO')"
           
           # Show file sizes
