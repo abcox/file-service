@@ -121,10 +121,7 @@ jobs:
           echo "File sizes in deploy directory:"
           du -h deploy/* || echo "Could not get file sizes"
 
-      - name: Configure Node.js version in Azure App Service
-        run: |
-          echo "Configuring Node.js 18 in Azure App Service..."
-          az webapp config appsettings set --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} --settings WEBSITE_NODE_DEFAULT_VERSION=18.20.8
+
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
