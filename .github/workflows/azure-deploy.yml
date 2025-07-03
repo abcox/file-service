@@ -35,11 +35,6 @@ jobs:
       - name: Run tests
         run: npm test
 
-      #- name: Login to Azure
-      #  uses: azure/login@v2
-      #  with:
-      #    creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Build NestJS application
         run: |
           echo "=== BUILD STEP DEBUG ==="
@@ -163,6 +158,11 @@ jobs:
           # Show file sizes (commented out to reduce log noise)
           # echo "File sizes in deploy directory:"
           # du -h deploy/* || echo "Could not get file sizes"
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Configure App Service settings
         run: |
