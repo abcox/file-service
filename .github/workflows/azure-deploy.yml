@@ -42,9 +42,26 @@ jobs:
 
       - name: Create deployment package
         run: |
+          # Debug: Check what was built
+          echo "=== BUILD DEBUG INFO ==="
+          echo "Current directory: $(pwd)"
+          echo "Dist directory exists: $(test -d dist && echo 'YES' || echo 'NO')"
+          echo "Dist directory contents:"
+          ls -la dist/ || echo "dist/ directory not found"
+          
           # Create a deployment package optimized for Linux App Service
           mkdir -p deploy
-          cp -r dist/* deploy/
+          
+          # Copy built files
+          if [ -d "dist" ]; then
+            cp -r dist/* deploy/
+            echo "Copied dist/* to deploy/"
+          else
+            echo "ERROR: dist directory not found!"
+            exit 1
+          fi
+          
+          # Copy package files
           cp package*.json deploy/
           cp nest-cli.json deploy/ 2>/dev/null || true
           
@@ -58,10 +75,15 @@ jobs:
           EOF
           
           # Debug: List contents of deploy directory
+          echo "=== DEPLOY PACKAGE DEBUG INFO ==="
           echo "Deploy directory contents:"
           ls -la deploy/
-          echo "Dist directory contents:"
-          ls -la dist/
+          echo "Main.js exists: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
+          echo "Package.json exists: $(test -f deploy/package.json && echo 'YES' || echo 'NO')"
+          
+          # Show file sizes
+          echo "File sizes in deploy directory:"
+          du -h deploy/* || echo "Could not get file sizes"
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
