@@ -95,6 +95,9 @@ jobs:
           cp package*.json deploy/
           cp nest-cli.json deploy/ 2>/dev/null || true
           
+          # Copy configuration files
+          cp -r env/ deploy/
+          
           # Install production dependencies in deploy directory
           echo "Installing production dependencies..."
           cd deploy
