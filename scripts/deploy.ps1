@@ -1,0 +1,616 @@
+#!/usr/bin/env pwsh
+
+<#
+.SYNOPSIS
+    Azure Deployment Script for Vorba File Service
+
+.DESCRIPTION
+    This script checks for existing Azure resources and creates any missing ones.
+    It supports deployment to different subscriptions and resource groups.
+
+.PARAMETER SubscriptionId
+    Azure Subscription ID (optional - will use current if not specified)
+
+.PARAMETER ResourceGroupName
+    Resource Group name (default: "vorba-file-service-rg")
+
+.PARAMETER Location
+    Azure region (default: "East US")
+
+.PARAMETER AppServiceName
+    App Service name (default: "vorba-file-service")
+
+.PARAMETER AppServicePlanName
+    App Service Plan name (default: "vorba-file-service-plan")
+
+.PARAMETER KeyVaultName
+    Existing Key Vault name (required)
+
+.PARAMETER StorageAccountName
+    Existing Storage Account name (required)
+
+.PARAMETER ContainerName
+    Blob container name (default: "file-service-uploads")
+
+.PARAMETER SkipResourceCreation
+    Skip resource creation and only configure existing resources
+
+.PARAMETER DryRun
+    Show what would be created/configured without making any changes
+
+.EXAMPLE
+    .\deploy.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorageaccount"
+
+.EXAMPLE
+    .\deploy.ps1 -SubscriptionId "12345678-1234-1234-1234-123456789012" -ResourceGroupName "my-rg"
+
+.EXAMPLE
+    .\deploy.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorage" -DryRun
+#>
+
+param(
+    [string]$SubscriptionId,
+    [string]$ResourceGroupName = "vorba-file-service-rg",
+    [string]$Location = "Canada East",
+    [string]$AppServiceName = "vorba-file-service",
+    [string]$AppServicePlanName = "vorba-file-service-plan",
+    [Parameter(Mandatory=$true)]
+    [string]$KeyVaultName,
+    [Parameter(Mandatory=$true)]
+    [string]$StorageAccountName,
+    [string]$ContainerName = "file-service-uploads",
+    [switch]$SkipResourceCreation,
+    [switch]$DryRun
+)
+
+# Set error action preference
+$ErrorActionPreference = "Stop"
+
+Write-Host "Vorba File Service Azure Deployment Script" -ForegroundColor Green
+Write-Host "================================================" -ForegroundColor Green
+
+# Show resource dependencies
+Write-Host "`n[INFO] Resource Dependencies:" -ForegroundColor Cyan
+Write-Host "  - App Service Plan requires: Resource Group" -ForegroundColor Gray
+Write-Host "  - App Service requires: Resource Group + App Service Plan" -ForegroundColor Gray
+Write-Host "  - Blob Container requires: Storage Account (independent)" -ForegroundColor Gray
+Write-Host "  - Key Vault and Storage Account: Must exist (external dependencies)" -ForegroundColor Gray
+
+# Function to check if Azure CLI is installed
+function Test-AzureCLI {
+    try {
+        $null = az version
+        Write-Host "[OK] Azure CLI is installed" -ForegroundColor Green
+        return $true
+    }
+    catch {
+        Write-Host "[ERROR] Azure CLI is not installed. Please install it from: https://docs.microsoft.com/en-us/cli/azure/install-azure-cli" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to check if logged in to Azure
+function Test-AzureLogin {
+    try {
+        $account = az account show 2>$null | ConvertFrom-Json
+        if ($account) {
+                    Write-Host "[OK] Logged in to Azure as: $($account.user.name)" -ForegroundColor Green
+        Write-Host "   Subscription: $($account.name) ($($account.id))" -ForegroundColor Cyan
+            return $account
+        }
+        else {
+            Write-Host "[ERROR] Not logged in to Azure" -ForegroundColor Red
+            return $null
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Not logged in to Azure" -ForegroundColor Red
+        return $null
+    }
+}
+
+# Function to set subscription
+function Set-AzureSubscription {
+    param([string]$SubscriptionId)
+    
+    if ($SubscriptionId) {
+        Write-Host "[INFO] Setting subscription to: $SubscriptionId" -ForegroundColor Yellow
+        az account set --subscription $SubscriptionId
+        $account = az account show | ConvertFrom-Json
+        Write-Host "[OK] Subscription set to: $($account.name)" -ForegroundColor Green
+    }
+}
+
+# Function to check if resource group exists
+function Test-ResourceGroup {
+    param([string]$ResourceGroupName)
+    
+    Write-Host "[DEBUG] Checking for Resource Group: $ResourceGroupName" -ForegroundColor Magenta
+    
+    # Method 1: Use az group list with query filter (more reliable)
+    try {
+        $rg = az group list --query "[?name=='$ResourceGroupName']" --output json 2>$null | ConvertFrom-Json
+        if ($rg -and $rg.Count -gt 0) {
+            Write-Host "[OK] Resource Group exists: $ResourceGroupName" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "[INFO] Resource Group does not exist: $ResourceGroupName" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    catch {
+        Write-Host "[INFO] Resource Group does not exist: $ResourceGroupName" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to create resource group
+function New-ResourceGroup {
+    param([string]$ResourceGroupName, [string]$Location, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would create Resource Group: $ResourceGroupName in $Location" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Creating Resource Group: $ResourceGroupName in $Location" -ForegroundColor Yellow
+    az group create --name $ResourceGroupName --location $Location
+    Write-Host "[OK] Resource Group created: $ResourceGroupName" -ForegroundColor Green
+}
+
+# Function to check if App Service Plan exists
+function Test-AppServicePlan {
+    param([string]$AppServicePlanName, [string]$ResourceGroupName)
+    
+    # First check if the resource group exists
+    try {
+        $rg = az group list --query "[?name=='$ResourceGroupName']" --output json 2>$null | ConvertFrom-Json
+        if (-not $rg -or $rg.Count -eq 0) {
+            Write-Host "[INFO] Resource Group does not exist: $ResourceGroupName" -ForegroundColor Yellow
+            Write-Host "[INFO] Checking for App Service Plan globally..." -ForegroundColor Yellow
+            
+            # Global search for App Service Plan
+            $globalPlan = az appservice plan list --query "[?name=='$AppServicePlanName']" --output json 2>$null | ConvertFrom-Json
+            if ($globalPlan -and $globalPlan.Count -gt 0) {
+                $foundRg = $globalPlan[0].resourceGroup
+                Write-Host "[WARNING] App Service Plan exists in different Resource Group: $AppServicePlanName (in $foundRg)" -ForegroundColor Yellow
+                return $true
+            }
+            else {
+                Write-Host "[INFO] App Service Plan does not exist globally: $AppServicePlanName" -ForegroundColor Yellow
+                return $false
+            }
+        }
+        
+        $plan = az appservice plan show --name $AppServicePlanName --resource-group $ResourceGroupName 2>$null | ConvertFrom-Json
+        if ($plan) {
+            Write-Host "[OK] App Service Plan exists: $AppServicePlanName" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "[INFO] App Service Plan does not exist: $AppServicePlanName" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    catch {
+        Write-Host "[INFO] Resource Group does not exist: $ResourceGroupName" -ForegroundColor Yellow
+        Write-Host "[INFO] Checking for App Service Plan globally..." -ForegroundColor Yellow
+        
+        # Global search for App Service Plan
+        try {
+            $globalPlan = az appservice plan list --query "[?name=='$AppServicePlanName']" --output json 2>$null | ConvertFrom-Json
+            if ($globalPlan -and $globalPlan.Count -gt 0) {
+                $foundRg = $globalPlan[0].resourceGroup
+                Write-Host "[WARNING] App Service Plan exists in different Resource Group: $AppServicePlanName (in $foundRg)" -ForegroundColor Yellow
+                return $true
+            }
+            else {
+                Write-Host "[INFO] App Service Plan does not exist globally: $AppServicePlanName" -ForegroundColor Yellow
+                return $false
+            }
+        }
+        catch {
+            Write-Host "[INFO] App Service Plan does not exist globally: $AppServicePlanName" -ForegroundColor Yellow
+            return $false
+        }
+    }
+}
+
+# Function to create App Service Plan
+function New-AppServicePlan {
+    param([string]$AppServicePlanName, [string]$ResourceGroupName, [string]$Location, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would create App Service Plan: $AppServicePlanName in $ResourceGroupName" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Creating App Service Plan: $AppServicePlanName" -ForegroundColor Yellow
+    az appservice plan create --name $AppServicePlanName --resource-group $ResourceGroupName --location $Location --sku B1 --is-linux
+    Write-Host "[OK] App Service Plan created: $AppServicePlanName" -ForegroundColor Green
+}
+
+# Function to check if App Service exists
+function Test-AppService {
+    param([string]$AppServiceName, [string]$ResourceGroupName)
+    
+    Write-Host "[DEBUG] Checking for App Service: $AppServiceName in $ResourceGroupName" -ForegroundColor Magenta
+    
+    try {
+        # First try to check in the specific resource group
+        $app = az webapp show --name $AppServiceName --resource-group $ResourceGroupName 2>$null | ConvertFrom-Json
+        if ($app) {
+            Write-Host "[OK] App Service exists: $AppServiceName" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "[INFO] App Service does not exist in resource group: $AppServiceName" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    catch {
+        Write-Host "[INFO] App Service does not exist in resource group: $AppServiceName" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to create App Service
+function New-AppService {
+    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$AppServicePlanName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would create App Service: $AppServiceName in $ResourceGroupName" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Creating App Service: $AppServiceName" -ForegroundColor Yellow
+    az webapp create --name $AppServiceName --resource-group $ResourceGroupName --plan $AppServicePlanName --runtime "NODE:18-lts"
+    Write-Host "[OK] App Service created: $AppServiceName" -ForegroundColor Green
+}
+
+# Function to check if Key Vault exists
+function Test-KeyVault {
+    param([string]$KeyVaultName)
+    
+    $kv = az keyvault show --name $KeyVaultName 2>$null | ConvertFrom-Json
+    if ($kv) {
+        Write-Host "[OK] Key Vault exists: $KeyVaultName" -ForegroundColor Green
+        return $true
+    }
+    else {
+        Write-Host "[ERROR] Key Vault does not exist: $KeyVaultName" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to check if Storage Account exists
+function Test-StorageAccount {
+    param([string]$StorageAccountName)
+    
+    $sa = az storage account show --name $StorageAccountName 2>$null | ConvertFrom-Json
+    if ($sa) {
+        Write-Host "[OK] Storage Account exists: $StorageAccountName" -ForegroundColor Green
+        return $true
+    }
+    else {
+        Write-Host "[ERROR] Storage Account does not exist: $StorageAccountName" -ForegroundColor Red
+        return $false
+    }
+}
+
+# Function to check if blob container exists
+function Test-BlobContainer {
+    param([string]$StorageAccountName, [string]$ContainerName)
+    
+    Write-Host "[DEBUG] Checking for Blob Container: $ContainerName in $StorageAccountName" -ForegroundColor Magenta
+    
+    try {
+        $container = az storage container show --name $ContainerName --account-name $StorageAccountName 2>$null | ConvertFrom-Json
+        if ($container) {
+            Write-Host "[OK] Blob Container exists: $ContainerName" -ForegroundColor Green
+            return $true
+        }
+        else {
+            Write-Host "[INFO] Blob Container does not exist: $ContainerName" -ForegroundColor Yellow
+            return $false
+        }
+    }
+    catch {
+        Write-Host "[INFO] Blob Container does not exist: $ContainerName" -ForegroundColor Yellow
+        return $false
+    }
+}
+
+# Function to create blob container
+function New-BlobContainer {
+    param([string]$StorageAccountName, [string]$ContainerName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would create Blob Container: $ContainerName in $StorageAccountName" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Creating Blob Container: $ContainerName" -ForegroundColor Yellow
+    az storage container create --name $ContainerName --account-name $StorageAccountName
+    Write-Host "[OK] Blob Container created: $ContainerName" -ForegroundColor Green
+}
+
+# Function to configure App Service settings
+function Set-AppServiceConfiguration {
+    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$KeyVaultName, [string]$StorageAccountName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would configure App Service settings for: $AppServiceName" -ForegroundColor Cyan
+        Write-Host "   - NODE_ENV=production" -ForegroundColor Gray
+        Write-Host "   - AZURE_KEY_VAULT_URL=https://$KeyVaultName.vault.azure.net/" -ForegroundColor Gray
+        Write-Host "   - AZURE_STORAGE_CONNECTION_STRING=[connection string]" -ForegroundColor Gray
+        Write-Host "   - WEBSITE_NODE_DEFAULT_VERSION=18.17.0" -ForegroundColor Gray
+        return
+    }
+    
+    Write-Host "[INFO] Configuring App Service settings..." -ForegroundColor Yellow
+    
+    try {
+        # Get storage account connection string
+        Write-Host "[DEBUG] Getting storage account key..." -ForegroundColor Magenta
+        $storageKey = az storage account keys list --account-name $StorageAccountName --query "[0].value" --output tsv
+        if (-not $storageKey) {
+            Write-Host "[ERROR] Failed to get storage account key" -ForegroundColor Red
+            return
+        }
+        
+        $connectionString = "DefaultEndpointsProtocol=https;AccountName=$StorageAccountName;AccountKey=$storageKey;EndpointSuffix=core.windows.net"
+        
+        # Get Key Vault URL
+        $keyVaultUrl = "https://$KeyVaultName.vault.azure.net/"
+        
+        Write-Host "[DEBUG] Setting app settings..." -ForegroundColor Magenta
+        # Configure app settings
+        $result = az webapp config appsettings set --name $AppServiceName --resource-group $ResourceGroupName --settings `
+            NODE_ENV=production `
+            AZURE_KEY_VAULT_URL=$keyVaultUrl `
+            AZURE_STORAGE_CONNECTION_STRING=$connectionString `
+            WEBSITE_NODE_DEFAULT_VERSION=18.17.0 2>&1
+        
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[OK] App Service configuration completed" -ForegroundColor Green
+            # Verify settings were applied (without showing sensitive values)
+            Write-Host "[DEBUG] Verifying app settings..." -ForegroundColor Magenta
+            $settings = az webapp config appsettings list --name $AppServiceName --resource-group $ResourceGroupName --query "[?name=='NODE_ENV' || name=='AZURE_KEY_VAULT_URL' || name=='WEBSITE_NODE_DEFAULT_VERSION'].{name:name,value:value}" --output json 2>$null | ConvertFrom-Json
+            if ($settings) {
+                Write-Host "[OK] App settings verified" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "[ERROR] App Service configuration failed: $result" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Exception during App Service configuration: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Function to enable managed identity
+function Enable-ManagedIdentity {
+    param([string]$AppServiceName, [string]$ResourceGroupName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would enable managed identity for: $AppServiceName" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Enabling managed identity..." -ForegroundColor Yellow
+    try {
+        $result = az webapp identity assign --name $AppServiceName --resource-group $ResourceGroupName 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[OK] Managed identity enabled" -ForegroundColor Green
+        } else {
+            Write-Host "[ERROR] Failed to enable managed identity: $result" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Exception during managed identity setup: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Function to grant Key Vault access
+function Grant-KeyVaultAccess {
+    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$KeyVaultName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would grant Key Vault access for: $AppServiceName to $KeyVaultName" -ForegroundColor Cyan
+        return
+    }
+    
+    Write-Host "[INFO] Granting Key Vault access..." -ForegroundColor Yellow
+    
+    try {
+        # Get App Service principal ID
+        Write-Host "[DEBUG] Getting principal ID..." -ForegroundColor Magenta
+        $principalId = az webapp identity show --name $AppServiceName --resource-group $ResourceGroupName --query principalId --output tsv 2>$null
+        
+        if ($principalId) {
+            Write-Host "[DEBUG] Principal ID: $principalId" -ForegroundColor Magenta
+            
+            # Check if Key Vault uses RBAC or policy-based authorization
+            Write-Host "[DEBUG] Checking Key Vault authorization type..." -ForegroundColor Magenta
+            $kvInfo = az keyvault show --name $KeyVaultName --query "properties.enableRbacAuthorization" --output tsv 2>$null
+            
+            if ($kvInfo -eq "true") {
+                Write-Host "[INFO] Key Vault uses RBAC authorization. Assigning Key Vault Secrets User role..." -ForegroundColor Yellow
+                # Use RBAC role assignment instead of policy
+                $result = az role assignment create --assignee $principalId --role "Key Vault Secrets User" --scope "/subscriptions/$(az account show --query id --output tsv)/resourceGroups/$(az keyvault show --name $KeyVaultName --query resourceGroup --output tsv)/providers/Microsoft.KeyVault/vaults/$KeyVaultName" 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "[OK] Key Vault RBAC access granted" -ForegroundColor Green
+                } else {
+                    Write-Host "[ERROR] Failed to grant Key Vault RBAC access: $result" -ForegroundColor Red
+                }
+            } else {
+                Write-Host "[INFO] Key Vault uses policy-based authorization. Setting access policy..." -ForegroundColor Yellow
+                # Use traditional policy-based access
+                $result = az keyvault set-policy --name $KeyVaultName --object-id $principalId --secret-permissions get list 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "[OK] Key Vault policy access granted" -ForegroundColor Green
+                } else {
+                    Write-Host "[ERROR] Failed to grant Key Vault policy access: $result" -ForegroundColor Red
+                }
+            }
+        }
+        else {
+            Write-Host "[WARNING] Could not get principal ID for managed identity" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Exception during Key Vault access setup: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Function to get publish profile
+function Get-PublishProfile {
+    param([string]$AppServiceName, [string]$ResourceGroupName, [bool]$DryRun = $false)
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would generate publish profile for: $AppServiceName" -ForegroundColor Cyan
+        Write-Host "   - File: publish-profile-$AppServiceName.xml" -ForegroundColor Gray
+        return
+    }
+    
+    Write-Host "[INFO] Getting publish profile..." -ForegroundColor Yellow
+    try {
+        $profile = az webapp deployment list-publishing-profiles --name $AppServiceName --resource-group $ResourceGroupName --xml 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $profilePath = "publish-profile-$AppServiceName.xml"
+            $profile | Out-File -FilePath $profilePath -Encoding UTF8
+            Write-Host "[OK] Publish profile saved to: $profilePath" -ForegroundColor Green
+            Write-Host "[INFO] Add this file content to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE" -ForegroundColor Cyan
+        } else {
+            Write-Host "[ERROR] Failed to get publish profile: $profile" -ForegroundColor Red
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Exception during publish profile generation: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Main execution
+try {
+    Write-Host "[DEBUG] Starting main execution..." -ForegroundColor Magenta
+    
+    # Check prerequisites
+    Write-Host "[DEBUG] Checking Azure CLI..." -ForegroundColor Magenta
+    if (-not (Test-AzureCLI)) {
+        exit 1
+    }
+    
+    Write-Host "[DEBUG] Checking Azure login..." -ForegroundColor Magenta
+    $account = Test-AzureLogin
+    if (-not $account) {
+        Write-Host "[INFO] Please log in to Azure..." -ForegroundColor Yellow
+        az login
+        $account = Test-AzureLogin
+        if (-not $account) {
+            Write-Host "[ERROR] Failed to log in to Azure" -ForegroundColor Red
+            exit 1
+        }
+    }
+    
+    # Set subscription if specified
+    Write-Host "[DEBUG] Setting subscription..." -ForegroundColor Magenta
+    Set-AzureSubscription -SubscriptionId $SubscriptionId
+    
+    # Check existing resources
+    Write-Host "`n[INFO] Checking existing resources..." -ForegroundColor Cyan
+    Write-Host "[DEBUG] Checking Key Vault: $KeyVaultName" -ForegroundColor Magenta
+    
+    $keyVaultExists = Test-KeyVault -KeyVaultName $KeyVaultName
+    Write-Host "[DEBUG] Key Vault exists: $keyVaultExists" -ForegroundColor Magenta
+    
+    Write-Host "[DEBUG] Checking Storage Account: $StorageAccountName" -ForegroundColor Magenta
+    $storageExists = Test-StorageAccount -StorageAccountName $StorageAccountName
+    Write-Host "[DEBUG] Storage Account exists: $storageExists" -ForegroundColor Magenta
+    
+    if (-not $keyVaultExists -or -not $storageExists) {
+        Write-Host "[ERROR] Required resources (Key Vault or Storage Account) do not exist" -ForegroundColor Red
+        exit 1
+    }
+    
+    # Show dry run mode
+    if ($DryRun) {
+        Write-Host "`n[DRY RUN] DRY RUN MODE - No changes will be made" -ForegroundColor Yellow
+        Write-Host "=============================================" -ForegroundColor Yellow
+    }
+    
+    # Resource creation (if not skipped)
+    Write-Host "[DEBUG] SkipResourceCreation: $SkipResourceCreation" -ForegroundColor Magenta
+    if (-not $SkipResourceCreation) {
+        Write-Host "`n[INFO] Creating resources..." -ForegroundColor Cyan
+        Write-Host "[DEBUG] About to check Resource Group: $ResourceGroupName" -ForegroundColor Magenta
+        
+        # Resource Group (always check first)
+        $resourceGroupExists = Test-ResourceGroup -ResourceGroupName $ResourceGroupName
+        Write-Host "[DEBUG] Resource Group exists: $resourceGroupExists" -ForegroundColor Magenta
+        
+        if (-not $resourceGroupExists) {
+            Write-Host "[DEBUG] About to create Resource Group..." -ForegroundColor Magenta
+            New-ResourceGroup -ResourceGroupName $ResourceGroupName -Location $Location -DryRun $DryRun
+            # Update the flag after creation (unless it's a dry run)
+            if (-not $DryRun) {
+                $resourceGroupExists = $true
+                Write-Host "[DEBUG] Updated resourceGroupExists to: $resourceGroupExists" -ForegroundColor Magenta
+            }
+        }
+        
+        # App Service Plan (only check if Resource Group exists or will be created)
+        if ($resourceGroupExists -or $DryRun) {
+            if (-not (Test-AppServicePlan -AppServicePlanName $AppServicePlanName -ResourceGroupName $ResourceGroupName)) {
+                New-AppServicePlan -AppServicePlanName $AppServicePlanName -ResourceGroupName $ResourceGroupName -Location $Location -DryRun $DryRun
+            }
+        }
+        
+        # App Service (only check if Resource Group exists or will be created)
+        if ($resourceGroupExists -or $DryRun) {
+            if (-not (Test-AppService -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName)) {
+                New-AppService -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -AppServicePlanName $AppServicePlanName -DryRun $DryRun
+            }
+        }
+        
+        # Blob Container
+        Write-Host "[DEBUG] About to check Blob Container..." -ForegroundColor Magenta
+        if (-not (Test-BlobContainer -StorageAccountName $StorageAccountName -ContainerName $ContainerName)) {
+            Write-Host "[DEBUG] About to create Blob Container..." -ForegroundColor Magenta
+            New-BlobContainer -StorageAccountName $StorageAccountName -ContainerName $ContainerName -DryRun $DryRun
+        }
+    }
+    
+    # Configuration
+    Write-Host "`n[INFO] Configuring resources..." -ForegroundColor Cyan
+    
+    Write-Host "[DEBUG] About to configure App Service settings..." -ForegroundColor Magenta
+    Set-AppServiceConfiguration -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -StorageAccountName $StorageAccountName -DryRun $DryRun
+    
+    Write-Host "[DEBUG] About to enable managed identity..." -ForegroundColor Magenta
+    Enable-ManagedIdentity -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -DryRun $DryRun
+    
+    Write-Host "[DEBUG] About to grant Key Vault access..." -ForegroundColor Magenta
+    Grant-KeyVaultAccess -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -DryRun $DryRun
+    
+    # Get publish profile
+    Write-Host "[DEBUG] About to get publish profile..." -ForegroundColor Magenta
+    Get-PublishProfile -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -DryRun $DryRun
+    
+    if ($DryRun) {
+        Write-Host "`n[DRY RUN] DRY RUN COMPLETED - No changes were made" -ForegroundColor Yellow
+        Write-Host "`n[INFO] To proceed with actual deployment, run without -DryRun flag" -ForegroundColor Cyan
+    } else {
+        Write-Host "`n[SUCCESS] Deployment setup completed successfully!" -ForegroundColor Green
+        Write-Host "`n[INFO] Next steps:" -ForegroundColor Cyan
+        Write-Host "1. Add the publish profile content to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE" -ForegroundColor White
+        Write-Host "2. Push your code to the main branch to trigger deployment" -ForegroundColor White
+        Write-Host "3. Monitor deployment in GitHub Actions" -ForegroundColor White
+    }
+    
+}
+catch {
+    Write-Host "`n[ERROR] Deployment failed: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+} 

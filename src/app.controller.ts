@@ -34,21 +34,43 @@ interface UploadedFile {
 
 @ApiTags('files')
 @Controller()
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  @Get('health')
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  health() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'vorba-file-service',
+      version: process.env.npm_package_version || '1.0.0',
+    };
+  }
+
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get hello message' })
   @ApiResponse({ status: 200, description: 'Returns hello message' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   getHello(): string {
     return this.appService.getHello();
   }
 
   @Get('debug-jwt')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Debug JWT configuration' })
   @ApiResponse({ status: 200, description: 'JWT debug info' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
   debugJwt() {
     return { message: 'JWT debug endpoint - check logs for details' };
   }
