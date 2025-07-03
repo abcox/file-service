@@ -87,10 +87,10 @@ jobs:
           # Create a deployment package optimized for Linux App Service
           mkdir -p deploy
           
-          # Copy built files - DO NOTpreserve the dist structure
+          # Copy built files - DO NOT preserve the dist structure
           if [ -d "dist" ]; then
             cp -r dist deploy/
-            echo "Copied dist/* to deploy/"
+            echo "Copied dist to deploy/"
           else
             echo "ERROR: dist directory not found!"
             exit 1
@@ -129,10 +129,18 @@ jobs:
           echo "node $MAIN_JS_PATH" > deploy/startup.txt
           
           # Create .deployment file to specify startup command
-          cat > deploy/.deployment << EOF
-          [config]
-          command = node $MAIN_JS_PATH
-          EOF
+          #cat > deploy/.deployment << EOF
+          #[config]
+          #command = node $MAIN_JS_PATH
+          #EOF
+          echo "[config]" > deploy/.deployment
+          echo "command = node $MAIN_JS_PATH" >> deploy/.deployment
+
+
+          # Inspect the .deployment file
+          echo "=== .deployment file contents ==="
+          cat deploy/.deployment
+          echo "=== .deployment file contents end ==="
           
           # Debug: List contents of deploy directory
           echo "=== DEPLOY PACKAGE DEBUG INFO ==="
