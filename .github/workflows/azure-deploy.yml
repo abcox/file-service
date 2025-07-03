@@ -49,13 +49,19 @@ jobs:
           cp nest-cli.json deploy/ 2>/dev/null || true
           
           # Create startup command for Linux App Service
-          echo 'node dist/main.js' > deploy/startup.txt
+          echo 'node main.js' > deploy/startup.txt
           
           # Create .deployment file to specify startup command
           cat > deploy/.deployment << 'EOF'
           [config]
-          command = node dist/main.js
+          command = node main.js
           EOF
+          
+          # Debug: List contents of deploy directory
+          echo "Deploy directory contents:"
+          ls -la deploy/
+          echo "Dist directory contents:"
+          ls -la dist/
 
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
