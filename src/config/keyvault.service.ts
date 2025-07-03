@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { KeyVaultSecret, SecretClient } from '@azure/keyvault-secrets';
-import { DefaultAzureCredential } from '@azure/identity';
+import { ManagedIdentityCredential } from '@azure/identity';
 import { LoggerService } from '../logging/logger.service';
 
 @Injectable()
@@ -13,9 +13,14 @@ export class KeyVaultService {
     const keyVaultUrl = vaultUrl || process.env.AZURE_KEY_VAULT_URL;
     if (keyVaultUrl) {
       try {
-        const credential = new DefaultAzureCredential();
+        // Use Managed Identity directly for Azure App Service
+        const credential = new ManagedIdentityCredential();
+
         this.secretClient = new SecretClient(keyVaultUrl, credential);
-        this.logger.info('Azure Key Vault client initialized', { keyVaultUrl });
+        this.logger.info(
+          'Azure Key Vault client initialized with Managed Identity',
+          { keyVaultUrl },
+        );
       } catch (error) {
         this.logger.error(
           'Failed to initialize Key Vault client',
