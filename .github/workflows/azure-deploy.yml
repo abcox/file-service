@@ -174,11 +174,14 @@ jobs:
       - name: Configure App Service settings
         run: |
           echo "Configuring App Service environment variables..."
-          # Set Node.js version
-          az webapp config appsettings set \
+          
+          # Debug: Check current settings before changes
+          echo "=== CURRENT APP SETTINGS ==="
+          az webapp config appsettings list \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --settings WEBSITE_NODE_DEFAULT_VERSION=22.14.0
+            --query "[].{name:name, value:value}" \
+            --output table || echo "Failed to get current settings"
           
           # Set environment variables for temporary Key Vault bypass
           az webapp config appsettings set \
@@ -190,6 +193,33 @@ jobs:
             NODE_ENV=production \
             PORT=8081 \
             SCM_COMMAND_IDLE_TIMEOUT=600
+          
+          # Set Node.js version
+          echo "Setting Node.js version..."
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --settings WEBSITE_NODE_DEFAULT_VERSION=22.14.0
+          
+          # Set environment variables for temporary Key Vault bypass
+          echo "Setting environment variables..."
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --settings \
+            AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            NODE_ENV=production \
+            PORT=8081 \
+            SCM_COMMAND_IDLE_TIMEOUT=600
+          
+          # Debug: Check settings after changes
+          echo "=== UPDATED APP SETTINGS ==="
+          az webapp config appsettings list \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query "[].{name:name, value:value}" \
+            --output table || echo "Failed to get updated settings"
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
