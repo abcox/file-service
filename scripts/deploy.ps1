@@ -345,7 +345,7 @@ function Set-AppServiceConfiguration {
         Write-Host "   - NODE_ENV=production" -ForegroundColor Gray
         Write-Host "   - AZURE_KEY_VAULT_URL=https://$KeyVaultName.vault.azure.net/" -ForegroundColor Gray
         Write-Host "   - AZURE_STORAGE_CONNECTION_STRING=[connection string]" -ForegroundColor Gray
-        Write-Host "   - WEBSITE_NODE_DEFAULT_VERSION=18.17.0" -ForegroundColor Gray
+        Write-Host "   - WEBSITE_NODE_DEFAULT_VERSION=22.14.0" -ForegroundColor Gray
         return
     }
     
@@ -371,7 +371,7 @@ function Set-AppServiceConfiguration {
             NODE_ENV=production `
             AZURE_KEY_VAULT_URL=$keyVaultUrl `
             AZURE_STORAGE_CONNECTION_STRING=$connectionString `
-            WEBSITE_NODE_DEFAULT_VERSION=18.17.0 2>&1
+            WEBSITE_NODE_DEFAULT_VERSION=22.14.0 2>&1
         
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[OK] App Service configuration completed" -ForegroundColor Green
@@ -435,15 +435,24 @@ function Grant-KeyVaultAccess {
             # Check if Key Vault uses RBAC or policy-based authorization
             Write-Host "[DEBUG] Checking Key Vault authorization type..." -ForegroundColor Magenta
             $kvInfo = az keyvault show --name $KeyVaultName --query "properties.enableRbacAuthorization" --output tsv 2>$null
+            $subscriptionId = az account show --query id --output tsv
+            $resourceGroup = az keyvault show --name $KeyVaultName --query resourceGroup --output tsv
+            $scope = "/subscriptions/$subscriptionId/resourceGroups/$resourceGroup/providers/Microsoft.KeyVault/vaults/$KeyVaultName"
             
             if ($kvInfo -eq "true") {
-                Write-Host "[INFO] Key Vault uses RBAC authorization. Assigning Key Vault Secrets User role..." -ForegroundColor Yellow
-                # Use RBAC role assignment instead of policy
-                $result = az role assignment create --assignee $principalId --role "Key Vault Secrets User" --scope "/subscriptions/$(az account show --query id --output tsv)/resourceGroups/$(az keyvault show --name $KeyVaultName --query resourceGroup --output tsv)/providers/Microsoft.KeyVault/vaults/$KeyVaultName" 2>&1
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "[OK] Key Vault RBAC access granted" -ForegroundColor Green
+                Write-Host "[INFO] Key Vault uses RBAC authorization. Checking for existing role assignment..." -ForegroundColor Yellow
+                # Check for existing role assignment
+                $existingRole = az role assignment list --assignee $principalId --scope $scope --query "[?roleDefinitionName=='Key Vault Secrets User']" --output json 2>$null | ConvertFrom-Json
+                if ($existingRole -and $existingRole.Count -gt 0) {
+                    Write-Host "[OK] Key Vault Secrets User role already assigned to managed identity." -ForegroundColor Green
                 } else {
-                    Write-Host "[ERROR] Failed to grant Key Vault RBAC access: $result" -ForegroundColor Red
+                    Write-Host "[INFO] Assigning Key Vault Secrets User role..." -ForegroundColor Yellow
+                    $result = az role assignment create --assignee $principalId --role "Key Vault Secrets User" --scope $scope 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "[OK] Key Vault RBAC access granted" -ForegroundColor Green
+                    } else {
+                        Write-Host "[ERROR] Failed to grant Key Vault RBAC access: $result" -ForegroundColor Red
+                    }
                 }
             } else {
                 Write-Host "[INFO] Key Vault uses policy-based authorization. Setting access policy..." -ForegroundColor Yellow
