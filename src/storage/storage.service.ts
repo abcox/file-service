@@ -50,8 +50,8 @@ export class StorageService {
               container: containerName,
             });
           })
-          .catch((error) => {
-            this.logger.error('Failed to ensure Azure container', error, {
+          .catch((error: unknown) => {
+            this.logger.error('Failed to ensure Azure container', error as Error, {
               container: containerName,
             });
           });
@@ -80,8 +80,8 @@ export class StorageService {
               container: containerName,
             });
           })
-          .catch((error) => {
-            this.logger.error('Failed to ensure emulator container', error, {
+          .catch((error: unknown) => {
+            this.logger.error('Failed to ensure emulator container', error as Error, {
               container: containerName,
             });
           });
