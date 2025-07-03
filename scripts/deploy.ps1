@@ -347,6 +347,8 @@ function Set-AppServiceConfiguration {
         Write-Host "   - AZURE_STORAGE_CONNECTION_STRING=[connection string]" -ForegroundColor Gray
         Write-Host "   - WEBSITE_NODE_DEFAULT_VERSION=22.14.0" -ForegroundColor Gray
         Write-Host "   - AZURE_CLIENT_ID=[principalId]" -ForegroundColor Gray
+        Write-Host "   - AZURE_TENANT_ID=[tenantId]" -ForegroundColor Gray
+        Write-Host "   - AZURE_SUBSCRIPTION_ID=[subscriptionId]" -ForegroundColor Gray
         return
     }
     
@@ -374,6 +376,13 @@ function Set-AppServiceConfiguration {
             return
         }
         Write-Host "[OK] principalId for managed identity: $principalId" -ForegroundColor Green
+
+        # Get tenant ID and subscription ID for additional context
+        Write-Host "[DEBUG] Getting tenant and subscription IDs..." -ForegroundColor Magenta
+        $account = az account show | ConvertFrom-Json
+        $tenantId = $account.tenantId
+        $subscriptionId = $account.id
+        Write-Host "[OK] Tenant ID: $tenantId, Subscription ID: $subscriptionId" -ForegroundColor Green
         
         Write-Host "[DEBUG] Setting app settings..." -ForegroundColor Magenta
         # Configure app settings
@@ -382,13 +391,15 @@ function Set-AppServiceConfiguration {
             AZURE_KEY_VAULT_URL=$keyVaultUrl `
             AZURE_STORAGE_CONNECTION_STRING=$connectionString `
             WEBSITE_NODE_DEFAULT_VERSION=22.14.0 `
-            AZURE_CLIENT_ID=$principalId 2>&1
+            AZURE_CLIENT_ID=$principalId `
+            AZURE_TENANT_ID=$tenantId `
+            AZURE_SUBSCRIPTION_ID=$subscriptionId 2>&1
         
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[OK] App Service configuration completed" -ForegroundColor Green
             # Verify settings were applied (without showing sensitive values)
             Write-Host "[DEBUG] Verifying app settings..." -ForegroundColor Magenta
-            $settings = az webapp config appsettings list --name $AppServiceName --resource-group $ResourceGroupName --query "[?name=='NODE_ENV' || name=='AZURE_KEY_VAULT_URL' || name=='WEBSITE_NODE_DEFAULT_VERSION' || name=='AZURE_CLIENT_ID'].{name:name,value:value}" --output json 2>$null | ConvertFrom-Json
+            $settings = az webapp config appsettings list --name $AppServiceName --resource-group $ResourceGroupName --query "[?name=='NODE_ENV' || name=='AZURE_KEY_VAULT_URL' || name=='WEBSITE_NODE_DEFAULT_VERSION' || name=='AZURE_CLIENT_ID' || name=='AZURE_TENANT_ID' || name=='AZURE_SUBSCRIPTION_ID'].{name:name,value:value}" --output json 2>$null | ConvertFrom-Json
             if ($settings) {
                 Write-Host "[OK] App settings verified" -ForegroundColor Green
             }

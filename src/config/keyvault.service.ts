@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { KeyVaultSecret, SecretClient } from '@azure/keyvault-secrets';
-import { ManagedIdentityCredential } from '@azure/identity';
+import { DefaultAzureCredential } from '@azure/identity';
 import { LoggerService } from '../logging/logger.service';
 
 @Injectable()
@@ -13,18 +13,16 @@ export class KeyVaultService {
     const keyVaultUrl = vaultUrl || process.env.AZURE_KEY_VAULT_URL;
     if (keyVaultUrl) {
       try {
-        // Use system-assigned managed identity with explicit client ID
-        // The client ID is the same as the principal ID for system-assigned identities
-        const clientId =
-          process.env.AZURE_CLIENT_ID || 'fc8f6412-cf0a-4210-be1e-3a0d1d342253';
-        const credential = new ManagedIdentityCredential(clientId);
+        // Use DefaultAzureCredential which tries multiple authentication methods
+        // This includes Managed Identity, environment variables, Azure CLI, etc.
+        const credential = new DefaultAzureCredential();
 
         this.secretClient = new SecretClient(keyVaultUrl, credential);
         this.logger.info(
-          'Azure Key Vault client initialized with system-assigned managed identity',
+          'Azure Key Vault client initialized with DefaultAzureCredential',
           {
             keyVaultUrl,
-            clientId,
+            clientId: process.env.AZURE_CLIENT_ID || 'not set',
           },
         );
       } catch (error) {
