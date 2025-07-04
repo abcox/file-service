@@ -270,28 +270,38 @@ jobs:
           echo "ZIP file size: $(ls -lh deploy.zip)"
           echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
           
-          # Deploy with timeout to prevent hanging
-          DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X POST \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy" \
+          # Try direct file upload to wwwroot instead of ZipDeploy
+          echo "Uploading files directly to wwwroot..."
+          
+          # First, clear the wwwroot directory
+          echo "Clearing wwwroot directory..."
+          CLEAR_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X DELETE \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/" \
+            --max-time 30 \
+            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Clear failed")
+          echo "Clear response: $CLEAR_RESPONSE"
+          
+          # Upload the ZIP file to wwwroot
+          echo "Uploading deploy.zip to wwwroot..."
+          UPLOAD_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X PUT \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/deploy.zip" \
             --data-binary @deploy.zip \
             --max-time 300 \
-            --connect-timeout 30 \
             -w "\nHTTP_STATUS: %{http_code}\n")
+          echo "Upload response: $UPLOAD_RESPONSE"
           
-          echo "Deploy response: $DEPLOY_RESPONSE"
-
-          # Post-deployment: Copy files from temp location to wwwroot if needed
-          echo "Checking if files need to be copied to wwwroot..."
-          COPY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+          # Extract the ZIP file in wwwroot
+          echo "Extracting ZIP file in wwwroot..."
+          EXTRACT_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X POST \
             "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
             -H "Content-Type: application/json" \
-            -d '{"command": "cp -r /tmp/zipdeploy/extracted/* /home/site/wwwroot/", "dir": "/tmp/zipdeploy/extracted"}' \
-            --max-time 60 \
-            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Copy command failed")
-          
-          echo "Copy response: $COPY_RESPONSE"
+            -d '{"command": "unzip -o deploy.zip && rm deploy.zip", "dir": "/home/site/wwwroot"}' \
+            --max-time 120 \
+            -w "\nHTTP_STATUS: %{http_code}\n")
+          echo "Extract response: $EXTRACT_RESPONSE"
 
           #echo "ALT deploy"
           #B64_AUTH=$(echo -n "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" | base64)
