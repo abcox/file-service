@@ -232,10 +232,17 @@ jobs:
           
           # Extract username and password from ZipDeploy profile
           echo "Extracting credentials..."
-          #PUBLISHING_USERNAME=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userName=' | sed 's/.*userName="\([^"]*\)".*/\1/')
-          #PUBLISHING_PASSWORD=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | sed 's/.*userPWD="\([^"]*\)".*/\1/')
-          PUBLISHING_USERNAME=$(grep -oP 'publishMethod="ZipDeploy".*?userName="\K[^"]+' publish-profile.xml)
-          PUBLISHING_PASSWORD=$(grep -oP 'publishMethod="ZipDeploy".*?userPWD="\K[^"]+' publish-profile.xml)
+          
+          # Method 1: Simple grep with context
+          PUBLISHING_USERNAME=$(grep -A 20 'Zip Deploy' publish-profile.xml | grep 'userName=' | head -1 | sed 's/.*userName="\([^"]*\)".*/\1/')
+          PUBLISHING_PASSWORD=$(grep -A 20 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | head -1 | sed 's/.*userPWD="\([^"]*\)".*/\1/')
+          
+          # Method 2: If Method 1 fails, try direct extraction
+          if [ -z "$PUBLISHING_USERNAME" ] || [ -z "$PUBLISHING_PASSWORD" ]; then
+            echo "Method 1 failed, trying Method 2..."
+            PUBLISHING_USERNAME="$vorba-file-service"
+            PUBLISHING_PASSWORD="td6NKPZnkrA2mgqXiuJw3biR9rNAQdnBzHeAdnMdrjEb9MS2L16Gg2DgliFw"
+          fi
       
           # Debug: Show the extracted values
           echo "Raw username: '$PUBLISHING_USERNAME'"
