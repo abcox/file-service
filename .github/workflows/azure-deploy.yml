@@ -221,6 +221,13 @@ jobs:
           echo ".deployment file:"
           cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
 
+      - name: Install xmllint
+        run: |
+          echo "Installing xmllint..."
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+          echo "xmllint installed successfully"
+
       - name: Deploy to Azure App Service
         run: |
           # Create publish profile file from XML content
