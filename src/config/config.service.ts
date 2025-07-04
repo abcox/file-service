@@ -34,6 +34,10 @@ export class AppConfigService {
     // 2. Load sensitive configuration from environment variables (development)
     config = AppConfigService.loadSensitiveConfigFromEnv(config, logger);
 
+    logger.info('**** config ****', {
+      config,
+    });
+
     // 3. Check for offline/dev mode
     if (process.env.OFFLINE_MODE === 'true') {
       logger.info('Running in OFFLINE MODE. Skipping Key Vault.');

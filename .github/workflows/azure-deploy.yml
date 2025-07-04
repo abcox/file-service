@@ -183,13 +183,12 @@ jobs:
             --output table || echo "Failed to get current settings"
           
           # Set environment variables and configuration
+          # IMPORTANT: use --add to avoid overwriting existing settings
           echo "Setting environment variables and configuration..."
           az webapp config appsettings set \
             --name ${{ env.AZURE_WEBAPP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --settings \
-            AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-            JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+            --add \
             NODE_ENV=production \
             PORT=8080 \
             WEBSITE_NODE_DEFAULT_VERSION=22.14.0 \
