@@ -298,10 +298,30 @@ jobs:
             -X POST \
             "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
             -H "Content-Type: application/json" \
-            -d '{"command": "unzip -o deploy.zip && rm deploy.zip", "dir": "/home/site/wwwroot"}' \
+            -d '{"command": "unzip -o deploy.zip", "dir": "/home/site/wwwroot"}' \
             --max-time 120 \
             -w "\nHTTP_STATUS: %{http_code}\n")
           echo "Extract response: $EXTRACT_RESPONSE"
+          
+          # Remove the ZIP file after extraction
+          echo "Removing deploy.zip..."
+          REMOVE_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X POST \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
+            -H "Content-Type: application/json" \
+            -d '{"command": "rm deploy.zip", "dir": "/home/site/wwwroot"}' \
+            --max-time 30 \
+            -w "\nHTTP_STATUS: %{http_code}\n")
+          echo "Remove response: $REMOVE_RESPONSE"
+
+          # Verify the extraction worked
+          echo "Verifying file extraction..."
+          VERIFY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X GET \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/" \
+            --max-time 30 \
+            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Verify failed")
+          echo "Verify response: $VERIFY_RESPONSE"
 
           #echo "ALT deploy"
           #B64_AUTH=$(echo -n "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" | base64)

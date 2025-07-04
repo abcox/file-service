@@ -120,7 +120,7 @@ export class AppController {
   }
 
   @Get('files/:filename')
-  @ApiOperation({ summary: 'Download a file by filename' })
+  @ApiOperation({ summary: 'Download a file by filename (test)' })
   @ApiParam({ name: 'filename', description: 'Name of the file to download' })
   @ApiQuery({
     name: 'downloadAs',
