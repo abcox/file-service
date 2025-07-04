@@ -221,13 +221,6 @@ jobs:
           echo ".deployment file:"
           cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
 
-      - name: Install xmllint
-        run: |
-          echo "Installing xmllint..."
-          sudo apt-get update
-          sudo apt-get install -y libxml2-utils
-          echo "xmllint installed successfully"
-
       - name: Deploy to Azure App Service
         run: |
           # Create publish profile file from XML content
@@ -241,9 +234,9 @@ jobs:
           echo "Extracting credentials..."
           #PUBLISHING_USERNAME=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userName=' | sed 's/.*userName="\([^"]*\)".*/\1/')
           #PUBLISHING_PASSWORD=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | sed 's/.*userPWD="\([^"]*\)".*/\1/')
-          PUBLISHING_USERNAME=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userName)' publish-profile.xml)
-          PUBLISHING_PASSWORD=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userPWD)' publish-profile.xml)
-
+          PUBLISHING_USERNAME=$(grep -oP 'publishMethod="ZipDeploy".*?userName="\K[^"]+' publish-profile.xml)
+          PUBLISHING_PASSWORD=$(grep -oP 'publishMethod="ZipDeploy".*?userPWD="\K[^"]+' publish-profile.xml)
+      
           # Debug: Show the extracted values
           echo "Raw username: '$PUBLISHING_USERNAME'"
           echo "Raw password: '${PUBLISHING_PASSWORD:0:3}...${PUBLISHING_PASSWORD: -3}'"
