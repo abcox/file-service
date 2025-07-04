@@ -238,15 +238,15 @@ jobs:
           echo "Zip Deploy section: $ZIP_DEPLOY_SECTION"
           
           # Extract username and password using sed with proper XML parsing
-          PUBLISHING_USERNAME=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userName="\([^"]*\)".*/\1/p')
-          PUBLISHING_PASSWORD=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userPWD="\([^"]*\)".*/\1/p')
+          #PUBLISHING_USERNAME=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userName="\([^"]*\)".*/\1/p')
+          #PUBLISHING_PASSWORD=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userPWD="\([^"]*\)".*/\1/p')
           
-          # Fallback: If extraction fails, use the known values from your profile
-          if [ -z "$PUBLISHING_USERNAME" ] || [ -z "$PUBLISHING_PASSWORD" ]; then
-            echo "Extraction failed, using fallback values..."
-            PUBLISHING_USERNAME="$vorba-file-service"
+          # Fallback: If extraction fails or is incomplete, use the known values from your profile
+          #if [ -z "$PUBLISHING_USERNAME" ] || [ -z "$PUBLISHING_PASSWORD" ] || [ "$PUBLISHING_USERNAME" = "-file-service" ]; then
+            echo "Extraction failed or incomplete, using fallback values..."
+            PUBLISHING_USERNAME='$vorba-file-service'
             PUBLISHING_PASSWORD="td6NKPZnkrA2mgqXiuJw3biR9rNAQdnBzHeAdnMdrjEb9MS2L16Gg2DgliFw"
-          fi
+          #fi
       
           # Debug: Show the extracted values
           echo "Extracted username: '$PUBLISHING_USERNAME'"
