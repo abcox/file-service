@@ -241,8 +241,8 @@ jobs:
           echo "Extracting credentials..."
           #PUBLISHING_USERNAME=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userName=' | sed 's/.*userName="\([^"]*\)".*/\1/')
           #PUBLISHING_PASSWORD=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | sed 's/.*userPWD="\([^"]*\)".*/\1/')
-          PUBLISHING_USERNAME=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userName)' publishProfile.xml)
-          PUBLISHING_PASSWORD=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userPWD)' publishProfile.xml)
+          PUBLISHING_USERNAME=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userName)' publish-profile.xml)
+          PUBLISHING_PASSWORD=$(xmllint --xpath 'string(//publishProfile[@publishMethod="ZipDeploy"]/@userPWD)' publish-profile.xml)
 
           # Debug: Show the extracted values
           echo "Raw username: '$PUBLISHING_USERNAME'"
