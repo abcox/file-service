@@ -51,9 +51,13 @@ export class StorageService {
             });
           })
           .catch((error: unknown) => {
-            this.logger.error('Failed to ensure Azure container', error as Error, {
-              container: containerName,
-            });
+            this.logger.error(
+              'Failed to ensure Azure container',
+              error as Error,
+              {
+                container: containerName,
+              },
+            );
           });
         this.logger.info('Azure Blob Storage client initialized', {
           container: containerName,
@@ -81,9 +85,13 @@ export class StorageService {
             });
           })
           .catch((error: unknown) => {
-            this.logger.error('Failed to ensure emulator container', error as Error, {
-              container: containerName,
-            });
+            this.logger.error(
+              'Failed to ensure emulator container',
+              error as Error,
+              {
+                container: containerName,
+              },
+            );
           });
         this.logger.info('Azure Storage Emulator client initialized', {
           container: containerName,

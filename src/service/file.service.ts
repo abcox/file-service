@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
-import { AppConfigService } from './config/config.service';
-import { StorageService } from './storage/storage.service';
-import { LoggerService } from './logging/logger.service';
+import { AppConfigService } from '../config/config.service';
+import { StorageService } from '../storage/storage.service';
+import { LoggerService } from '../logging/logger.service';
 
 interface UploadedFile {
   originalname: string;
@@ -12,7 +12,7 @@ interface UploadedFile {
 }
 
 @Injectable()
-export class AppService {
+export class FileService {
   constructor(
     private appConfigService: AppConfigService,
     private storageService: StorageService,
@@ -25,11 +25,6 @@ export class AppService {
     /* this.logger.info('Storage type configured', {
       storageType: this.appConfigService.getStorageType(),
     }); */
-  }
-
-  getHello(): string {
-    this.logger.debug('getHello method called');
-    return 'Hello World!';
   }
 
   async uploadFile(file: UploadedFile) {

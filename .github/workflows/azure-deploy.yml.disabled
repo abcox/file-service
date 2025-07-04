@@ -270,19 +270,7 @@ jobs:
           echo "ZIP file size: $(ls -lh deploy.zip)"
           echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
           
-          # Try direct file upload to wwwroot instead of ZipDeploy
-          echo "Uploading files directly to wwwroot..."
-          
-          # First, clear the wwwroot directory
-          echo "Clearing wwwroot directory..."
-          CLEAR_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X DELETE \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/" \
-            --max-time 30 \
-            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Clear failed")
-          echo "Clear response: $CLEAR_RESPONSE"
-          
-          # Upload the ZIP file to wwwroot
+          # Upload the ZIP file directly to wwwroot (skip clearing to avoid ETag issues)
           echo "Uploading deploy.zip to wwwroot..."
           UPLOAD_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X PUT \
@@ -292,13 +280,28 @@ jobs:
             -w "\nHTTP_STATUS: %{http_code}\n")
           echo "Upload response: $UPLOAD_RESPONSE"
           
+          # Check if upload was successful
+          if [[ "$UPLOAD_RESPONSE" == *"HTTP_STATUS: 201"* ]] || [[ "$UPLOAD_RESPONSE" == *"HTTP_STATUS: 200"* ]]; then
+            echo "Upload successful, proceeding with extraction..."
+          else
+            echo "Upload failed, trying alternative approach..."
+            # Try uploading with a different filename to avoid conflicts
+            UPLOAD_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+              -X PUT \
+              "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/deploy_new.zip" \
+              --data-binary @deploy.zip \
+              --max-time 300 \
+              -w "\nHTTP_STATUS: %{http_code}\n")
+            echo "Alternative upload response: $UPLOAD_RESPONSE"
+          fi
+          
           # Extract the ZIP file in wwwroot
           echo "Extracting ZIP file in wwwroot..."
           EXTRACT_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X POST \
             "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
             -H "Content-Type: application/json" \
-            -d '{"command": "unzip -o deploy.zip", "dir": "/home/site/wwwroot"}' \
+            -d '{"command": "if [ -f deploy.zip ]; then unzip -o deploy.zip; elif [ -f deploy_new.zip ]; then unzip -o deploy_new.zip; else echo \"No ZIP file found\"; fi", "dir": "/home/site/wwwroot"}' \
             --max-time 120 \
             -w "\nHTTP_STATUS: %{http_code}\n")
           echo "Extract response: $EXTRACT_RESPONSE"

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
-import { JwtAuthGuard } from './api-key.guard';
+import { JwtAuthGuard } from './auth.guard';
 import { JwtAuthService } from './jwt.service';
 import { AuthController } from './auth.controller';
 import { ConfigModule } from '../config/config.module';
@@ -44,6 +44,6 @@ import { LoggingModule } from '../logging/logging.module';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [JwtAuthService],
+  exports: [JwtAuthService, JwtAuthGuard],
 })
 export class AuthModule {}

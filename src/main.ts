@@ -49,19 +49,21 @@ async function bootstrap() {
   );
 
   // Swagger configuration
-  console.log('📚 Setting up Swagger documentation...');
-  const configSwagger = new DocumentBuilder()
-    .setTitle('File Service API')
-    .setDescription('A file service supporting local and Azure Blob Storage')
-    .setVersion('1.0')
-    .addTag('files')
-    .addBearerAuth()
-    .build();
-
-  const document = SwaggerModule.createDocument(app, configSwagger);
-  SwaggerModule.setup('api', app, document);
-  console.log('✅ Swagger documentation configured');
-
+  if (process.env.NODE_ENV === 'development') {
+    console.log('📚 Setting up Swagger documentation...');
+    const configSwagger = new DocumentBuilder()
+      .setTitle('Vorba File Service')
+      .setDescription('A file service supporting local and Azure Blob Storage')
+      .setVersion('1.0')
+      //.addTag('files')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, configSwagger);
+    SwaggerModule.setup('api', app, document);
+    console.log('✅ Swagger documentation configured');
+  } else {
+    console.warn('Swagger documentation disabled in production');
+  }
   console.log(`🌐 Starting server on port ${port}...`);
   await app.listen(port);
 

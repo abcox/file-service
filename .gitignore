@@ -53,7 +53,7 @@ azurite/
 uploads/
 
 # JWT secrets and tokens (keep out of git!)
-scripts/token/out/*
+scripts/auth/token/*
 
 # Runtime data
 pids
