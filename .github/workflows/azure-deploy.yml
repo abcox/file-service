@@ -243,12 +243,12 @@ jobs:
           # Deploy using Kudu ZipDeploy API (puts files in wwwroot)
           echo "Deploying to Azure App Service..."
           echo "ZIP file size: $(ls -lh deploy.zip)"
-          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net:443/api/zipdeploy"
           
           # Deploy with verbose output
           DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X POST \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy" \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net:443/api/zipdeploy" \
             --data-binary @deploy.zip \
             -w "\nHTTP_STATUS: %{http_code}\n")
           
