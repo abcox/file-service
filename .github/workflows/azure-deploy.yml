@@ -223,12 +223,16 @@ jobs:
 
       - name: Deploy to Azure App Service
         run: |
-          # Extract publish profile credentials
-          echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" | base64 -d > publish-profile.xml
+          # Create publish profile file from XML content
+          echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" > publish-profile.xml
           
-          # Extract username and password from publish profile
-          PUBLISHING_USERNAME=$(grep -o 'userName="[^"]*"' publish-profile.xml | cut -d'"' -f2)
-          PUBLISHING_PASSWORD=$(grep -o 'userPWD="[^"]*"' publish-profile.xml | cut -d'"' -f2)
+          # Extract username and password from ZipDeploy profile
+          PUBLISHING_USERNAME=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userName=' | cut -d'"' -f2)
+          PUBLISHING_PASSWORD=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | cut -d'"' -f2)
+          
+          # Debug: Check if credentials were extracted
+          echo "Username extracted: $PUBLISHING_USERNAME"
+          echo "Password extracted: ${PUBLISHING_PASSWORD:0:5}..." # Show first 5 chars only
           
           # Create ZIP of deploy folder
           cd deploy
