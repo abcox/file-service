@@ -235,15 +235,24 @@ jobs:
           echo "Password extracted: ${PUBLISHING_PASSWORD:0:5}..." # Show first 5 chars only
           
           # Create ZIP of deploy folder
+          echo "Creating deploy.zip..."
           cd deploy
           zip -r ../deploy.zip .
           cd ..
           
           # Deploy using Kudu ZipDeploy API (puts files in wwwroot)
-          curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+          echo "Deploying to Azure App Service..."
+          echo "ZIP file size: $(ls -lh deploy.zip)"
+          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+          
+          # Deploy with verbose output
+          DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X POST \
             "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy" \
-            --data-binary @deploy.zip
+            --data-binary @deploy.zip \
+            -w "\nHTTP_STATUS: %{http_code}\n")
+          
+          echo "Deploy response: $DEPLOY_RESPONSE"
 
       - name: Wait for deployment
         run: |
