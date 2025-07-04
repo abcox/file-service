@@ -34,14 +34,14 @@ echo Checking configuration...
 echo.
 
 if "%KEYVAULT_NAME%"=="your-keyvault-name-here" (
-    echo ERROR: Please update KEYVAULT_NAME in deploy.bat
+    echo ERROR: Please update KEYVAULT_NAME in deploy-infra-config.bat
     echo.
     pause
     exit /b 1
 )
 
 if "%STORAGE_ACCOUNT_NAME%"=="your-storage-account-name-here" (
-    echo ERROR: Please update STORAGE_ACCOUNT_NAME in deploy.bat
+    echo ERROR: Please update STORAGE_ACCOUNT_NAME in deploy-infra-config.bat
     echo.
     pause
     exit /b 1
@@ -77,7 +77,7 @@ REM RUN POWERSHELL SCRIPT
 REM ========================================
 
 if "%DRY_RUN%"=="true" (
-    powershell -ExecutionPolicy Bypass -File "%~dp0deploy.ps1" ^
+    powershell -ExecutionPolicy Bypass -File "%~dp0deploy-infra.ps1" ^
         -KeyVaultName "%KEYVAULT_NAME%" ^
         -StorageAccountName "%STORAGE_ACCOUNT_NAME%" ^
         -ResourceGroupName "%RESOURCE_GROUP_NAME%" ^
@@ -87,7 +87,7 @@ if "%DRY_RUN%"=="true" (
         -ContainerName "%CONTAINER_NAME%" ^
         -DryRun
 ) else (
-    powershell -ExecutionPolicy Bypass -File "%~dp0deploy.ps1" ^
+    powershell -ExecutionPolicy Bypass -File "%~dp0deploy-infra.ps1" ^
         -KeyVaultName "%KEYVAULT_NAME%" ^
         -StorageAccountName "%STORAGE_ACCOUNT_NAME%" ^
         -ResourceGroupName "%RESOURCE_GROUP_NAME%" ^

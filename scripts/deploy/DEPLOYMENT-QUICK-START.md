@@ -12,10 +12,10 @@
 
 1. **Copy the configuration template:**
    ```cmd
-   copy scripts\deploy-config.bat scripts\deploy.bat
+   copy scripts\deploy\deploy-infra-config.bat scripts\deploy\deploy.bat
    ```
 
-2. **Edit `scripts\deploy.bat`** and update the required values:
+2. **Edit `scripts\deploy\deploy.bat`** and update the required values:
    ```cmd
    set KEYVAULT_NAME=your-keyvault-name
    set STORAGE_ACCOUNT_NAME=your-storage-account-name
@@ -24,9 +24,9 @@
 3. **Run the deployment:**
    ```cmd
    # For dry run (recommended first)
-   scripts\deploy.bat
+   scripts\deploy\deploy-infra.bat
    
-   # Or edit deploy.bat and set DRY_RUN=true for dry run
+   # Or edit deploy-infra.bat and set DRY_RUN=true for dry run
    # Then set DRY_RUN=false for actual deployment
    ```
 
@@ -36,16 +36,16 @@ From the project root directory, run:
 
 ```powershell
 # Basic deployment (uses existing Key Vault and Storage Account)
-.\scripts\deploy.ps1 -KeyVaultName "your-keyvault-name" -StorageAccountName "your-storage-account-name"
+.\scripts\deploy\deploy-infra.ps1 -KeyVaultName "your-keyvault-name" -StorageAccountName "your-storage-account-name"
 
 # Example with custom resource group
-.\scripts\deploy.ps1 -KeyVaultName "vorba-kv" -StorageAccountName "vorbastorage" -ResourceGroupName "vorba-rg"
+.\scripts\deploy\deploy-infra.ps1 -KeyVaultName "vorba-kv" -StorageAccountName "vorbastorage" -ResourceGroupName "vorba-rg"
 
 # Skip resource creation (only configure existing App Service)
-.\scripts\deploy.ps1 -KeyVaultName "your-keyvault" -StorageAccountName "your-storage" -SkipResourceCreation
+.\scripts\deploy\deploy-infra.ps1 -KeyVaultName "your-keyvault" -StorageAccountName "your-storage" -SkipResourceCreation
 
 # Dry run (see what would be created without making changes)
-.\scripts\deploy.ps1 -KeyVaultName "your-keyvault" -StorageAccountName "your-storage" -DryRun
+.\scripts\deploy\deploy-infra.ps1 -KeyVaultName "your-keyvault" -StorageAccountName "your-storage" -DryRun
 
 ## Step 2: What the Script Does
 
@@ -82,11 +82,11 @@ Before making actual changes, you can run the script in dry-run mode to see what
 
 ### Using Batch File
 ```cmd
-# Edit deploy.bat and set:
+# Edit deploy-infra.bat and set:
 set DRY_RUN=true
 
 # Then run:
-scripts\deploy.bat
+scripts\deploy\deploy-infra.bat
 ```
 
 ### Using PowerShell

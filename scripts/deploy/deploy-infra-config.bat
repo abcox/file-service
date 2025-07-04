@@ -3,7 +3,7 @@ REM ========================================
 REM DEPLOYMENT CONFIGURATION TEMPLATE
 REM ========================================
 REM
-REM Copy this file to deploy.bat and update the values below
+REM Copy this file to deploy-infra.bat and update the values below
 REM with your actual Azure resource names.
 REM
 

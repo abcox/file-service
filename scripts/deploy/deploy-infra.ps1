@@ -39,13 +39,13 @@
     Show what would be created/configured without making any changes
 
 .EXAMPLE
-    .\deploy.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorageaccount"
+    .\deploy-infra.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorageaccount"
 
 .EXAMPLE
-    .\deploy.ps1 -SubscriptionId "12345678-1234-1234-1234-123456789012" -ResourceGroupName "my-rg"
+    .\deploy-infra.ps1 -SubscriptionId "12345678-1234-1234-1234-123456789012" -ResourceGroupName "my-rg"
 
 .EXAMPLE
-    .\deploy.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorage" -DryRun
+    .\deploy-infra.ps1 -KeyVaultName "my-keyvault" -StorageAccountName "mystorage" -DryRun
 #>
 
 param(
