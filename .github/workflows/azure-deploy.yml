@@ -226,13 +226,24 @@ jobs:
           # Create publish profile file from XML content
           echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" > publish-profile.xml
           
+          # Debug: Show the publish profile content
+          echo "Publish profile content:"
+          cat publish-profile.xml
+          
           # Extract username and password from ZipDeploy profile
+          echo "Extracting credentials..."
           PUBLISHING_USERNAME=$(grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userName=' | head -1 | cut -d'"' -f2)
           PUBLISHING_PASSWORD=$(grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | head -1 | cut -d'"' -f2)
           
           # Debug: Show the extracted values
           echo "Raw username: '$PUBLISHING_USERNAME'"
-          echo "Raw password: '${PUBLISHING_PASSWORD:0:10}...'"
+          echo "Raw password: '${PUBLISHING_PASSWORD:0:3}...${PUBLISHING_PASSWORD: -3}'"
+          
+          # Debug: Show the grep results
+          echo "Grep results for userName:"
+          grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userName='
+          echo "Grep results for userPWD:"
+          grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userPWD='
           
           # Test credentials with a simple API call first
           echo "Testing credentials..."
@@ -260,6 +271,17 @@ jobs:
             -w "\nHTTP_STATUS: %{http_code}\n")
           
           echo "Deploy response: $DEPLOY_RESPONSE"
+
+          echo "ALT deploy"
+          B64_AUTH=$(echo -n "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" | base64)
+          curl -sS -X POST \
+            -H "Authorization: Basic $B64_AUTH" \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+
+          echo "Deploy response:"
+          echo "$DEPLOY_RESPONSE"
 
       - name: Wait for deployment
         run: |
