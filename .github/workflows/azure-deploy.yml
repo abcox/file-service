@@ -222,19 +222,44 @@ jobs:
           cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
 
       - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./deploy
-
-      - name: Copy files to wwwroot
         run: |
-          echo "Copying files from temp location to wwwroot..."
+          # Create publish profile file from XML content
+          echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" > publish-profile.xml
           
-          # Use Azure CLI to copy files from temp location to wwwroot
-          az webapp ssh --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --command "cp -r /tmp/zipdeploy_tmp/extracted/* /home/site/wwwroot/ && echo 'Files copied successfully'"
+          # Extract username and password from ZipDeploy profile
+          PUBLISHING_USERNAME=$(grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userName=' | head -1 | cut -d'"' -f2)
+          PUBLISHING_PASSWORD=$(grep -A 15 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | head -1 | cut -d'"' -f2)
+          
+          # Debug: Show the extracted values
+          echo "Raw username: '$PUBLISHING_USERNAME'"
+          echo "Raw password: '${PUBLISHING_PASSWORD:0:10}...'"
+          
+          # Test credentials with a simple API call first
+          echo "Testing credentials..."
+          TEST_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/settings" \
+            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Failed")
+          echo "Test response: $TEST_RESPONSE"
+          
+          # Create ZIP of deploy folder
+          echo "Creating deploy.zip..."
+          cd deploy
+          zip -r ../deploy.zip .
+          cd ..
+          
+          # Deploy using Kudu ZipDeploy API
+          echo "Deploying to Azure App Service..."
+          echo "ZIP file size: $(ls -lh deploy.zip)"
+          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
+          
+          # Deploy with verbose output
+          DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X POST \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy" \
+            --data-binary @deploy.zip \
+            -w "\nHTTP_STATUS: %{http_code}\n")
+          
+          echo "Deploy response: $DEPLOY_RESPONSE"
 
       - name: Wait for deployment
         run: |
