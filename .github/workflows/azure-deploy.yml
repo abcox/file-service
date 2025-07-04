@@ -270,14 +270,28 @@ jobs:
           echo "ZIP file size: $(ls -lh deploy.zip)"
           echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
           
-          # Deploy with verbose output
+          # Deploy with timeout to prevent hanging
           DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
             -X POST \
             "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy" \
             --data-binary @deploy.zip \
+            --max-time 300 \
+            --connect-timeout 30 \
             -w "\nHTTP_STATUS: %{http_code}\n")
           
           echo "Deploy response: $DEPLOY_RESPONSE"
+
+          # Post-deployment: Copy files from temp location to wwwroot if needed
+          echo "Checking if files need to be copied to wwwroot..."
+          COPY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
+            -X POST \
+            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
+            -H "Content-Type: application/json" \
+            -d '{"command": "cp -r /tmp/zipdeploy/extracted/* /home/site/wwwroot/", "dir": "/tmp/zipdeploy/extracted"}' \
+            --max-time 60 \
+            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Copy command failed")
+          
+          echo "Copy response: $COPY_RESPONSE"
 
           #echo "ALT deploy"
           #B64_AUTH=$(echo -n "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" | base64)
