@@ -222,37 +222,19 @@ jobs:
           cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
 
       - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ./deploy
+
+      - name: Copy files to wwwroot
         run: |
-          # Create publish profile file from XML content
-          echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" > publish-profile.xml
+          echo "Copying files from temp location to wwwroot..."
           
-          # Extract username and password from ZipDeploy profile
-          PUBLISHING_USERNAME=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userName=' | cut -d'"' -f2)
-          PUBLISHING_PASSWORD=$(grep -A 10 'Zip Deploy' publish-profile.xml | grep 'userPWD=' | cut -d'"' -f2)
-          
-          # Debug: Check if credentials were extracted
-          echo "Username extracted: $PUBLISHING_USERNAME"
-          echo "Password extracted: ${PUBLISHING_PASSWORD:0:5}..." # Show first 5 chars only
-          
-          # Create ZIP of deploy folder
-          echo "Creating deploy.zip..."
-          cd deploy
-          zip -r ../deploy.zip .
-          cd ..
-          
-          # Deploy using Kudu ZipDeploy API (puts files in wwwroot)
-          echo "Deploying to Azure App Service..."
-          echo "ZIP file size: $(ls -lh deploy.zip)"
-          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net:443/api/zipdeploy"
-          
-          # Deploy with verbose output
-          DEPLOY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X POST \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net:443/api/zipdeploy" \
-            --data-binary @deploy.zip \
-            -w "\nHTTP_STATUS: %{http_code}\n")
-          
-          echo "Deploy response: $DEPLOY_RESPONSE"
+          # Use Azure CLI to copy files from temp location to wwwroot
+          az webapp ssh --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --command "cp -r /tmp/zipdeploy_tmp/extracted/* /home/site/wwwroot/ && echo 'Files copied successfully'"
 
       - name: Wait for deployment
         run: |
