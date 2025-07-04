@@ -183,16 +183,16 @@ jobs:
             --output table || echo "Failed to get current settings"
           
           # Set environment variables and configuration
-          # IMPORTANT: use --add to avoid overwriting existing settings
-          echo "Setting environment variables and configuration..."
-          az webapp config appsettings set \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --add \
-            NODE_ENV=production \
-            PORT=8080 \
-            WEBSITE_NODE_DEFAULT_VERSION=22.14.0 \
-            SCM_COMMAND_IDLE_TIMEOUT=120
+          # IMPORTANT: use --add-settings to avoid overwriting existing settings
+          #echo "Setting environment variables and configuration..."
+          #az webapp config appsettings set \
+          #  --name ${{ env.AZURE_WEBAPP_NAME }} \
+          #  --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+          #  --add-settings \
+          #  NODE_ENV=production \
+          #  PORT=8080 \
+          #  WEBSITE_NODE_DEFAULT_VERSION=22.14.0 \
+          #  SCM_COMMAND_IDLE_TIMEOUT=120
           
           # Debug: Check settings after changes
           echo "=== UPDATED APP SETTINGS ==="
