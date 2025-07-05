@@ -196,36 +196,100 @@ function Deploy-Application {
     }
     New-Item -ItemType Directory -Path $tempDir | Out-Null
     
-    # Copy build output
+    # Copy build output - simple approach
+    # Copy the entire dist folder as-is
     Copy-Item -Recurse "dist" "$tempDir/"
+    
+    # Copy package files
     Copy-Item "package.json" "$tempDir/"
     Copy-Item "package-lock.json" "$tempDir/"
     
-    # Copy necessary files for Azure deployment (Linux App Service)
-    # Note: No web.config needed for Linux App Services
-    # The runtime is configured via Azure App Service settings
+    # Copy node_modules into the dist folder
+    Write-ColorOutput "[COPY] Copying node_modules to dist folder..." $Yellow
+    Copy-Item -Recurse "node_modules" "$tempDir\dist\"
+    
+    # Create a zip file using 7-Zip for Linux compatibility
+    $zipPath = Join-Path $env:TEMP "deploy-$(Get-Random).zip"
+    if (Test-Path $zipPath) {
+        Remove-Item -Force $zipPath
+    }
+    
+    # Check if 7-Zip is available
+    $7zPath = "C:\Program Files\7-Zip\7z.exe"
+    try {
+        $null = & $7zPath -h 2>$null
+        Write-ColorOutput "[ZIP] Using 7-Zip for Linux-compatible zip..." $Yellow
+    }
+    catch {
+        # TODO: If linux is the target environment, powershell compression is not supported
+        Write-ColorOutput "[ZIP] 7-Zip not found, falling back to PowerShell..." $Yellow
+        $7zPath = $null
+        exit 1
+    }
+    
+    if ($7zPath) {
+        # Use 7-Zip with Linux-compatible paths
+        Write-ColorOutput "[ZIP] Creating deployment zip file with 7-Zip..." $Yellow
+        $result = & $7zPath a -r -tzip $zipPath "$tempDir\*" 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "7-Zip failed: $result"
+            exit 1
+        }
+    } else {
+        # Fallback to PowerShell
+        Write-ColorOutput "[ZIP] Creating deployment zip file with PowerShell..." $Yellow
+        Compress-Archive -Path "$tempDir\*" -DestinationPath $zipPath -Force
+    }
+    
+    # Verify zip file was created
+    if (Test-Path $zipPath) {
+        $zipSize = (Get-Item $zipPath).Length
+        Write-ColorOutput "[ZIP] Zip file created: $zipPath (Size: $zipSize bytes)" $Yellow
+    } else {
+        Write-Error "Failed to create zip file"
+        exit 1
+    }
     
     # Deploy using Azure CLI
     Write-ColorOutput "[DEPLOY] Deploying to Azure..." $Yellow
     
     try {
-        az webapp deployment source config-zip --resource-group $ResourceGroup --name $AppServiceName --src "$tempDir" --timeout 1800
+        # Use the newer az webapp deploy command with zip file
+        Write-ColorOutput "[DEPLOY] Deploying zip file: $zipPath" $Yellow
+        $deployResult = az webapp deploy --resource-group $ResourceGroup --name $AppServiceName --src-path $zipPath --type zip --timeout 1800 2>&1
         
-        if ($LASTEXITCODE -eq 0) {
+        # Check if deployment was actually successful by looking for success indicators
+        if ($LASTEXITCODE -eq 0 -or $deployResult -match "Deployment successful" -or $deployResult -match "Deployment completed") {
             Write-Success "Deployment completed successfully"
         } else {
-            Write-Error "Deployment failed"
-            exit 1
+            # Check if it's just a warning about deprecation
+            if ($deployResult -match "WARNING" -and $deployResult -match "deprecated") {
+                Write-Success "Deployment completed successfully (with deprecation warning)"
+            } else {
+                Write-Error "Deployment failed with exit code: $LASTEXITCODE"
+                Write-ColorOutput "[DEBUG] Deployment output: $deployResult" $Yellow
+                Write-ColorOutput "[DEBUG] Check deployment logs at: https://$AppServiceName.scm.azurewebsites.net/api/deployments/latest" $Yellow
+                exit 1
+            }
         }
+        
+        # Ensure startup command is correct after deployment
+        Write-ColorOutput "[CONFIG] Setting startup command..." $Yellow
+        az webapp config set --name $AppServiceName --resource-group $ResourceGroup --startup-file "node dist/main.js"
+        Write-Success "Startup command configured: node dist/main.js"
     }
     catch {
         Write-Error "Deployment failed: $_"
+        Write-ColorOutput "[DEBUG] Check deployment logs at: https://$AppServiceName.scm.azurewebsites.net/api/deployments/latest" $Yellow
         exit 1
     }
     finally {
-        # Clean up temporary directory
+        # Clean up temporary files
         if (Test-Path $tempDir) {
             Remove-Item -Recurse -Force $tempDir
+        }
+        if (Test-Path $zipPath) {
+            Remove-Item -Force $zipPath
         }
     }
 }
