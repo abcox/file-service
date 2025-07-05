@@ -54,7 +54,6 @@ param(
     [string]$Location = "Canada East",
     [string]$AppServiceName = "vorba-file-service",
     [string]$AppServicePlanName = "vorba-file-service-plan",
-    [Parameter(Mandatory=$true)]
     [string]$KeyVaultName,
     [Parameter(Mandatory=$true)]
     [string]$StorageAccountName,
@@ -265,8 +264,13 @@ function New-AppService {
     }
     
     Write-Host "[INFO] Creating App Service: $AppServiceName" -ForegroundColor Yellow
-    az webapp create --name $AppServiceName --resource-group $ResourceGroupName --plan $AppServicePlanName --runtime "NODE:18-lts"
+    az webapp create --name $AppServiceName --resource-group $ResourceGroupName --plan $AppServicePlanName --runtime "NODE:22-lts"
     Write-Host "[OK] App Service created: $AppServiceName" -ForegroundColor Green
+    
+    # Configure startup command for proper file structure
+    Write-Host "[INFO] Configuring startup command..." -ForegroundColor Yellow
+    az webapp config set --name $AppServiceName --resource-group $ResourceGroupName --startup-file "node dist/main.js"
+    Write-Host "[OK] Startup command configured: node dist/main.js" -ForegroundColor Green
 }
 
 # Function to check if Key Vault exists
@@ -338,7 +342,7 @@ function New-BlobContainer {
 
 # Function to configure App Service settings
 function Set-AppServiceConfiguration {
-    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$KeyVaultName, [string]$StorageAccountName, [bool]$DryRun = $false)
+    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$StorageAccountName, [string]$KeyVaultName = "", [bool]$DryRun = $false)
     
     if ($DryRun) {
         Write-Host "[DRY RUN] Would configure App Service settings for: $AppServiceName" -ForegroundColor Cyan
@@ -372,8 +376,14 @@ function Set-AppServiceConfiguration {
         Write-Host "[DEBUG] Getting App Service principalId for managed identity..." -ForegroundColor Magenta
         $principalId = az webapp identity show --name $AppServiceName --resource-group $ResourceGroupName --query principalId --output tsv
         if (-not $principalId) {
-            Write-Host "[ERROR] Could not get principalId for managed identity" -ForegroundColor Red
-            return
+            Write-Host "[WARNING] Could not get principalId for managed identity - will retry..." -ForegroundColor Yellow
+            # Wait a moment for managed identity to propagate
+            Start-Sleep -Seconds 10
+            $principalId = az webapp identity show --name $AppServiceName --resource-group $ResourceGroupName --query principalId --output tsv
+            if (-not $principalId) {
+                Write-Host "[ERROR] Could not get principalId for managed identity after retry" -ForegroundColor Red
+                return
+            }
         }
         Write-Host "[OK] principalId for managed identity: $principalId" -ForegroundColor Green
 
@@ -385,15 +395,36 @@ function Set-AppServiceConfiguration {
         Write-Host "[OK] Tenant ID: $tenantId, Subscription ID: $subscriptionId" -ForegroundColor Green
         
         Write-Host "[DEBUG] Setting app settings..." -ForegroundColor Magenta
+        
+        # Build settings array based on available resources
+        $settings = @(
+            "NODE_ENV=production",
+            "AZURE_STORAGE_CONNECTION_STRING=$connectionString",
+            "WEBSITE_NODE_DEFAULT_VERSION=22.14.0"
+        )
+        
+        # Add managed identity settings if available
+        if ($principalId) {
+            $settings += @(
+                "AZURE_CLIENT_ID=$principalId",
+                "AZURE_TENANT_ID=$tenantId",
+                "AZURE_SUBSCRIPTION_ID=$subscriptionId"
+            )
+            Write-Host "[INFO] Managed identity settings included" -ForegroundColor Yellow
+        } else {
+            Write-Host "[WARNING] Managed identity settings skipped (not available)" -ForegroundColor Yellow
+        }
+        
+        # Add Key Vault URL if Key Vault is provided
+        if ($KeyVaultName -and $KeyVaultName -ne "") {
+            $settings += "AZURE_KEY_VAULT_URL=$keyVaultUrl"
+            Write-Host "[INFO] Key Vault configuration included" -ForegroundColor Yellow
+        } else {
+            Write-Host "[INFO] Key Vault configuration skipped (not provided)" -ForegroundColor Yellow
+        }
+        
         # Configure app settings
-        $result = az webapp config appsettings set --name $AppServiceName --resource-group $ResourceGroupName --settings `
-            NODE_ENV=production `
-            AZURE_KEY_VAULT_URL=$keyVaultUrl `
-            AZURE_STORAGE_CONNECTION_STRING=$connectionString `
-            WEBSITE_NODE_DEFAULT_VERSION=22.14.0 `
-            AZURE_CLIENT_ID=$principalId `
-            AZURE_TENANT_ID=$tenantId `
-            AZURE_SUBSCRIPTION_ID=$subscriptionId 2>&1
+        $result = az webapp config appsettings set --name $AppServiceName --resource-group $ResourceGroupName --settings $settings 2>&1
         
         if ($LASTEXITCODE -eq 0) {
             Write-Host "[OK] App Service configuration completed" -ForegroundColor Green
@@ -437,7 +468,12 @@ function Enable-ManagedIdentity {
 
 # Function to grant Key Vault access
 function Grant-KeyVaultAccess {
-    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$KeyVaultName, [bool]$DryRun = $false)
+    param([string]$AppServiceName, [string]$ResourceGroupName, [string]$KeyVaultName = "", [bool]$DryRun = $false)
+    
+    if (-not $KeyVaultName -or $KeyVaultName -eq "") {
+        Write-Host "[INFO] Key Vault access skipped (no Key Vault provided)" -ForegroundColor Yellow
+        return
+    }
     
     if ($DryRun) {
         Write-Host "[DRY RUN] Would grant Key Vault access for: $AppServiceName to $KeyVaultName" -ForegroundColor Cyan
@@ -496,32 +532,7 @@ function Grant-KeyVaultAccess {
     }
 }
 
-# Function to get publish profile
-function Get-PublishProfile {
-    param([string]$AppServiceName, [string]$ResourceGroupName, [bool]$DryRun = $false)
-    
-    if ($DryRun) {
-        Write-Host "[DRY RUN] Would generate publish profile for: $AppServiceName" -ForegroundColor Cyan
-        Write-Host "   - File: publish-profile-$AppServiceName.xml" -ForegroundColor Gray
-        return
-    }
-    
-    Write-Host "[INFO] Getting publish profile..." -ForegroundColor Yellow
-    try {
-        $profile = az webapp deployment list-publishing-profiles --name $AppServiceName --resource-group $ResourceGroupName --xml 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            $profilePath = "publish-profile-$AppServiceName.xml"
-            $profile | Out-File -FilePath $profilePath -Encoding UTF8
-            Write-Host "[OK] Publish profile saved to: $profilePath" -ForegroundColor Green
-            Write-Host "[INFO] Add this file content to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE" -ForegroundColor Cyan
-        } else {
-            Write-Host "[ERROR] Failed to get publish profile: $profile" -ForegroundColor Red
-        }
-    }
-    catch {
-        Write-Host "[ERROR] Exception during publish profile generation: $($_.Exception.Message)" -ForegroundColor Red
-    }
-}
+
 
 # Main execution
 try {
@@ -551,17 +562,29 @@ try {
     
     # Check existing resources
     Write-Host "`n[INFO] Checking existing resources..." -ForegroundColor Cyan
-    Write-Host "[DEBUG] Checking Key Vault: $KeyVaultName" -ForegroundColor Magenta
-    
-    $keyVaultExists = Test-KeyVault -KeyVaultName $KeyVaultName
-    Write-Host "[DEBUG] Key Vault exists: $keyVaultExists" -ForegroundColor Magenta
     
     Write-Host "[DEBUG] Checking Storage Account: $StorageAccountName" -ForegroundColor Magenta
     $storageExists = Test-StorageAccount -StorageAccountName $StorageAccountName
     Write-Host "[DEBUG] Storage Account exists: $storageExists" -ForegroundColor Magenta
     
-    if (-not $keyVaultExists -or -not $storageExists) {
-        Write-Host "[ERROR] Required resources (Key Vault or Storage Account) do not exist" -ForegroundColor Red
+    # Check Key Vault only if provided
+    $keyVaultExists = $true
+    if ($KeyVaultName -and $KeyVaultName -ne "") {
+        Write-Host "[DEBUG] Checking Key Vault: $KeyVaultName" -ForegroundColor Magenta
+        $keyVaultExists = Test-KeyVault -KeyVaultName $KeyVaultName
+        Write-Host "[DEBUG] Key Vault exists: $keyVaultExists" -ForegroundColor Magenta
+    } else {
+        Write-Host "[INFO] Key Vault check skipped (not provided)" -ForegroundColor Yellow
+    }
+    
+    # Fail if required resources don't exist
+    if (-not $storageExists) {
+        Write-Host "[ERROR] Required resource (Storage Account) does not exist" -ForegroundColor Red
+        exit 1
+    }
+    
+    if ($KeyVaultName -and $KeyVaultName -ne "" -and -not $keyVaultExists) {
+        Write-Host "[ERROR] Required resource (Key Vault) does not exist" -ForegroundColor Red
         exit 1
     }
     
@@ -616,18 +639,18 @@ try {
     # Configuration
     Write-Host "`n[INFO] Configuring resources..." -ForegroundColor Cyan
     
-    Write-Host "[DEBUG] About to configure App Service settings..." -ForegroundColor Magenta
-    Set-AppServiceConfiguration -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -StorageAccountName $StorageAccountName -DryRun $DryRun
-    
     Write-Host "[DEBUG] About to enable managed identity..." -ForegroundColor Magenta
     Enable-ManagedIdentity -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -DryRun $DryRun
+    
+    Write-Host "[DEBUG] About to configure App Service settings..." -ForegroundColor Magenta
+    Set-AppServiceConfiguration -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -StorageAccountName $StorageAccountName -DryRun $DryRun
     
     Write-Host "[DEBUG] About to grant Key Vault access..." -ForegroundColor Magenta
     Grant-KeyVaultAccess -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -DryRun $DryRun
     
-    # Get publish profile
-    Write-Host "[DEBUG] About to get publish profile..." -ForegroundColor Magenta
-    Get-PublishProfile -AppServiceName $AppServiceName -ResourceGroupName $ResourceGroupName -DryRun $DryRun
+    # Note: Publish profiles can be obtained from Azure Portal when needed for GitHub Actions
+    Write-Host "[INFO] Publish profiles can be downloaded from Azure Portal for GitHub Actions" -ForegroundColor Cyan
+    Write-Host "[INFO] Portal path: App Service > Get publish profile" -ForegroundColor Cyan
     
     if ($DryRun) {
         Write-Host "`n[DRY RUN] DRY RUN COMPLETED - No changes were made" -ForegroundColor Yellow
@@ -635,9 +658,9 @@ try {
     } else {
         Write-Host "`n[SUCCESS] Deployment setup completed successfully!" -ForegroundColor Green
         Write-Host "`n[INFO] Next steps:" -ForegroundColor Cyan
-        Write-Host "1. Add the publish profile content to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE" -ForegroundColor White
-        Write-Host "2. Push your code to the main branch to trigger deployment" -ForegroundColor White
-        Write-Host "3. Monitor deployment in GitHub Actions" -ForegroundColor White
+        Write-Host "1. Run 'npm run deploy-build' to deploy your application" -ForegroundColor White
+        Write-Host "2. For GitHub Actions: Get publish profile from Azure Portal" -ForegroundColor White
+        Write-Host "3. Add publish profile to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE" -ForegroundColor White
     }
     
 }

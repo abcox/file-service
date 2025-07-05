@@ -245,7 +245,7 @@ jobs:
           #if [ -z "$PUBLISHING_USERNAME" ] || [ -z "$PUBLISHING_PASSWORD" ] || [ "$PUBLISHING_USERNAME" = "-file-service" ]; then
             echo "Extraction failed or incomplete, using fallback values..."
             PUBLISHING_USERNAME='$vorba-file-service'
-            PUBLISHING_PASSWORD="td6NKPZnkrA2mgqXiuJw3biR9rNAQdnBzHeAdnMdrjEb9MS2L16Gg2DgliFw"
+            PUBLISHING_PASSWORD="[REDACTED]"
           #fi
       
           # Debug: Show the extracted values

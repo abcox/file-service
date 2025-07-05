@@ -13,13 +13,15 @@ REM CONFIGURATION - UPDATE THESE VALUES
 REM ========================================
 
 REM Required parameters (you must update these)
-set KEYVAULT_NAME=vorba-sand-kv-2
 set STORAGE_ACCOUNT_NAME=ccastore01
+
+REM Optional parameters (leave empty if not using Key Vault)
+set KEYVAULT_NAME=
 
 REM Optional parameters (update if needed)
 set RESOURCE_GROUP_NAME=vorba-file-service-rg
 set LOCATION=Canada East
-set APP_SERVICE_NAME=vorba-file-service
+set APP_SERVICE_NAME=vorba-file-service-2
 set APP_SERVICE_PLAN_NAME=vorba-file-service-plan
 set CONTAINER_NAME=file-service-uploads
 
@@ -33,12 +35,7 @@ REM ========================================
 echo Checking configuration...
 echo.
 
-if "%KEYVAULT_NAME%"=="your-keyvault-name-here" (
-    echo ERROR: Please update KEYVAULT_NAME in deploy-infra-config.bat
-    echo.
-    pause
-    exit /b 1
-)
+REM Key Vault is optional - no validation needed
 
 if "%STORAGE_ACCOUNT_NAME%"=="your-storage-account-name-here" (
     echo ERROR: Please update STORAGE_ACCOUNT_NAME in deploy-infra-config.bat

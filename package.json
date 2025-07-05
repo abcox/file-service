@@ -27,7 +27,10 @@
     "kill-port-3000": "powershell \"Get-NetTCPConnection | Where-Object {$_.LocalPort -eq 3000} | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force } 2>$null 1>$null\"",
     "kill-port-3000-alt": "for /f \"tokens=5\" %a in ('netstat -ano ^| findstr :3000') do taskkill //PID %a //F 2>$null 1>$null",
     "start-storage-emulator": "cmd /c \"\"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\Common7\\IDE\\Extensions\\Microsoft\\Azure Storage Emulator\\azurite.exe\" --location .\\azurite --debug .\\azurite\\debug.log\" --skipApiVersionCheck ",
-    "auth-gen-token": "ts-node scripts/auth/token-gen.ts 3"
+    "auth-gen-token": "ts-node scripts/auth/token-gen.ts 3",
+    "------------ DEPLOYMENT -------------": "--------------------------------------",
+    "deploy-infra": "call scripts\\deploy\\deploy-infra.bat",
+    "deploy-build": "call scripts\\deploy\\deploy-build.bat"
   },
   "dependencies": {
     "@azure/identity": "^4.10.1",
