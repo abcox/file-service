@@ -196,17 +196,29 @@ function Deploy-Application {
     }
     New-Item -ItemType Directory -Path $tempDir | Out-Null
     
-    # Copy build output - simple approach
-    # Copy the entire dist folder as-is
-    Copy-Item -Recurse "dist" "$tempDir/"
+    # Copy build output directly to wwwroot (not in dist subfolder)
+    # Copy dist contents to temp root
+    Get-ChildItem -Path "dist" -Recurse | ForEach-Object {
+        $relativePath = $_.FullName.Replace((Get-Location).Path + "\dist\", "").Replace("\", "/")
+        $targetPath = Join-Path $tempDir $relativePath
+        $targetDir = Split-Path $targetPath -Parent
+        if (-not (Test-Path $targetDir)) {
+            New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+        }
+        Copy-Item $_.FullName $targetPath -Force
+    }
     
     # Copy package files
     Copy-Item "package.json" "$tempDir/"
     Copy-Item "package-lock.json" "$tempDir/"
     
-    # Copy node_modules into the dist folder
-    Write-ColorOutput "[COPY] Copying node_modules to dist folder..." $Yellow
-    Copy-Item -Recurse "node_modules" "$tempDir\dist\"
+    # Copy node_modules directly to temp root
+    Write-ColorOutput "[COPY] Copying node_modules..." $Yellow
+    Copy-Item -Recurse "node_modules" "$tempDir\"
+    
+    # Copy production config file directly to temp root
+    Write-ColorOutput "[COPY] Copying production config..." $Yellow
+    Copy-Item "env/config.production.json" "$tempDir\config.production.json"
     
     # Create a zip file using 7-Zip for Linux compatibility
     $zipPath = Join-Path $env:TEMP "deploy-$(Get-Random).zip"
@@ -275,8 +287,8 @@ function Deploy-Application {
         
         # Ensure startup command is correct after deployment
         Write-ColorOutput "[CONFIG] Setting startup command..." $Yellow
-        az webapp config set --name $AppServiceName --resource-group $ResourceGroup --startup-file "node dist/main.js"
-        Write-Success "Startup command configured: node dist/main.js"
+        az webapp config set --name $AppServiceName --resource-group $ResourceGroup --startup-file "node src/main.js"
+        Write-Success "Startup command configured: node src/main.js"
     }
     catch {
         Write-Error "Deployment failed: $_"
