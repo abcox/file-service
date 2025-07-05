@@ -12,7 +12,7 @@ REM CONFIGURATION
 REM ========================================
 
 REM Default values (can be overridden by command line arguments)
-set DEFAULT_APP_SERVICE_NAME=vorba-file-service
+set DEFAULT_APP_SERVICE_NAME=vorba-file-service-2
 set DEFAULT_RESOURCE_GROUP=vorba-file-service-rg
 set DEFAULT_ENVIRONMENT=production
 
