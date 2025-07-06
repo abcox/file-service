@@ -4,9 +4,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './auth.guard';
 import { JwtAuthService } from './jwt.service';
 import { AuthController } from './auth.controller';
-import { ConfigModule } from '../config/config.module';
-import { AppConfigService } from '../config/config.service';
-import { LoggingModule } from '../logging/logging.module';
+import { ConfigModule } from '../service/config/config.module';
+import { AppConfigService } from '../service/config/config.service';
+import { LoggingModule } from '../service/logger/logging.module';
 
 @Module({
   imports: [

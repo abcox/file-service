@@ -2,8 +2,8 @@ import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService as NestConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import { KeyVaultService } from './keyvault.service';
-import { LoggerService } from '../logging/logger.service';
+import { KeyVaultService } from '../keyvault/keyvault.service';
+import { LoggerService } from '../logger/logger.service';
 import { AppConfig } from './config.interface';
 
 @Injectable()
@@ -16,19 +16,22 @@ export class AppConfigService {
     const environment = process.env.NODE_ENV || 'development';
     const configPath = path.join(
       process.cwd(),
-      'env',
+      environment === 'development' ? 'src' : '',
+      'config',
       `config.${environment}.json`,
     );
     if (!fs.existsSync(configPath)) {
       logger.error(`Configuration file not found: '${configPath}`);
       throw new Error(`Configuration file not found: ${configPath}`);
     }
+    logger.info('configPath', {
+      configPath,
+    });
     const configContent = fs.readFileSync(configPath, 'utf8');
     let config: AppConfig = JSON.parse(configContent) as AppConfig;
     logger.info('Base configuration loaded successfully', {
       environment,
       storageType: config.storage.type,
-      port: config.port,
     });
 
     // 2. Load sensitive configuration from environment variables (development)
@@ -114,13 +117,6 @@ export class AppConfigService {
       config.auth.secret = envJwtSecret;
     }
 
-    // Load other sensitive values as needed
-    const envApiKey = process.env.API_KEY;
-    if (envApiKey && config.auth) {
-      logger.info('Using API_KEY from environment variable');
-      config.auth.apiKey = envApiKey;
-    }
-
     return config;
   }
 
@@ -138,10 +134,6 @@ export class AppConfigService {
 
   getConfig(): AppConfig {
     return this.config;
-  }
-
-  getPort(): number {
-    return this.config.port;
   }
 
   getEnvironment(): string {
@@ -171,10 +163,6 @@ export class AppConfigService {
   // Helper methods for sensitive configuration
   getJwtSecret(): string | undefined {
     return this.config.auth?.secret;
-  }
-
-  getApiKey(): string | undefined {
-    return this.config.auth?.apiKey;
   }
 
   getAzureConnectionString(): string | undefined {

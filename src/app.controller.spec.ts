@@ -33,9 +33,9 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      const getHelloSpy = jest.spyOn(appService, 'getHello');
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return App info', () => {
+      const getHelloSpy = jest.spyOn(appService, 'getAppInfo');
+      expect(appController.getAppInfo()).toBe('Hello World!');
       expect(getHelloSpy).toHaveBeenCalled();
     });
   });

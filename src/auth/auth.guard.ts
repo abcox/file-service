@@ -7,8 +7,9 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthService } from './jwt.service';
-import { LoggerService } from '../logging/logger.service';
+import { LoggerService } from '../service/logger/logger.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { AppConfigService } from '../service/config/config.service';
 
 // Define proper interfaces for JWT payload
 interface BaseJwtPayload {
@@ -26,7 +27,7 @@ interface ExtendedJwtPayload extends BaseJwtPayload {
 }
 
 // Single Auth decorator with options
-export interface AuthOptions {
+export interface AuthGuardOptions {
   public?: boolean;
   roles?: string[];
   claims?: Record<string, any>;
@@ -34,20 +35,29 @@ export interface AuthOptions {
 }
 
 export const AUTH_GUARD_KEY = 'authGuard';
-export const AuthGuard = (options: AuthOptions = {}) =>
+export const AuthGuard = (options: AuthGuardOptions = {}) =>
   SetMetadata(AUTH_GUARD_KEY, options);
 
 // Create a decorator that applies both @Auth() and @ApiBearerAuth()
-export const Auth = (options: AuthOptions = {}) => {
+export const Auth = (options: AuthGuardOptions = {}) => {
   return applyDecorators(AuthGuard(options), ApiBearerAuth());
 };
 
+export interface AuthConfig {
+  enabled: boolean;
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private config: AuthConfig;
+
   constructor(
     private jwtAuthService: JwtAuthService,
     private logger: LoggerService,
-  ) {}
+    private configService: AppConfigService,
+  ) {
+    this.config = this.configService.getConfig().auth as AuthConfig;
+  }
 
   private extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
@@ -93,16 +103,21 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
+    if (!this.config.enabled) {
+      this.logger.warn('Auth disabled, skipping authentication');
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
 
     // Get auth options from decorator
-    const authOptions = Reflect.getMetadata(AUTH_GUARD_KEY, handler) as
-      | AuthOptions
+    const AuthGuardOptions = Reflect.getMetadata(AUTH_GUARD_KEY, handler) as
+      | AuthGuardOptions
       | undefined;
 
     // Check if route is public
-    if (authOptions?.public) {
+    if (AuthGuardOptions?.public) {
       return true;
     }
 
@@ -151,34 +166,34 @@ export class JwtAuthGuard implements CanActivate {
 
     // Check required audience
     if (
-      authOptions?.audience &&
-      !this.checkAudience(payload, authOptions.audience)
+      AuthGuardOptions?.audience &&
+      !this.checkAudience(payload, AuthGuardOptions.audience)
     ) {
       this.logger.warn('Auth audience invalid', {
         ip: request.ip,
         userAgent: request.get('User-Agent'),
         subject: payload.sub,
-        requiredAudience: authOptions.audience,
+        requiredAudience: AuthGuardOptions.audience,
         tokenAudience: payload.aud,
       });
       return false;
     }
 
     // Check required roles
-    if (authOptions?.roles) {
+    if (AuthGuardOptions?.roles) {
       // Debug: Log the required roles being checked
       this.logger.debug('Checking required roles', {
-        requiredRoles: authOptions.roles,
+        requiredRoles: AuthGuardOptions.roles,
         tokenRoles: payload.roles || payload.role,
         subject: payload.sub,
       });
 
-      if (!this.checkRoles(payload, authOptions.roles)) {
+      if (!this.checkRoles(payload, AuthGuardOptions.roles)) {
         this.logger.warn('Auth roles invalid', {
           ip: request.ip,
           userAgent: request.get('User-Agent'),
           subject: payload.sub,
-          requiredRoles: authOptions.roles,
+          requiredRoles: AuthGuardOptions.roles,
           tokenRoles: payload.roles || payload.role,
         });
         return false;
@@ -186,14 +201,15 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     // Check required claims
-    if (authOptions?.claims && !this.checkClaims(payload, authOptions.claims)) {
-      this.logger.warn('Auth claims invalid', {
+    const hasClaims = this.checkClaims(payload, AuthGuardOptions?.claims);
+    if (AuthGuardOptions?.claims && !hasClaims) {
+      /* this.logger.warn('Auth claims invalid', {
         ip: request.ip,
         userAgent: request.get('User-Agent'),
         subject: payload.sub,
-        requiredClaims: authOptions.claims,
+        requiredClaims: AuthGuardOptions.claims,
         tokenClaims: payload,
-      });
+      }); */
       return false;
     }
 

@@ -1,6 +1,12 @@
 {
-  "port": 8080,
-  "host": "0.0.0.0",
+  "environment": "production",
+  "auth": {
+    "enabled": true,
+    "secret": ""
+  },
+  "info": {
+    "name": "Vorba File Service"
+  },
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5"
@@ -18,6 +24,13 @@
       "safeMode": true
     }
   },
+  "swagger": {
+    "enabled": true,
+    "title": "Vorba File Service (Production)",
+    "description": "A file service supporting local and Azure Blob Storage",
+    "version": "1.0",
+    "path": "api"
+  },
   "keyVault": {
     "vaultUrl": "https://vorba-sand-kv-2.vault.azure.net/",
     "enabled": true
@@ -25,8 +38,5 @@
   "logging": {
     "level": "info",
     "enableConsole": true
-  },
-  "auth": {
-    "secret": ""
   }
 }

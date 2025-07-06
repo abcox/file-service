@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { KeyVaultSecret, SecretClient } from '@azure/keyvault-secrets';
 import { DefaultAzureCredential } from '@azure/identity';
-import { LoggerService } from '../logging/logger.service';
+import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class KeyVaultService {

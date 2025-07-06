@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  //LoggerService,
   //Post,
   //UploadedFile,
   //UseInterceptors,
@@ -23,10 +24,16 @@ import {
 //import { Response } from 'express';
 import { AppService } from './app.service';
 import { Auth } from './auth/auth.guard';
+import { LoggerService } from './service/logger/logger.service';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly loggerService: LoggerService,
+  ) {
+    this.loggerService.debug('AppController constructor called');
+  }
 
   // required for service discovery (e.g. kubernetes, azure app service)
   @Get('health')
@@ -51,11 +58,15 @@ export class AppController {
   @ApiExcludeEndpoint()
   @Get()
   @Auth({ public: true })
-  @ApiOperation({ summary: 'Get hello message' })
-  @ApiResponse({ status: 200, description: 'Returns hello message' })
-  getHello(): string {
-    console.log('Root endpoint requested');
-    return this.appService.getHello();
+  @ApiOperation({ summary: 'Get service info' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Returns information about this service as sourced from the effective configuration.',
+  })
+  getAppInfo(): string {
+    this.loggerService.debug('Root endpoint requested');
+    return this.appService.getAppInfo();
   }
 
   // TODO: remove this endpoint to new auth microservice?

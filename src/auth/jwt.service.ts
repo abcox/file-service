@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { LoggerService } from '../logging/logger.service';
-import { AppConfigService } from '../config/config.service';
+import { LoggerService } from '../service/logger/logger.service';
+import { AppConfigService } from '../service/config/config.service';
 
 interface JwtPayload {
   sub: string;
