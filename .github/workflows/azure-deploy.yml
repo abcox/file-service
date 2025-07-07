@@ -69,7 +69,7 @@ jobs:
         with:
           name: build-artifacts  # ← This name must match your download step
           path: dist/            # ← Upload the dist folder
-          retention-days: 30     # ← Keep for 30 days
+          retention-days: 10     # ← Keep for 30 days
           if-no-files-found: error  # ← Fail if no files found
 
   release:
@@ -120,14 +120,14 @@ jobs:
     #  url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
-      - name: Download artifact from build job
+      - name: Download release package
         uses: actions/download-artifact@v4
         with:
-          name: node-app
-          path: dist/
+          name: release-package
+          path: ./
 
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
+      - name: Unzip release package
+        run: unzip release-${{ github.run_number }}.zip
 
       - name: Inspect unzipped release contents
         run: |
