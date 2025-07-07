@@ -64,6 +64,14 @@ jobs:
             echo "Build successful"
           fi
 
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts  # ← This name must match your download step
+          path: dist/            # ← Upload the dist folder
+          retention-days: 30     # ← Keep for 30 days
+          if-no-files-found: error  # ← Fail if no files found
+
   release:
     needs: build
     runs-on: ubuntu-latest
