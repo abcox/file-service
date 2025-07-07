@@ -65,8 +65,9 @@ jobs:
             echo "Build successful"
           fi
 
-      - name: Copy config to root
-        run: cp config/config.${{ env.DEPLOY_ENV }}.json dist/src/config.json
+      # TODO: review this step, and if is better to make it part of the build process
+      - name: Copy config file to dist
+        run: cp src/config/config.${{ env.DEPLOY_ENV }}.json dist/src/config.json
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
