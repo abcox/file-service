@@ -182,5 +182,5 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           #slot-name: 'production'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          publish-profile: ${{ secrets.AZ_WEBAPP_PUB_PRFL__FILE_SVC_3 }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
