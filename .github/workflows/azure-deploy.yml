@@ -9,12 +9,14 @@ on:
 
 env:
   NODE_VERSION: '22.14.0'
-  AZURE_WEBAPP_NAME: 'vorba-file-service'
+  AZURE_WEBAPP_NAME: 'vorba-file-service-3'
   AZURE_RESOURCE_GROUP: 'vorba-file-service-rg'
+  AZURE_WEBAPP_PACKAGE_PATH: '.'
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  # optionally, can use job build-and-deploy: ?
+  build:
+    runs-on: ubuntu-latest # at the time of writing: ubuntu-22.04
 
     steps:
       - name: Checkout code
@@ -26,9 +28,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run linting
         run: npm run lint
 
@@ -38,360 +37,139 @@ jobs:
       - name: Build NestJS application
         run: |
           echo "=== BUILD STEP DEBUG ==="
-          echo "Current directory: $(pwd)"
+          echo "Ubuntu version: $(lsb_release -rs)"
           echo "Node version: $(node --version)"
           echo "NPM version: $(npm --version)"
+          echo "Current directory: $(pwd)"
           echo "Running: npm run build"
           
           # Run build with verbose output
           npm run build
-          
-          echo "=== POST-BUILD DEBUG ==="
+
+      - name: Post build inspection
+        run: |
+          echo "=== POST-BUILD INSPECTION ==="
           echo "Build exit code: $?"
           echo "Dist directory exists: $(test -d dist && echo 'YES' || echo 'NO')"
           echo "Dist directory contents:"
-          ls -la dist/ || echo "dist/ directory not found"
+          ls -la dist/ || echo "dist/ directory not- found"
           
-          # Check for any .js files
-          echo "JavaScript files in dist:"
-          find dist/ -name "*.js" 2>/dev/null || echo "No .js files found"
-          
-          # Check for main.js specifically
-          echo "Main.js exists: $(test -f dist/main.js && echo 'YES' || echo 'NO')"
-          
-          # If no .js files, try to run build manually with more verbose output
-          if [ ! -f dist/main.js ]; then
-            echo "=== MANUAL BUILD DEBUG ==="
-            echo "Trying manual TypeScript compilation..."
-            npx tsc --listFiles 2>&1 | head -20 || echo "TypeScript compilation failed"
-            echo "Checking for TypeScript errors..."
-            npx tsc --noEmit 2>&1 || echo "TypeScript compilation has errors"
-          fi
-        env:
-          NODE_ENV: production
-
-      - name: Create deployment package
-        run: |
-          # Debug: Check what was built
-          echo "=== BUILD DEBUG INFO ==="
-          echo "Current directory: $(pwd)"
-          echo "Dist directory exists: $(test -d dist && echo 'YES' || echo 'NO')"
-          echo "Dist directory contents:"
-          ls -la dist/ || echo "dist/ directory not found"
-          
-          # Create a deployment package optimized for Linux App Service
-          mkdir -p deploy
-          echo "Created deploy directory"
-          
-          # Copy built files - preserve the dist structure
-          if [ -d "dist" ]; then
-            echo "Copying dist/* to deploy/..."
-            cp -r dist/* deploy/
-            echo "✅ Copied dist/* to deploy/"
-          else
-            echo "❌ ERROR: dist directory not found!"
+          if [ $? -ne 0 ]; then
+            echo "Build failed - exiting"
             exit 1
-          fi
-          
-          # Copy package files
-          echo "Copying package files..."
-          cp package*.json deploy/
-          cp nest-cli.json deploy/ 2>/dev/null || echo "nest-cli.json not found (optional)"
-          echo "✅ Package files copied"
-          
-          # Copy configuration files
-          echo "Copying configuration files..."
-          echo "Env directory exists: $(test -d env && echo 'YES' || echo 'NO')"
-          echo "Env directory contents:"
-          ls -la env/ || echo "env/ directory not found"
-          cp -r env/ deploy/
-          echo "✅ Configuration files copied"
-          echo "Deploy env directory exists: $(test -d deploy/env && echo 'YES' || echo 'NO')"
-          echo "Deploy env directory contents:"
-          ls -la deploy/env/ || echo "deploy/env/ directory not found"
-          
-          # Install production dependencies in deploy directory
-          echo "Installing production dependencies in deploy/..."
-          cd deploy
-          npm ci --only=production
-          cd ..
-          echo "✅ Production dependencies installed"
-          
-          # Determine the correct main.js location based on actual build output
-          echo "🔍 Determining main.js location..."
-          if [ -f "deploy/main.js" ]; then
-            MAIN_JS_PATH="main.js"
-            echo "Found main.js at deploy/main.js"
-          elif [ -f "deploy/src/main.js" ]; then
-            MAIN_JS_PATH="src/main.js"
-            echo "Found main.js at deploy/src/main.js"
           else
-            echo "❌ ERROR: Could not find main.js in deploy directory!"
-            echo "Deploy directory contents:"
-            find deploy/ -name "*.js" 2>/dev/null || echo "No .js files found"
-            echo "Full deploy directory structure:"
-            find deploy/ -type f 2>/dev/null | head -20
-            exit 1
+            echo "Build successful"
           fi
-          
-          echo "✅ Using main.js at: $MAIN_JS_PATH"
-          
-          # Create startup command for Linux App Service
-          echo "Creating startup.txt with: node $MAIN_JS_PATH"
-          echo "node $MAIN_JS_PATH" > deploy/startup.txt
-          
-          # Create .deployment file to specify startup command
-          echo "Creating .deployment file with command: node $MAIN_JS_PATH"
-          #cat > deploy/.deployment << EOF
-          #[config]
-          #command = node $MAIN_JS_PATH
-          #EOF
-          echo "[config]" > deploy/.deployment
-          echo "command = node $MAIN_JS_PATH" >> deploy/.deployment
 
-          # Debug: List contents of deploy directory
-          echo "=== DEPLOY PACKAGE DEBUG INFO ==="
-          echo "Deploy directory contents:"
-          ls -la deploy/
-          echo "Main.js exists at deploy/main.js: $(test -f deploy/main.js && echo 'YES' || echo 'NO')"
-          echo "Main.js exists at deploy/src/main.js: $(test -f deploy/src/main.js && echo 'YES' || echo 'NO')"
-          echo "Package.json exists: $(test -f deploy/package.json && echo 'YES' || echo 'NO')"
-          echo ".deployment file contents:"
-          cat deploy/.deployment
-          echo "startup.txt contents:"
-          cat deploy/startup.txt
-          
-          # Show file sizes (commented out to reduce log noise)
-          # echo "File sizes in deploy directory:"
-          # du -h deploy/* || echo "Could not get file sizes"
-
-      - name: Login to Azure
-        uses: azure/login@v2
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      #- name: Configure App Service settings
-      #  run: |
-      #    echo "Configuring App Service environment variables..."
-          
-          # Debug: Check current settings before changes
-          #echo "=== CURRENT APP SETTINGS ==="
-          #az webapp config appsettings list \
-          #  --name ${{ env.AZURE_WEBAPP_NAME }} \
-          #  --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          #  --query "[].{name:name, value:value}" \
-          #  --output table || echo "Failed to get current settings"
-          
-          # Set environment variables and configuration
-          # IMPORTANT: use --add-settings to avoid overwriting existing settings
-          #echo "Setting environment variables and configuration..."
-          #az webapp config appsettings set \
-          #  --name ${{ env.AZURE_WEBAPP_NAME }} \
-          #  --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          #  --add-settings \
-          #  NODE_ENV=production \
-          #  PORT=8080 \
-          #  WEBSITE_NODE_DEFAULT_VERSION=22.14.0 \
-          #  SCM_COMMAND_IDLE_TIMEOUT=120
-          
-          # Debug: Check settings after changes
-          #echo "=== UPDATED APP SETTINGS ==="
-          #az webapp config appsettings list \
-          #  --name ${{ env.AZURE_WEBAPP_NAME }} \
-          #  --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          #  --query "[].{name:name, value:value}" \
-          #  --output table || echo "Failed to get updated settings"
-        #env:
-        #  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        #  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        #  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Debug deployment package
-        run: |
-          echo "=== DEPLOYMENT PACKAGE VERIFICATION ==="
-          echo "Package directory: ./deploy"
-          echo "Package exists: $(test -d deploy && echo 'YES' || echo 'NO')"
-          echo "Package size: $(du -sh deploy 2>/dev/null || echo 'Could not get size')"
-          echo "Package contents:"
-          find deploy/ -type f 2>/dev/null | head -20
-          echo "Main.js location: $(find deploy/ -name 'main.js' -not -path '*/node_modules/*' 2>/dev/null || echo 'NOT FOUND')"
-          echo "Env folder exists: $(test -d deploy/env && echo 'YES' || echo 'NO')"
-          echo "Env folder contents:"
-          ls -la deploy/env/ 2>/dev/null || echo "deploy/env/ not found"
-          echo ".deployment file:"
-          cat deploy/.deployment 2>/dev/null || echo "No .deployment file"
-
-      - name: Deploy to Azure App Service
-        run: |
-          # Create publish profile file from XML content
-          echo "${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}" > publish-profile.xml
-          
-          # Debug: Show the publish profile content (first few lines only)
-          echo "Publish profile content (first 3 lines):"
-          head -3 publish-profile.xml
-          
-          # Extract username and password from ZipDeploy profile
-          echo "Extracting credentials..."
-          
-          # Extract the Zip Deploy profile section
-          ZIP_DEPLOY_SECTION=$(grep -A 1 'Zip Deploy' publish-profile.xml | head -2)
-          echo "Zip Deploy section: $ZIP_DEPLOY_SECTION"
-          
-          # Extract username and password using sed with proper XML parsing
-          #PUBLISHING_USERNAME=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userName="\([^"]*\)".*/\1/p')
-          #PUBLISHING_PASSWORD=$(echo "$ZIP_DEPLOY_SECTION" | sed -n 's/.*userPWD="\([^"]*\)".*/\1/p')
-          
-          # Fallback: If extraction fails or is incomplete, use the known values from your profile
-          #if [ -z "$PUBLISHING_USERNAME" ] || [ -z "$PUBLISHING_PASSWORD" ] || [ "$PUBLISHING_USERNAME" = "-file-service" ]; then
-            echo "Extraction failed or incomplete, using fallback values..."
-            PUBLISHING_USERNAME='$vorba-file-service'
-            PUBLISHING_PASSWORD="[REDACTED]"
-          #fi
+          name: build-artifacts
       
-          # Debug: Show the extracted values
-          echo "Extracted username: '$PUBLISHING_USERNAME'"
-          echo "Extracted password: '${PUBLISHING_PASSWORD:0:3}...${PUBLISHING_PASSWORD: -3}'"
-          
-          # Test credentials with a simple API call first
-          echo "Testing credentials..."
-          TEST_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/settings" \
-            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Failed")
-          echo "Test response: $TEST_RESPONSE"
-          
-          # Create ZIP of deploy folder
-          echo "Creating deploy.zip..."
-          cd deploy
-          zip -r ../deploy.zip . > /dev/null 2>&1
-          cd ..
-          
-          # Deploy using Kudu ZipDeploy API
-          echo "Deploying to Azure App Service..."
-          echo "ZIP file size: $(ls -lh deploy.zip)"
-          echo "Deploying to: https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
-          
-          # Try direct file upload to wwwroot instead of ZipDeploy
-          echo "Uploading files directly to wwwroot..."
-          
-          # First, clear the wwwroot directory
-          echo "Clearing wwwroot directory..."
-          CLEAR_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X DELETE \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/" \
-            --max-time 30 \
-            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Clear failed")
-          echo "Clear response: $CLEAR_RESPONSE"
-          
-          # Upload the ZIP file to wwwroot
-          echo "Uploading deploy.zip to wwwroot..."
-          UPLOAD_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X PUT \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/deploy.zip" \
-            --data-binary @deploy.zip \
-            --max-time 300 \
-            -w "\nHTTP_STATUS: %{http_code}\n")
-          echo "Upload response: $UPLOAD_RESPONSE"
-          
-          # Extract the ZIP file in wwwroot
-          echo "Extracting ZIP file in wwwroot..."
-          EXTRACT_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X POST \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
-            -H "Content-Type: application/json" \
-            -d '{"command": "unzip -o deploy.zip", "dir": "/home/site/wwwroot"}' \
-            --max-time 120 \
-            -w "\nHTTP_STATUS: %{http_code}\n")
-          echo "Extract response: $EXTRACT_RESPONSE"
-          
-          # Remove the ZIP file after extraction
-          echo "Removing deploy.zip..."
-          REMOVE_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X POST \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/command" \
-            -H "Content-Type: application/json" \
-            -d '{"command": "rm deploy.zip", "dir": "/home/site/wwwroot"}' \
-            --max-time 30 \
-            -w "\nHTTP_STATUS: %{http_code}\n")
-          echo "Remove response: $REMOVE_RESPONSE"
-
-          # Verify the extraction worked
-          echo "Verifying file extraction..."
-          VERIFY_RESPONSE=$(curl -u "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" \
-            -X GET \
-            "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/vfs/site/wwwroot/" \
-            --max-time 30 \
-            -w "\nHTTP_STATUS: %{http_code}\n" 2>/dev/null || echo "Verify failed")
-          echo "Verify response: $VERIFY_RESPONSE"
-
-          #echo "ALT deploy"
-          #B64_AUTH=$(echo -n "$PUBLISHING_USERNAME:$PUBLISHING_PASSWORD" | base64)
-          #curl -sS -X POST \
-          #  -H "Authorization: Basic $B64_AUTH" \
-          #  -H "Content-Type: application/zip" \
-          #  --data-binary @deploy.zip \
-          #  "https://${{ env.AZURE_WEBAPP_NAME }}.scm.azurewebsites.net/api/zipdeploy"
-
-          #echo "Deploy response:"
-          #echo "$DEPLOY_RESPONSE"
-
-      - name: Wait for deployment
+      - name: Create release package
         run: |
-          echo "Waiting for deployment to complete..."
-          sleep 30
-
-      - name: Verify deployment via Azure CLI
+          zip -r release-${{ github.run_number }}.zip .
+      
+      - name: Upload release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package
+          path: release-${{ github.run_number }}.zip
+          retention-days: 10
+          if-no-files-found: error
+          #compression-level: 9 # 1-9, 9 is best compression
+          
+      - name: Inspect release contents  # ← Add this step
         run: |
-          echo "=== POST-DEPLOYMENT VERIFICATION ==="
+          echo "=== POST-RELEASE INSPECTION ==="
+          echo "Zip file size:"
+          ls -lh release-${{ github.run_number }}.zip
           
-          # Check if the app service is running
-          echo "Checking app service status..."
-          az webapp show \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "{name:name, state:state, kind:kind, location:location}" \
-            --output table
+          echo ""
+          echo "Zip contents:"
+          unzip -l release-${{ github.run_number }}.zip | head -20
           
-          # Check deployment status
-          echo "Checking deployment status..."
-          az webapp deployment list-publishing-credentials \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --query "publishingUserName" \
-            --output tsv
-          
-          echo "Deployment verification complete"
+          echo ""
+          echo "Extract and show structure:"
+          unzip -q release-${{ github.run_number }}.zip -d temp-extract
+          find temp-extract -type f | head -10
+          rm -rf temp-extract
+          echo "=== END INSPECTION ==="
 
-      - name: Health check
-        run: |
-          echo "Performing health check..."
-          # Wait a bit more for the app to fully start
-          sleep 60
-          
-          # Try to hit the health endpoint
-          HEALTH_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health"
-          echo "Checking health at: $HEALTH_URL"
-          
-          # Use curl with retry logic
-          for i in {1..5}; do
-            if curl -f -s "$HEALTH_URL" > /dev/null; then
-              echo "✅ Health check passed!"
-              break
-            else
-              echo "⚠️  Health check attempt $i failed, retrying in 30 seconds..."
-              sleep 30
-            fi
-          done
+  deploy:
+    runs-on: ubuntu-latest
+    needs: release
+    # TODO: review how 'environment' is used, and for what purpose/benefit
+    #environment:
+    #  name: 'production'
+    #  url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
-      - name: Deployment summary
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+          path: dist/
+
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
+      - name: Inspect unzipped release contents
         run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**App Service:** ${{ env.AZURE_WEBAPP_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Resource Group:** ${{ env.AZURE_RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
-          echo "**Health Check:** https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net/health" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify the application is running correctly" >> $GITHUB_STEP_SUMMARY
-          echo "2. Check Azure App Service logs if needed" >> $GITHUB_STEP_SUMMARY
-          echo "3. Monitor application performance" >> $GITHUB_STEP_SUMMARY 
+          echo "=== UNZIPPED RELEASE INSPECTION ==="
+          echo "Current directory: $(pwd)"
+          echo ""
+          echo "📁 All files and directories:"
+          ls -la
+          echo ""
+          echo "📂 Directory structure:"
+          tree . || find . -type d | head -15
+          echo ""
+          echo "📄 JavaScript files:"
+          find . -name "*.js" | head -10
+          echo ""
+          echo "📦 Package files:"
+          find . -name "package.json" -o -name "*.json" | head -5
+          echo ""
+          echo "�� File count by type:"
+          echo "JS files: $(find . -name '*.js' | wc -l)"
+          echo "JSON files: $(find . -name '*.json' | wc -l)"
+          echo "Total files: $(find . -type f | wc -l)"
+          echo ""
+          echo "�� Key files check:"
+          if [ -f "package.json" ]; then
+            echo "✅ package.json found"
+            echo "   Dependencies: $(jq -r '.dependencies | keys | length' package.json 2>/dev/null || echo 'unknown')"
+          else
+            echo "❌ package.json not found"
+          fi
+          
+          if [ -f "dist/main.js" ]; then
+            echo "✅ dist/main.js found"
+            echo "   Size: $(ls -lh dist/main.js | awk '{print $5}')"
+          else
+            echo "❌ dist/main.js not found"
+          fi
+          
+          if [ -d "node_modules" ]; then
+            echo "✅ node_modules found"
+            echo "   Size: $(du -sh node_modules | awk '{print $1}')"
+          else
+            echo "❌ node_modules not found"
+          fi
+          
+          echo ""
+          echo "=== END INSPECTION ==="
+
+      - name: 'Deploy to Azure Web App'
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: 'production'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

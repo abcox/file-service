@@ -21,7 +21,7 @@ set KEYVAULT_NAME=
 REM Optional parameters (update if needed)
 set RESOURCE_GROUP_NAME=vorba-file-service-rg
 set LOCATION=Canada East
-set APP_SERVICE_NAME=vorba-file-service-2
+set APP_SERVICE_NAME=vorba-file-service-3
 set APP_SERVICE_PLAN_NAME=vorba-file-service-plan
 set CONTAINER_NAME=file-service-uploads
 

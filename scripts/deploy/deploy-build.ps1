@@ -1,8 +1,8 @@
 # deploy-build.ps1 -- Builds and deploys the NestJS app to Azure App Service
 # Usage: .\scripts\deploy\deploy-build.ps1 [-AppServiceName "your-app-name"] [-ResourceGroup "your-rg"] [-Environment "production"]
 
-param(
-    [string]$AppServiceName = "vorba-file-service-2",
+param (
+    [string]$AppServiceName = "vorba-file-service-3",
     [string]$ResourceGroup = "vorba-file-service-rg",
     [string]$Environment = "production",
     [switch]$DryRun,
