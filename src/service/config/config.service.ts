@@ -16,9 +16,8 @@ export class AppConfigService {
     const environment = process.env.NODE_ENV || 'development';
     const configPath = path.join(
       process.cwd(),
-      environment === 'development' ? 'src' : '',
-      'config',
-      `config.${environment}.json`,
+      environment === 'development' ? 'src/config' : 'src',
+      `config.json`,
     );
     if (!fs.existsSync(configPath)) {
       logger.error(`Configuration file not found: '${configPath}`);

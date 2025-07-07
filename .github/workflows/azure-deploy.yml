@@ -12,6 +12,7 @@ env:
   AZURE_WEBAPP_NAME: 'vorba-file-service-3'
   AZURE_RESOURCE_GROUP: 'vorba-file-service-rg'
   AZURE_WEBAPP_PACKAGE_PATH: '.'
+  DEPLOY_ENV: 'production'
 
 jobs:
   # optionally, can use job build-and-deploy: ?
@@ -64,13 +65,20 @@ jobs:
             echo "Build successful"
           fi
 
+      - name: Copy config to root
+        run: cp config/config.${{ env.DEPLOY_ENV }}.json dist/src/config.json
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts  # ← This name must match your download step
-          path: dist/            # ← Upload the dist folder
-          retention-days: 10     # ← Keep for 30 days
-          if-no-files-found: error  # ← Fail if no files found
+          name: build-artifacts
+          path: |
+            dist/
+            package.json
+            package-lock.json
+            node_modules/
+          retention-days: 10
+          if-no-files-found: error
 
   release:
     needs: build
