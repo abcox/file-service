@@ -5,36 +5,39 @@ import { LoggerService } from '../logger/logger.service';
 
 @Injectable()
 export class KeyVaultService {
+  private keyVaultUrl: string;
   private secretClient?: SecretClient;
 
-  constructor(private logger: LoggerService) {}
+  constructor(private logger: LoggerService) {
+    // Config will be set later via setConfig method
+  }
 
-  initializeKeyVault(vaultUrl?: string): void {
-    const keyVaultUrl = vaultUrl || process.env.AZURE_KEY_VAULT_URL;
-    if (keyVaultUrl) {
-      try {
-        // Use DefaultAzureCredential which tries multiple authentication methods
-        // This includes Managed Identity, environment variables, Azure CLI, etc.
-        const credential = new DefaultAzureCredential();
+  setConfig(keyVaultUrl: string): void {
+    this.keyVaultUrl = keyVaultUrl;
+    console.log('KeyVaultService config set', this.keyVaultUrl);
+    this.initializeKeyVault(this.keyVaultUrl);
+  }
 
-        this.secretClient = new SecretClient(keyVaultUrl, credential);
-        this.logger.info(
-          'Azure Key Vault client initialized with DefaultAzureCredential',
-          {
-            keyVaultUrl,
-            clientId: process.env.AZURE_CLIENT_ID || 'not set',
-          },
-        );
-      } catch (error) {
-        this.logger.error(
-          'Failed to initialize Key Vault client',
-          error as Error,
-          { keyVaultUrl },
-        );
-      }
-    } else {
-      this.logger.warn(
-        'AZURE_KEY_VAULT_URL not configured, Key Vault features disabled',
+  getVaultClientUrl(): string | undefined {
+    return this.secretClient?.vaultUrl;
+  }
+
+  initializeKeyVault(vaultUrl: string): void {
+    if (!vaultUrl) {
+      this.logger.error(
+        'KeyVaultService init failed - check url has value in config',
+      );
+      return;
+    }
+
+    try {
+      const credential = new DefaultAzureCredential();
+      this.secretClient = new SecretClient(vaultUrl, credential);
+    } catch (error) {
+      this.logger.error(
+        'Failed to initialize Key Vault client',
+        error as Error,
+        { vaultUrl },
       );
     }
   }
@@ -44,7 +47,7 @@ export class KeyVaultService {
    */
   async resolveSecretsInConfig<T>(config: T): Promise<T> {
     if (!this.secretClient) {
-      this.logger.warn('Key Vault not configured, returning original config');
+      this.logger.warn('Key Vault not initialized, returning original config');
       return config;
     }
 
@@ -213,7 +216,7 @@ export class KeyVaultService {
         const valueLength = secret.value.length;
         const valuePreview =
           valueLength > 10
-            ? `${secret.value.substring(0, 5)}...${secret.value.substring(valueLength - 5)}`
+            ? `${secret.value.substring(0, 9)}...${secret.value.substring(valueLength - 9)}`
             : secret.value;
 
         this.logger.debug('Secret retrieved successfully from Key Vault', {

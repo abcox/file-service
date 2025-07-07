@@ -5,21 +5,15 @@ import { AppConfigService } from '../../service/config/config.service';
 interface SwaggerConfig {
   enabled: boolean;
   path: string;
-  title: string;
-  description: string;
-  version: string;
 }
 
 @Injectable()
 export class SwaggerConfigService {
-  private config: SwaggerConfig;
-
-  constructor(private configService: AppConfigService) {
-    this.config = this.configService.getConfig().swagger;
-  }
+  constructor(private configService: AppConfigService) {}
 
   setupSwagger(app: INestApplication): void {
-    const { enabled, path } = this.config;
+    const { enabled, path } = this.configService.getConfig()
+      .swagger as SwaggerConfig;
     if (enabled) {
       console.log('Setting up Swagger documentation...');
       const documentBuilder = this.createDocumentBuilder();
@@ -35,10 +29,15 @@ export class SwaggerConfigService {
   }
 
   createDocumentBuilder(): DocumentBuilder {
+    const {
+      name,
+      description = '',
+      version = '',
+    } = this.configService.getConfig().info;
     return new DocumentBuilder()
-      .setTitle(this.config.title)
-      .setDescription(this.config.description)
-      .setVersion(this.config.version)
+      .setTitle(name)
+      .setDescription(description)
+      .setVersion(version)
       .addBearerAuth();
   }
 }

@@ -1,10 +1,17 @@
 export interface AppConfig {
+  azure: {
+    tenantId: string;
+    subscriptionId: string;
+    keyVaultUrl: string;
+  };
   info: {
     name: string;
+    description?: string;
+    version?: string;
   };
   auth?: { enabled: boolean; secret: string };
   environment: 'development' | 'production';
-  keyVault?: { enabled: boolean; vaultUrl: string };
+  keyVault?: { vaultUrl: string };
   storage: {
     type: 'local' | 'azure' | 'emulator';
     local: { subfolderPath: string };

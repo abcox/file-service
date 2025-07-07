@@ -31,6 +31,10 @@ import { LoggerService } from '../logger/logger.service';
           logger,
         );
         configService.setConfig(config);
+
+        // Set the config in KeyVaultService after AppConfigService is initialized
+        keyVaultService.setConfig(config.azure.keyVaultUrl);
+
         console.log('AppConfigService initialized successfully');
         return configService;
       },

@@ -4,8 +4,19 @@
     "enabled": false,
     "secret": ""
   },
+  "azure": {
+    "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
+    "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",
+    "keyVaultUrl": "https://vorba-sand-kv-2.vault.azure.net/"
+  },
   "info": {
-    "name": "Vorba File Service (Development)"
+    "name": "Vorba File Service (Development)",
+    "description": "A file service supporting local and Azure Blob Storage",
+    "version": "1.0"
+  },
+  "logging": {
+    "level": "debug",
+    "enableConsole": true
   },
   "storage": {
     "type": "emulator",
@@ -26,17 +37,6 @@
   },
   "swagger": {
     "enabled": true,
-    "title": "Vorba File Service",
-    "description": "A file service supporting local and Azure Blob Storage",
-    "version": "1.0",
     "path": "api"
-  },
-  "keyVault": {
-    "vaultUrl": "https://vorba-sand-kv-2.vault.azure.net/",
-    "enabled": true
-  },
-  "logging": {
-    "level": "debug",
-    "enableConsole": true
   }
 }

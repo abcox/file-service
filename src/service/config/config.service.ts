@@ -10,7 +10,7 @@ import { AppConfig } from './config.interface';
 export class AppConfigService {
   private config: AppConfig;
 
-  // Static async initializer for pre-bootstrap config loading
+  // Static initializer for pre-bootstrap config loading
   static async init(logger: LoggerService): Promise<AppConfig> {
     // 1. Load base configuration from JSON files
     const environment = process.env.NODE_ENV || 'development';
@@ -35,11 +35,17 @@ export class AppConfigService {
     });
 
     // 2. Load sensitive configuration from environment variables (development)
-    config = AppConfigService.loadSensitiveConfigFromEnv(config, logger);
+    //config = AppConfigService.loadSensitiveConfigFromEnv(config, logger);
 
-    logger.info('**** config ****', {
+    /* logger.info('**** config ****', {
       config,
-    });
+    }); */
+
+    const keyVaultUrl = config.azure.keyVaultUrl;
+    if (!keyVaultUrl) {
+      logger.error('Key Vault URL not found in config');
+      throw new Error('Key Vault URL not found in config');
+    }
 
     // 3. Check for offline/dev mode
     if (process.env.OFFLINE_MODE === 'true') {
@@ -47,51 +53,40 @@ export class AppConfigService {
       return config;
     }
 
-    // 4. Load Key Vault secrets (production) - only if environment variables are not set
-    if (config.keyVault?.enabled && environment === 'production') {
-      // Check if we have environment variables set
-      const hasEnvVars =
-        process.env.AZURE_STORAGE_CONNECTION_STRING || process.env.JWT_SECRET;
-
-      if (hasEnvVars) {
-        logger.info('Environment variables detected, skipping Key Vault');
-      } else {
-        try {
-          const keyVaultService = new KeyVaultService(logger);
-          keyVaultService.initializeKeyVault(config.keyVault.vaultUrl);
-          let resolvedConfig =
-            await keyVaultService.resolveSecretsInConfig(config);
-          resolvedConfig =
-            await keyVaultService.resolveEmptyConfigValues(resolvedConfig);
-          config = resolvedConfig;
-          logger.info('Key Vault secrets loaded successfully');
-          if (config.auth?.secret) {
-            logger.info('Auth secret loaded from Key Vault', {
-              secretLength: config.auth.secret.length,
-              secretPreview:
-                config.auth.secret.substring(0, 9) +
-                '...' +
-                config.auth.secret.substring(config.auth.secret.length - 9),
-            });
-          }
-        } catch (err) {
-          logger.error('Failed to load secrets from Key Vault', err as Error);
-          // In production, Key Vault failure should be fatal
-          if (environment === 'production') {
-            throw new Error(
-              `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
-            );
-          }
-          logger.warn(
-            'Continuing with environment variables due to Key Vault failure',
-          );
-        }
+    try {
+      const keyVaultService = new KeyVaultService(logger);
+      keyVaultService.initializeKeyVault(keyVaultUrl);
+      let resolvedConfig = await keyVaultService.resolveSecretsInConfig(config);
+      resolvedConfig =
+        await keyVaultService.resolveEmptyConfigValues(resolvedConfig);
+      config = resolvedConfig;
+      logger.info('Key Vault secrets loaded successfully');
+      if (config.auth?.secret) {
+        logger.info('Auth secret loaded from Key Vault', {
+          secretLength: config.auth.secret.length,
+          secretPreview:
+            config.auth.secret.substring(0, 9) +
+            '...' +
+            config.auth.secret.substring(config.auth.secret.length - 9),
+        });
       }
+    } catch (err) {
+      logger.error('Failed to load secrets from Key Vault', err as Error);
+      // In production, Key Vault failure should be fatal
+      if (environment === 'production') {
+        throw new Error(
+          `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        );
+      }
+      logger.warn(
+        'Continuing with environment variables due to Key Vault failure',
+      );
     }
 
     return config;
   }
 
+  // TODO: remove this method OR refactor to make it an override of the keyvault substitution
   // Helper method to load sensitive config from environment variables
   private static loadSensitiveConfigFromEnv(
     config: AppConfig,
