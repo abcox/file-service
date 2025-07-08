@@ -16,7 +16,7 @@ REM Required parameters (you must update these)
 set STORAGE_ACCOUNT_NAME=ccastore01
 
 REM Optional parameters (leave empty if not using Key Vault)
-set KEYVAULT_NAME=
+set KEYVAULT_NAME=vorba-file-service-kv
 
 REM Optional parameters (update if needed)
 set RESOURCE_GROUP_NAME=vorba-file-service-rg

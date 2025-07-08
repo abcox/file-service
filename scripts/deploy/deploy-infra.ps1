@@ -54,9 +54,20 @@ param(
     [string]$Location = "Canada East",
     [string]$AppServiceName = "vorba-file-service",
     [string]$AppServicePlanName = "vorba-file-service-plan",
-    [string]$KeyVaultName,
+    
+    # TODO: review and implement these parameters:
+    [string]$AppServicePrincipleDisplayName = "file-service-sp",
+    [string]$KeyVaultName = "vorba-file-service-kv",
+    [string]$StorageAccountName = "ccastore01",
+    # TODO: review and implement these parameters:
+    [string]$AzureClientId,
+    [string]$AzureClientSecret, # WARNING: we can't retrieve, but we can "reset", which means each run would result in indempotent deployment reconfig of the App Service settings with new AZURE_CLIENT_SECRET
+    [string]$AzureTenantId,
+
+    # TODO: review and implement these parameters:
+    [string]$Port = "8080",
+    
     [Parameter(Mandatory=$true)]
-    [string]$StorageAccountName,
     [string]$ContainerName = "file-service-uploads",
     [switch]$SkipResourceCreation,
     [switch]$DryRun
@@ -344,6 +355,7 @@ function New-BlobContainer {
 function Set-AppServiceConfiguration {
     param([string]$AppServiceName, [string]$ResourceGroupName, [string]$StorageAccountName, [string]$KeyVaultName = "", [bool]$DryRun = $false)
     
+    # TDDO: review this as I see hardcoded values (e.g. WEBSITE_NODE_DEFAULT_VERSION=22.14.0)
     if ($DryRun) {
         Write-Host "[DRY RUN] Would configure App Service settings for: $AppServiceName" -ForegroundColor Cyan
         Write-Host "   - NODE_ENV=production" -ForegroundColor Gray
@@ -401,6 +413,9 @@ function Set-AppServiceConfiguration {
             "NODE_ENV=production",
             "AZURE_STORAGE_CONNECTION_STRING=$connectionString",
             "WEBSITE_NODE_DEFAULT_VERSION=22.14.0"
+
+            # TODO: add AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET
+            # And make sure to get these values from the service principal "file-service-sp"
         )
         
         # Add managed identity settings if available
