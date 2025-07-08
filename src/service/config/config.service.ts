@@ -5,7 +5,6 @@ import * as path from 'path';
 import { KeyVaultService } from '../keyvault/keyvault.service';
 import { LoggerService } from '../logger/logger.service';
 import { AppConfig } from './config.interface';
-import { JwtAuthService } from '../../auth/jwt-auth.service';
 
 @Injectable()
 export class AppConfigService {
@@ -119,7 +118,6 @@ export class AppConfigService {
     private nestConfigService: NestConfigService,
     @Optional() private keyVaultService: KeyVaultService,
     private logger: LoggerService,
-    private authService: JwtAuthService,
   ) {
     // The config will be set after instantiation
   }

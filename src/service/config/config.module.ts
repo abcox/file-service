@@ -7,7 +7,6 @@ import { AppConfigService } from './config.service';
 import { KeyVaultService } from '../keyvault/keyvault.service';
 import { LoggingModule } from '../logger/logging.module';
 import { LoggerService } from '../logger/logger.service';
-import { JwtAuthService } from '../../auth/jwt-auth.service';
 
 @Module({
   imports: [
@@ -23,7 +22,6 @@ import { JwtAuthService } from '../../auth/jwt-auth.service';
         nestConfigService: NestConfigService,
         keyVaultService: KeyVaultService,
         logger: LoggerService,
-        jwtAuthService: JwtAuthService,
       ) => {
         console.log('Initializing AppConfigService...');
         const config = await AppConfigService.init(logger);
@@ -31,24 +29,16 @@ import { JwtAuthService } from '../../auth/jwt-auth.service';
           nestConfigService,
           keyVaultService,
           logger,
-          jwtAuthService,
         );
         configService.setConfig(config);
 
         // Set the config in KeyVaultService after AppConfigService is initialized
         keyVaultService.setConfig(config.azure.keyVaultUrl);
 
-        jwtAuthService.setConfig(config);
-
         console.log('AppConfigService initialized successfully');
         return configService;
       },
-      inject: [
-        NestConfigService,
-        KeyVaultService,
-        LoggerService,
-        JwtAuthService,
-      ],
+      inject: [NestConfigService, KeyVaultService, LoggerService],
     },
     KeyVaultService,
   ],
