@@ -5,6 +5,7 @@ import * as path from 'path';
 import { KeyVaultService } from '../keyvault/keyvault.service';
 import { LoggerService } from '../logger/logger.service';
 import { AppConfig } from './config.interface';
+import { JwtAuthService } from '../../auth/jwt-auth.service';
 
 @Injectable()
 export class AppConfigService {
@@ -16,7 +17,7 @@ export class AppConfigService {
     const environment = process.env.NODE_ENV || 'development';
     const configPath = path.join(
       process.cwd(),
-      environment === 'development' ? 'src/config' : 'src',
+      environment === 'development' ? 'src/config' : 'dist',
       `config.json`,
     );
     if (!fs.existsSync(configPath)) {
@@ -118,6 +119,7 @@ export class AppConfigService {
     private nestConfigService: NestConfigService,
     @Optional() private keyVaultService: KeyVaultService,
     private logger: LoggerService,
+    private authService: JwtAuthService,
   ) {
     // The config will be set after instantiation
   }

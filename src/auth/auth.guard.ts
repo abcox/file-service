@@ -6,7 +6,7 @@ import {
   applyDecorators,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { JwtAuthService } from './jwt.service';
+import { JwtAuthService } from './jwt-auth.service';
 import { LoggerService } from '../service/logger/logger.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AppConfigService } from '../service/config/config.service';

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { LoggerService } from '../service/logger/logger.service';
 import { AppConfigService } from '../service/config/config.service';
+import { AppConfig } from '../service/config/config.interface';
 
 interface JwtPayload {
   sub: string;
@@ -12,11 +13,17 @@ interface JwtPayload {
 
 @Injectable()
 export class JwtAuthService {
+  private config: AppConfig;
+
   constructor(
     private jwtService: NestJwtService,
     private logger: LoggerService,
     private configService: AppConfigService,
   ) {}
+
+  setConfig(config: AppConfig) {
+    this.config = config;
+  }
 
   generateToken(subject: string): string {
     try {

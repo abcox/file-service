@@ -1,6 +1,6 @@
 import { Controller, Post } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthService } from './jwt.service';
+import { JwtAuthService } from './jwt-auth.service';
 
 @Controller('auth')
 export class AuthController {
