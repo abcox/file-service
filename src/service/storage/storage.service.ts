@@ -5,6 +5,42 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
 
+export interface StorageConfig {
+  type: 'local' | 'azure' | 'emulator';
+  local: {
+    subfolderPath: string;
+  };
+  azure: {
+    connectionString: string;
+    containerName: string;
+  };
+  emulator: {
+    connectionString: string;
+    containerName: string;
+  };
+  options: {
+    safeMode: boolean;
+  };
+}
+
+interface BaseStorageConfig {
+  type: 'local' | 'azure' | 'emulator' | undefined;
+  options: {
+    safeMode: boolean;
+  };
+}
+
+interface LocalStorageConfig extends BaseStorageConfig {
+  type: 'local';
+  subfolderPath: string;
+}
+
+interface AzureStorageConfig extends BaseStorageConfig {
+  type: 'azure' | 'emulator';
+  connectionString: string;
+  containerName: string;
+}
+
 export interface FileInfo {
   filename: string;
   size: number;
@@ -17,9 +53,17 @@ export interface StorageOptions {
   safeMode: boolean;
 }
 
+interface StorageClient {
+  getFiles(): Promise<FileInfo[]>;
+  uploadFile(file: Buffer, filename: string): Promise<FileInfo>;
+  downloadFile(filename: string): Promise<Buffer>;
+  deleteFile(filename: string): Promise<void>;
+}
+
 @Injectable()
-export class StorageService {
-  private azureContainerClient?: ContainerClient;
+export class StorageService implements StorageClient {
+  private config: BaseStorageConfig | undefined;
+  //private azureContainerClient?: ContainerClient;
   private storageOptions: StorageOptions;
 
   constructor(
@@ -28,97 +72,97 @@ export class StorageService {
   ) {
     // Lazy initialization - will be called when first needed
     this.storageOptions = { safeMode: false }; // Will be updated on first access
+    const config = this.appConfigService.getConfig().storage;
+    this.init(config);
   }
 
-  private initializeAzureClient(): void {
-    const storageType = this.appConfigService.getStorageType();
-
-    if (storageType === 'azure') {
-      const azureConfig = this.appConfigService.getAzureStorageConfig();
-      const { connectionString, containerName } = azureConfig;
-
-      if (connectionString) {
-        const blobServiceClient =
-          BlobServiceClient.fromConnectionString(connectionString);
-        this.azureContainerClient =
-          blobServiceClient.getContainerClient(containerName);
-        // Ensure container exists
-        this.azureContainerClient
-          .createIfNotExists()
-          .then(() => {
-            this.logger.info('Azure container ensured', {
-              container: containerName,
-            });
-          })
-          .catch((error: unknown) => {
-            this.logger.error(
-              'Failed to ensure Azure container',
-              error as Error,
-              {
-                container: containerName,
-              },
-            );
-          });
-        this.logger.info('Azure Blob Storage client initialized', {
-          container: containerName,
-        });
-      } else {
-        this.logger.warn('Azure connection string not found', {
-          container: containerName,
-        });
-      }
-    } else if (storageType === 'emulator') {
-      const emulatorConfig = this.appConfigService.getEmulatorStorageConfig();
-      const { connectionString, containerName } = emulatorConfig;
-
-      if (connectionString) {
-        const blobServiceClient =
-          BlobServiceClient.fromConnectionString(connectionString);
-        this.azureContainerClient =
-          blobServiceClient.getContainerClient(containerName);
-        // Ensure container exists
-        this.azureContainerClient
-          .createIfNotExists()
-          .then(() => {
-            this.logger.info('Emulator container ensured', {
-              container: containerName,
-            });
-          })
-          .catch((error: unknown) => {
-            this.logger.error(
-              'Failed to ensure emulator container',
-              error as Error,
-              {
-                container: containerName,
-              },
-            );
-          });
-        this.logger.info('Azure Storage Emulator client initialized', {
-          container: containerName,
-        });
-      }
-    } else {
-      this.logger.warn('Storage type not supported', { storageType });
+  private init(config: StorageConfig) {
+    let selectedConfig: BaseStorageConfig | undefined = undefined;
+    if (!config.type) {
+      this.logger.warn('Storage config type required', { config });
+      return;
     }
+    if (config.type === 'local') {
+      const localStorageConfig = {
+        ...config,
+        subfolderPath: config.local.subfolderPath,
+      } as LocalStorageConfig;
+      if (!localStorageConfig.subfolderPath) {
+        this.logger.warn('Local storage config missing subfolder path');
+        return;
+      }
+      selectedConfig = localStorageConfig;
+    }
+    if (['azure', 'emulator'].includes(config.type)) {
+      const azureStorageConfig = {
+        ...config,
+        connectionString:
+          config.type === 'azure'
+            ? config.azure.connectionString
+            : config.emulator.connectionString,
+        containerName:
+          config.type === 'azure'
+            ? config.azure.containerName
+            : config.emulator.containerName,
+      } as AzureStorageConfig;
+      if (
+        !azureStorageConfig.connectionString ||
+        !azureStorageConfig.containerName
+      ) {
+        this.logger.warn(
+          `Storage config type ${config.type} requires connectionn string AND container name`,
+        );
+        return;
+      }
+      selectedConfig = azureStorageConfig;
+    }
+    this.config = selectedConfig;
   }
 
-  private ensureInitialized(): void {
-    // Check if we need to initialize by seeing if we have a valid config
-    try {
-      const safeMode = this.appConfigService.getSafeMode();
-      if (this.storageOptions.safeMode === false && safeMode !== undefined) {
-        this.storageOptions = { safeMode };
-        this.initializeAzureClient();
-      }
-    } catch {
-      // Config not ready yet, will retry on next call
-      this.logger.debug('Config not ready yet, will retry initialization');
+  private _client: ContainerClient | undefined = undefined;
+
+  private get client(): ContainerClient {
+    if (!this.config) {
+      throw new Error('Storage config not initialized');
     }
+    if (!this._client) {
+      this._client = this.getContainerClient(this.config as AzureStorageConfig);
+    }
+    return this._client;
+  }
+
+  private getContainerClient(config: AzureStorageConfig): ContainerClient {
+    const { connectionString, containerName } = config;
+
+    if (!connectionString || !containerName) {
+      throw new Error('Connection and container required.');
+    }
+    const blobServiceClient =
+      BlobServiceClient.fromConnectionString(connectionString);
+    const containerClient = blobServiceClient.getContainerClient(containerName);
+
+    containerClient
+      .createIfNotExists()
+      .then(() => {
+        this.logger.debug('Storage container created.', {
+          container: containerName,
+        });
+      })
+      .catch((error: Error) => {
+        this.logger.error('Storage container creation failed.', error, {
+          container: containerName,
+        });
+        throw error;
+      });
+    this.logger.info('Storage container client created.', {
+      container: containerName,
+    });
+
+    return containerClient;
   }
 
   async uploadFile(file: Buffer, filename: string): Promise<FileInfo> {
-    this.ensureInitialized();
-    const storageType = this.appConfigService.getStorageType();
+    const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
       return this.uploadToAzure(file, filename);
@@ -131,12 +175,8 @@ export class StorageService {
     file: Buffer,
     filename: string,
   ): Promise<FileInfo> {
-    if (!this.azureContainerClient) {
-      throw new Error('Azure storage not configured');
-    }
-
-    const blockBlobClient =
-      this.azureContainerClient.getBlockBlobClient(filename);
+    const client = this.client;
+    const blockBlobClient = client.getBlockBlobClient(filename);
 
     // Check if file already exists
     const exists = await blockBlobClient.exists();
@@ -157,8 +197,7 @@ export class StorageService {
       }
 
       // Get new blockBlobClient with unique name
-      const uniqueBlockBlobClient =
-        this.azureContainerClient.getBlockBlobClient(filename);
+      const uniqueBlockBlobClient = client.getBlockBlobClient(filename);
 
       await uniqueBlockBlobClient.upload(file, file.length);
 
@@ -203,7 +242,7 @@ export class StorageService {
   }
 
   private uploadToLocal(file: Buffer, filename: string): FileInfo {
-    const localConfig = this.appConfigService.getLocalStorageConfig();
+    const localConfig = this.config as LocalStorageConfig;
     const filePath = path.join(localConfig.subfolderPath, filename);
 
     fs.writeFileSync(filePath, file);
@@ -223,8 +262,7 @@ export class StorageService {
   }
 
   async getFiles(): Promise<FileInfo[]> {
-    this.ensureInitialized();
-    const storageType = this.appConfigService.getStorageType();
+    const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
       return this.getFilesFromAzure();
@@ -234,19 +272,15 @@ export class StorageService {
   }
 
   private async getFilesFromAzure(): Promise<FileInfo[]> {
-    if (!this.azureContainerClient) {
-      throw new Error('Azure storage not configured');
-    }
-
+    const client = this.client;
     const files: FileInfo[] = [];
-
-    for await (const blob of this.azureContainerClient.listBlobsFlat()) {
+    for await (const blob of client.listBlobsFlat()) {
       files.push({
         filename: blob.name,
         size: blob.properties.contentLength || 0,
         created: blob.properties.createdOn || new Date(),
         modified: blob.properties.lastModified || new Date(),
-        url: `${this.azureContainerClient.url}/${blob.name}`,
+        url: `${client.url}/${blob.name}`,
       });
     }
 
@@ -254,7 +288,7 @@ export class StorageService {
   }
 
   private getFilesFromLocal(): FileInfo[] {
-    const localConfig = this.appConfigService.getLocalStorageConfig();
+    const localConfig = this.config as LocalStorageConfig;
     const folderPath = path.join(process.cwd(), localConfig.subfolderPath);
 
     if (!fs.existsSync(folderPath)) {
@@ -275,8 +309,7 @@ export class StorageService {
   }
 
   async downloadFile(filename: string): Promise<Buffer> {
-    this.ensureInitialized();
-    const storageType = this.appConfigService.getStorageType();
+    const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
       return this.downloadFromAzure(filename);
@@ -286,12 +319,8 @@ export class StorageService {
   }
 
   private async downloadFromAzure(filename: string): Promise<Buffer> {
-    if (!this.azureContainerClient) {
-      throw new Error('Azure storage not configured');
-    }
-
-    const blockBlobClient =
-      this.azureContainerClient.getBlockBlobClient(filename);
+    const client = this.client;
+    const blockBlobClient = client.getBlockBlobClient(filename);
     const downloadResponse = await blockBlobClient.download();
 
     if (!downloadResponse.readableStreamBody) {
@@ -307,7 +336,7 @@ export class StorageService {
   }
 
   private downloadFromLocal(filename: string): Buffer {
-    const localConfig = this.appConfigService.getLocalStorageConfig();
+    const localConfig = this.config as LocalStorageConfig;
     const filePath = path.join(localConfig.subfolderPath, filename);
 
     if (!fs.existsSync(filePath)) {
@@ -318,8 +347,7 @@ export class StorageService {
   }
 
   async deleteFile(filename: string): Promise<void> {
-    this.ensureInitialized();
-    const storageType = this.appConfigService.getStorageType();
+    const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
       return this.deleteFromAzure(filename);
@@ -329,19 +357,15 @@ export class StorageService {
   }
 
   private async deleteFromAzure(filename: string): Promise<void> {
-    if (!this.azureContainerClient) {
-      throw new Error('Azure storage not configured');
-    }
-
-    const blockBlobClient =
-      this.azureContainerClient.getBlockBlobClient(filename);
+    const client = this.client;
+    const blockBlobClient = client.getBlockBlobClient(filename);
     await blockBlobClient.delete();
 
     this.logger.logFileOperation('deleted', filename, { storageType: 'azure' });
   }
 
   private deleteFromLocal(filename: string): void {
-    const localConfig = this.appConfigService.getLocalStorageConfig();
+    const localConfig = this.config as LocalStorageConfig;
     const filePath = path.join(localConfig.subfolderPath, filename);
 
     if (!fs.existsSync(filePath)) {

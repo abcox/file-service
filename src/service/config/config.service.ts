@@ -129,37 +129,4 @@ export class AppConfigService {
   getConfig(): AppConfig {
     return this.config;
   }
-
-  getEnvironment(): string {
-    return this.config.environment;
-  }
-
-  getStorageType(): 'local' | 'azure' | 'emulator' {
-    return this.config.storage.type;
-  }
-
-  getLocalStorageConfig() {
-    return this.config.storage.local;
-  }
-
-  getAzureStorageConfig() {
-    return this.config.storage.azure;
-  }
-
-  getEmulatorStorageConfig() {
-    return this.config.storage.emulator;
-  }
-
-  getSafeMode(): boolean {
-    return this.config.storage.options.safeMode;
-  }
-
-  // Helper methods for sensitive configuration
-  getJwtSecret(): string | undefined {
-    return this.config.auth?.secret;
-  }
-
-  getAzureConnectionString(): string | undefined {
-    return this.config.storage.azure?.connectionString;
-  }
 }
