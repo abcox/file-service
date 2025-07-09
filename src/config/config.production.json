@@ -1,7 +1,7 @@
 {
   "environment": "production",
   "auth": {
-    "enabled": false,
+    "enabled": true,
     "secret": ""
   },
   "info": {
@@ -12,7 +12,7 @@
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",
-    "keyVaultUrl": "https://file-service-kv.vault.azure.net/"
+    "keyVaultUrl": "https://vorba-file-service-kv.vault.azure.net/"
   },
   "logging": {
     "level": "info",
