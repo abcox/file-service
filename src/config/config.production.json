@@ -6,13 +6,13 @@
   },
   "info": {
     "name": "Vorba File Service",
-    "description": "A file service supporting local and Azure Blob Storage - v1.0",
+    "description": "A file service supporting local and Azure Blob Storage - v1.0.0001",
     "version": "1.0"
   },
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",
-    "keyVaultUrl": "https://vorba-sand-kv-2.vault.azure.net/"
+    "keyVaultUrl": "https://file-service-kv.vault.azure.net/"
   },
   "logging": {
     "level": "info",
