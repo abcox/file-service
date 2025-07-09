@@ -43,6 +43,8 @@ npm run start-storage-emulator
 
 ## Configuration
 
+See [NestJS Configuration docs](https://docs.nestjs.com/techniques/configuration)
+
 ### Environment Setup
 
 The service uses a structured configuration approach:

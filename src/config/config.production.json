@@ -6,7 +6,7 @@
   },
   "info": {
     "name": "Vorba File Service",
-    "description": "A file service supporting local and Azure Blob Storage",
+    "description": "A file service supporting local and Azure Blob Storage - v1.0",
     "version": "1.0"
   },
   "azure": {
