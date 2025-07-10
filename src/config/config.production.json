@@ -6,7 +6,7 @@
   },
   "info": {
     "name": "Vorba File Service",
-    "description": "A file service supporting local and Azure Blob Storage - v1.0.0002",
+    "description": "A file service supporting local and Azure Blob Storage - v1.0.0003",
     "version": "1.0"
   },
   "azure": {
@@ -34,5 +34,13 @@
   "swagger": {
     "enabled": true,
     "path": "api"
+  },
+  "database": {
+    "host": "",
+    "port": 1433,
+    "name": "",
+    "username": "",
+    "password": "",
+    "connectionString": ""
   }
 }
