@@ -7,7 +7,16 @@
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",
-    "keyVaultUrl": "https://vorba-sand-kv-2.vault.azure.net/"
+    "keyVaultUrl": "https://vorba-sand-kv-2.vault.azure.net/",
+    "database": {
+      "type": "azure-sql",
+      "azure-sql": {
+        "name": "vorba-sql-db-1",
+        "description": "Vorba SQL Database 1 in Azure. See portalUrl to manage.",
+        "portalUrl": "https://portal.azure.com/#@Vorba.onmicrosoft.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.Sql/servers/vorba-sql-svr-1/databases/vorba-sql-db-1/overview",
+        "connectionString": "Server=tcp:vorba-sql-svr-1.database.windows.net,1433;Initial Catalog=vorba-sql-db-1;Persist Security Info=False;User ID=vorba-admin-1;Password=Spitfire27$;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+      }
+    }
   },
   "info": {
     "name": "Vorba File Service (Development)",

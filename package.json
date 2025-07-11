@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "------------ BUILD ---------------": "--------------------------------------",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -20,7 +21,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "--------------------------------------": "--------------------------------------",
+    "------------ GENERAL ---------------": "--------------------------------------",
     "find-process": "netstat -ano | findstr :3000",
     "kill-node": "taskkill /F /IM node.exe",
     "kill-task-byid": "taskkill /pid %npm_config_pid% /f",
@@ -31,7 +32,11 @@
     "auth-gen-token": "ts-node scripts/auth/token-gen.ts 3",
     "------------ DEPLOYMENT -------------": "--------------------------------------",
     "deploy-infra": "call scripts\\deploy\\deploy-infra.bat",
-    "deploy-build": "call scripts\\deploy\\deploy-build.bat"
+    "deploy-build": "call scripts\\deploy\\deploy-build.bat",
+    "------------ DATABASE ---------------": "--------------------------------------",
+    "db-create": "call scripts\\db\\db-create.bat",
+    "db-drop": "call scripts\\db\\db-drop.bat",
+    "db-reset": "call scripts\\db\\db-reset.bat"
   },
   "dependencies": {
     "@azure/identity": "^4.10.1",
@@ -43,10 +48,13 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/typeorm": "^11.0.0",
     "jsonwebtoken": "^9.0.2",
+    "mssql": "^11.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.25"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

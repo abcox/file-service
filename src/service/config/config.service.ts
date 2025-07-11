@@ -33,20 +33,14 @@ export class AppConfigService {
       storageType: config.storage.type,
     });
 
-    // 2. Load sensitive configuration from environment variables (development)
-    //config = AppConfigService.loadSensitiveConfigFromEnv(config, logger);
-
-    /* logger.info('**** config ****', {
-      config,
-    }); */
-
     const keyVaultUrl = config.azure.keyVaultUrl;
     if (!keyVaultUrl) {
       logger.error('Key Vault URL not found in config');
       throw new Error('Key Vault URL not found in config');
     }
 
-    // 3. Check for offline/dev mode
+    // 3. For local development, we could use the .env file completely (TODO)
+    //    Therefore, no need to continue with key vault
     if (process.env.OFFLINE_MODE === 'true') {
       logger.info('Running in OFFLINE MODE. Skipping Key Vault.');
       return config;
@@ -120,6 +114,10 @@ export class AppConfigService {
     private logger: LoggerService,
   ) {
     // The config will be set after instantiation
+  }
+
+  getDatabaseConfig(): AppConfig['database'] {
+    return this.config.database;
   }
 
   setConfig(config: AppConfig) {

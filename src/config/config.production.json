@@ -34,13 +34,5 @@
   "swagger": {
     "enabled": true,
     "path": "api"
-  },
-  "database": {
-    "host": "",
-    "port": 1433,
-    "name": "",
-    "username": "",
-    "password": "",
-    "connectionString": ""
   }
 }

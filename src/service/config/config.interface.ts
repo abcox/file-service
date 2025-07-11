@@ -3,6 +3,27 @@ export interface AppConfig {
     tenantId: string;
     subscriptionId: string;
     keyVaultUrl: string;
+    database?: {
+      type?: 'azure-sql' | 'local-sql-express';
+      'azure-sql'?: {
+        host?: string;
+        port?: number;
+        name?: string;
+        username?: string;
+        password?: string;
+        connectionString?: string;
+        description?: string;
+        portalUrl?: string;
+      };
+      'local-sql-express'?: {
+        host?: string;
+        port?: number;
+        name?: string;
+        username?: string;
+        password?: string;
+        connectionString?: string;
+      };
+    };
   };
   info: {
     name: string;
@@ -25,5 +46,31 @@ export interface AppConfig {
     description: string;
     version: string;
     path: string;
+  };
+  database?: {
+    type?: 'azure-sql' | 'local-sql-express';
+    'azure-sql'?: {
+      host?: string;
+      port?: number;
+      name?: string;
+      username?: string;
+      password?: string;
+      connectionString?: string;
+    };
+    'local-sql-express'?: {
+      host?: string;
+      port?: number;
+      name?: string;
+      username?: string;
+      password?: string;
+      connectionString?: string;
+    };
+    // Legacy support
+    host?: string;
+    port?: number;
+    name?: string;
+    username?: string;
+    password?: string;
+    connectionString?: string;
   };
 }

@@ -10,6 +10,7 @@ import { FileController } from './controller/file/file.controller';
 import { FileModule } from './controller/file/file.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { ConfigController } from './controller/config/config.controller';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ConfigController } from './controller/config/config.controller';
     LoggingModule,
     AuthModule,
     FileModule,
+    DatabaseModule,
   ],
   controllers: [AppController, FileController, ConfigController],
   providers: [AppService, SwaggerConfigService],
