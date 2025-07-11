@@ -116,8 +116,8 @@ export class AppConfigService {
     // The config will be set after instantiation
   }
 
-  getDatabaseConfig(): AppConfig['database'] {
-    return this.config.database;
+  getDatabaseConfig(): AppConfig['azure']['database'] {
+    return this.config.azure.database;
   }
 
   setConfig(config: AppConfig) {
