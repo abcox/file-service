@@ -5,13 +5,15 @@ import {
   UserRegistrationRequest,
   UserRegistrationResponse,
 } from '../../service/user/user.service';
+import { Auth } from '../../auth/auth.guard';
 
-@ApiTags('users')
+@ApiTags('User')
 @Controller('user')
 export class UserController {
   constructor(private readonly registrationService: RegistrationService) {}
 
   @Post('register')
+  @Auth({ roles: ['admin', 'user'] })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: UserRegistrationRequest })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
