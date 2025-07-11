@@ -78,7 +78,7 @@ export class RegistrationService {
         email: user.email,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 3600,
-        type: 'access',
+        type: 'api-access',
         id: user.id,
         name: user.name,
         roles: user.roles,
