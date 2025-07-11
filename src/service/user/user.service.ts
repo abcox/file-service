@@ -9,6 +9,7 @@ export class UserRegistrationRequest {
   email: string;
   password: string;
   name: string;
+  username: string;
 }
 
 export interface UserRegistrationResponse {
@@ -43,11 +44,13 @@ export class RegistrationService {
       };
     }
 
-    const user = new UserEntity();
-    user.email = request.email;
-    user.passwordHash = request.password;
-    user.name = request.name;
-    user.roles = ['guest'];
+    const user = {
+      email: request.email,
+      passwordHash: request.password,
+      name: request.name,
+      roles: ['guest'],
+      username: request.email,
+    } as UserEntity;
 
     // Create user in database
     const createdUser: UserEntity = await this.userDb.createUser(user);
