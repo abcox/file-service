@@ -4,8 +4,8 @@ export interface AppConfig {
     subscriptionId: string;
     keyVaultUrl: string;
     database?: {
-      type?: 'azure-sql' | 'local-sql-express';
-      'azure-sql'?: {
+      type?: 'azureSql' | 'local-sql-express';
+      azureSql?: {
         host?: string;
         port?: number;
         name?: string;
@@ -46,31 +46,5 @@ export interface AppConfig {
     description: string;
     version: string;
     path: string;
-  };
-  database?: {
-    type?: 'azure-sql' | 'local-sql-express';
-    'azure-sql'?: {
-      host?: string;
-      port?: number;
-      name?: string;
-      username?: string;
-      password?: string;
-      connectionString?: string;
-    };
-    'local-sql-express'?: {
-      host?: string;
-      port?: number;
-      name?: string;
-      username?: string;
-      password?: string;
-      connectionString?: string;
-    };
-    // Legacy support
-    host?: string;
-    port?: number;
-    name?: string;
-    username?: string;
-    password?: string;
-    connectionString?: string;
   };
 }

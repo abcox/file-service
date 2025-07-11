@@ -2,7 +2,7 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AppConfig } from '../service/config/config.interface';
 
 export interface DatabaseConfig {
-  type?: 'azure-sql' | 'local-sql-express';
+  type?: 'azureSql' | 'local-sql-express';
   host?: string;
   port?: number;
   name?: string;
@@ -27,17 +27,11 @@ export const getDatabaseConfig = (config: AppConfig): TypeOrmModuleOptions => {
   );
 
   if (
-    config.azure?.database?.type === 'azure-sql' &&
-    config.azure.database['azure-sql']
+    config.azure?.database?.type === 'azureSql' &&
+    config.azure.database['azureSql']
   ) {
-    dbConfig = config.azure.database['azure-sql'];
+    dbConfig = config.azure.database['azureSql'];
     isLocalDatabase = false;
-  } else if (
-    config.azure?.database?.type === 'local-sql-express' &&
-    config.azure.database['local-sql-express']
-  ) {
-    dbConfig = config.azure.database['local-sql-express'];
-    isLocalDatabase = true;
   } else {
     throw new Error(
       `Database config undefined: ${config.azure?.database?.type}`,
