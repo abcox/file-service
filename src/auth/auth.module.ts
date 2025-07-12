@@ -8,11 +8,14 @@ import { ConfigModule } from '../service/config/config.module';
 import { AppConfigService } from '../service/config/config.service';
 import { LoggingModule } from '../service/logger/logging.module';
 import { LoggerService } from '../service/logger/logger.service';
+import { UserDbService } from '../service/database/user-db.service';
+import { DatabaseModule } from '../database/database.module';
 
 @Module({
   imports: [
     ConfigModule,
     LoggingModule,
+    DatabaseModule,
     JwtModule.registerAsync({
       imports: [ConfigModule, LoggingModule],
       useFactory: (configService: AppConfigService, logger: LoggerService) => {
@@ -64,11 +67,12 @@ import { LoggerService } from '../service/logger/logger.service';
   providers: [
     JwtAuthService,
     JwtAuthGuard,
+    UserDbService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [JwtAuthService, JwtAuthGuard],
+  exports: [JwtAuthService, JwtAuthGuard, UserDbService],
 })
 export class AuthModule {}

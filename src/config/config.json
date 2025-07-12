@@ -1,7 +1,7 @@
 {
   "environment": "development",
   "auth": {
-    "enabled": false,
+    "enabled": true,
     "secret": ""
   },
   "azure": {

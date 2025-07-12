@@ -43,7 +43,7 @@ export class AppController {
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   health() {
-    console.log('Health check requested');
+    this.loggerService.info('Health check requested');
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),

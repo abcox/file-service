@@ -1,6 +1,14 @@
-import { Controller, Post } from '@nestjs/common';
-import { ApiExcludeEndpoint, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Body, Controller, Post } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthService } from './jwt-auth.service';
+import { Auth } from './auth.guard';
+import { UserRegistrationRequest } from './dto/user-registration.request';
+import { UserRegistrationResponse } from './dto/user-registration.response';
 
 @Controller('auth')
 export class AuthController {
@@ -14,5 +22,18 @@ export class AuthController {
   generateToken(): { token: string } {
     const token = this.jwtAuthService.generateToken('file-service-api');
     return { token };
+  }
+
+  @Post('register')
+  @Auth({ roles: ['admin', 'user'] })
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiBody({ type: UserRegistrationRequest })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 409, description: 'User already exists' })
+  register(
+    @Body() registrationRequest: UserRegistrationRequest,
+  ): Promise<UserRegistrationResponse> {
+    return this.jwtAuthService.register(registrationRequest);
   }
 }

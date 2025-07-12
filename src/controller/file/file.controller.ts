@@ -38,8 +38,9 @@ export class FileController {
 
   // TODO: add search endpoint with pagination
 
+  // TODO: assure admins can list all files while users can only list their own files
   @Get('list')
-  @Auth({ roles: ['admin', 'user'] })
+  @Auth({ roles: ['admin', 'user', 'guest'] })
   @ApiOperation({ summary: 'Get list of files' })
   @ApiResponse({ status: 200, description: 'Returns list of files' })
   @ApiResponse({
@@ -50,6 +51,7 @@ export class FileController {
     return this.fileService.getFiles();
   }
 
+  // todo: assure admins download of any files while users can only download their own files
   @Get('download/:filename')
   //@Auth({ claims: { permission: 'read' } })
   @Auth({ roles: ['admin', 'user'] })
@@ -75,7 +77,7 @@ export class FileController {
   }
 
   @Post('upload')
-  @Auth({ audience: 'file-service' })
+  @Auth({ audience: 'file-service', roles: ['admin', 'user', 'guest'] })
   @ApiOperation({ summary: 'Upload a file' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
