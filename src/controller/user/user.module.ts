@@ -6,9 +6,18 @@ import { DatabaseModule } from '../../database/database.module';
 import { JwtModule } from '@nestjs/jwt';
 import { UserService } from '../../service/user/user.service';
 import { UserController } from './user.controller';
+import { StorageModule } from '../../service/storage/storage.module';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
-  imports: [ConfigModule, LoggingModule, DatabaseModule, JwtModule],
+  imports: [
+    ConfigModule,
+    LoggingModule,
+    DatabaseModule,
+    JwtModule,
+    StorageModule,
+    AuthModule,
+  ],
   controllers: [UserController],
   providers: [UserService, UserDbService],
   exports: [UserService],

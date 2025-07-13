@@ -261,20 +261,20 @@ export class StorageService implements StorageClient {
     };
   }
 
-  async getFiles(): Promise<FileInfo[]> {
+  async getFiles(prefix?: string): Promise<FileInfo[]> {
     const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
-      return this.getFilesFromAzure();
+      return this.getFilesFromAzure(prefix);
     } else {
       return this.getFilesFromLocal();
     }
   }
 
-  private async getFilesFromAzure(): Promise<FileInfo[]> {
+  private async getFilesFromAzure(prefix?: string): Promise<FileInfo[]> {
     const client = this.client;
     const files: FileInfo[] = [];
-    for await (const blob of client.listBlobsFlat()) {
+    for await (const blob of client.listBlobsFlat({ prefix })) {
       files.push({
         filename: blob.name,
         size: blob.properties.contentLength || 0,

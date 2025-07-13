@@ -13,6 +13,7 @@ import { ConfigController } from './controller/config/config.controller';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './controller/user/user.module';
 import { GptModule } from './controller/gpt/gpt.module';
+import { WorkflowModule } from './controller/workflow/workflow.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { GptModule } from './controller/gpt/gpt.module';
     DatabaseModule,
     UserModule,
     GptModule,
+    WorkflowModule,
   ],
   controllers: [AppController, FileController, ConfigController],
   providers: [AppService, SwaggerConfigService],

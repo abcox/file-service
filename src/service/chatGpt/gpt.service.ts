@@ -1,11 +1,16 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 import { Injectable } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
 
 import OpenAI from 'openai';
+import { FileCreateParams } from 'openai/resources/files';
+import {
+  ChatCompletionContentPart,
+  ChatCompletionCreateParamsNonStreaming,
+} from 'openai/resources/chat/completions';
+import { RequestOptions } from 'openai/internal/request-options';
 
 export class GptAnalysisRequest {
   content: string;
@@ -40,9 +45,16 @@ export interface GptConfig {
   defaultTemperature: number;
 }
 
+export interface FileUploadResponse {
+  success: boolean;
+  fileId?: string;
+  filename?: string;
+  error?: string;
+}
+
 @Injectable()
 export class GptService {
-  private openai: any;
+  private openai: OpenAI;
   private config: GptConfig;
 
   constructor(
@@ -83,6 +95,143 @@ export class GptService {
     }
   }
 
+  async uploadFile(
+    fileBuffer: Buffer,
+    filename: string,
+  ): Promise<FileUploadResponse> {
+    try {
+      this.logger.info('Uploading file to OpenAI', {
+        filename,
+        fileSize: fileBuffer.length,
+      });
+
+      // Create a File object from Buffer for OpenAI SDK
+      const fileBlob = new Blob([fileBuffer], {
+        type: 'application/octet-stream',
+      });
+      const file = new File([fileBlob], filename, {
+        type: 'application/octet-stream',
+      });
+
+      const fileCreateParams: FileCreateParams = {
+        file: file,
+        purpose: 'assistants',
+      };
+
+      const fileObj = await this.openai.files.create(fileCreateParams, {
+        timeout: 10000,
+      });
+
+      this.logger.info('File uploaded successfully to OpenAI', {
+        fileId: fileObj.id,
+        filename: fileObj.filename,
+        fileSize: fileObj.bytes,
+      });
+
+      return {
+        success: true,
+        fileId: fileObj.id,
+        filename: fileObj.filename,
+      };
+    } catch (error) {
+      this.logger.error('Failed to upload file to OpenAI', error as Error, {
+        filename,
+        fileSize: fileBuffer.length,
+      });
+
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  async analyzeFile(
+    fileContent: ChatCompletionContentPart.File,
+    analysisPrompt: string,
+    options?: Partial<GptAnalysisRequest>,
+  ): Promise<GptAnalysisResponse> {
+    try {
+      this.logger.info('Starting file analysis with GPT', {
+        prompt: analysisPrompt,
+        model: options?.model || this.config.defaultModel,
+      });
+
+      const { file, type } = fileContent;
+      const content: ChatCompletionContentPart[] = [
+        { type: 'text', text: 'Please analyze this document.' },
+        {
+          type: type,
+          file: file,
+        },
+      ];
+      const params: ChatCompletionCreateParamsNonStreaming = {
+        model: options?.model || this.config.defaultModel,
+        messages: [
+          {
+            role: 'system',
+            content: analysisPrompt,
+          },
+          {
+            role: 'user',
+            content: content,
+          },
+        ],
+        max_tokens: options?.maxTokens || this.config.defaultMaxTokens,
+        temperature: options?.temperature || this.config.defaultTemperature,
+      };
+      const requestOptions: RequestOptions = {
+        timeout: 10000,
+      };
+
+      const completion = await this.openai.chat.completions.create(
+        params,
+        requestOptions,
+      );
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error('No response received from GPT');
+      }
+
+      this.logger.info('File analysis completed successfully', {
+        responseLength: response.length,
+        usage: completion.usage,
+      });
+
+      return {
+        success: true,
+        content: response,
+        usage: completion.usage,
+      } as GptAnalysisResponse;
+    } catch (error) {
+      this.logger.error('File analysis failed', error as Error, {
+        prompt: analysisPrompt,
+      });
+
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      };
+    }
+  }
+
+  async deleteFile(fileId: string): Promise<boolean> {
+    try {
+      await this.openai.files.delete(fileId);
+      this.logger.info('File deleted from OpenAI', { fileId });
+      return true;
+    } catch (error) {
+      this.logger.error('Failed to delete file from OpenAI', error as Error, {
+        fileId,
+      });
+      return false;
+    }
+  }
+
   async analyzeContent(
     request: GptAnalysisRequest,
   ): Promise<GptAnalysisResponse> {
@@ -117,7 +266,7 @@ export class GptService {
         success: true,
         content: response,
         usage: completion.usage,
-      };
+      } as GptAnalysisResponse;
     } catch (error) {
       this.logger.error('GPT analysis failed', error as Error, {
         contentLength: request.content.length,

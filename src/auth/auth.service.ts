@@ -332,6 +332,10 @@ export class AuthService {
     };
   }
 
+  getUser(): User {
+    return this.user;
+  }
+
   isTokenExpired(payload: JwtPayload): boolean {
     const now = Math.floor(Date.now() / 1000);
     return payload.exp < now;

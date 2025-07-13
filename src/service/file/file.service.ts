@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import { AppConfigService } from '../../service/config/config.service';
-import { StorageService } from '../../service/storage/storage.service';
+import {
+  StorageService,
+  FileInfo,
+} from '../../service/storage/storage.service';
 import { LoggerService } from '../logger/logger.service';
 
 interface UploadedFile {
@@ -93,5 +96,25 @@ export class FileService {
     return {
       message: `File ${filename} deleted successfully`,
     };
+  }
+
+  async getFile(fileId: string): Promise<FileInfo> {
+    // This should get file metadata by ID from database
+    // For now, assuming fileId is the filename
+    const files = await this.storageService.getFiles();
+    const file = files.find((f) => f.filename === fileId);
+
+    if (!file) {
+      throw new NotFoundException(`File ${fileId} not found`);
+    }
+
+    return file;
+  }
+
+  async getFileContent(file: FileInfo): Promise<Buffer> {
+    // This should get the actual file content as Buffer
+    // file parameter should be the file metadata from getFile
+    const fileBuffer = await this.storageService.downloadFile(file.filename);
+    return fileBuffer;
   }
 }

@@ -1,13 +1,36 @@
-import { Controller, /* Post, Body,  */ Param, Get } from '@nestjs/common';
+import {
+  Controller,
+  /* Post, Body,  */ Param,
+  Get,
+  Body,
+  Post,
+  UseInterceptors,
+  UploadedFile,
+  Req,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   /* ApiParam,
   ApiBody,  */ ApiResponse,
+  ApiBody,
+  ApiConsumes,
 } from '@nestjs/swagger';
-import { UserService } from '../../service/user/user.service';
+import {
+  UserFileUploadResponse,
+  UserService,
+} from '../../service/user/user.service';
 import { Auth } from '../../auth/auth.guard';
 import { UserEntity } from '../../database/entities/user.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { User } from '../../auth/auth.service';
+
+interface UploadedFile {
+  originalname: string;
+  buffer: Buffer;
+  size: number;
+  mimetype: string;
+}
 
 @ApiTags('User')
 @Controller('user')
@@ -37,5 +60,40 @@ export class UserController {
   })
   async getUserList(): Promise<Partial<UserEntity>[]> {
     return await this.userService.getUserList();
+  }
+
+  @Post('file/upload')
+  @Auth({ roles: ['admin', 'user', 'guest'] })
+  @ApiOperation({ summary: 'Upload a file' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'File uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token required',
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  uploadFile(
+    @UploadedFile() file: UploadedFile,
+    @Req() request: any,
+  ): Promise<UserFileUploadResponse> {
+    const { buffer: fileBuffer, originalname: filename } = file;
+    if (!fileBuffer || !filename) {
+      throw new Error('File buffer or originalname is missing');
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = request.user as User;
+    return this.userService.uploadFile(user, filename, fileBuffer);
   }
 }
