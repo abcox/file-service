@@ -79,11 +79,32 @@ export class UserDbService {
     });
   }
 
-  async updateLastLogin(userId: string): Promise<boolean> {
+  async updateLastLogin(userId: string): Promise<Date | undefined> {
+    const lastLoginDate = new Date();
     const result = await this.userRepository.update(userId, {
-      lastLoginAt: new Date(),
+      lastLoginAt: lastLoginDate,
     });
-    return (result?.affected ?? 0) > 0;
+    return (result?.affected ?? 0) > 0 ? lastLoginDate : undefined;
+  }
+
+  async updatePasswordAttempts(
+    userId: string,
+    attempts: number,
+  ): Promise<number> {
+    const result = await this.userRepository.update(userId, {
+      passwordFailedAttempts: attempts,
+    });
+    return result?.affected ?? 0;
+  }
+
+  async updateAccountLockedUntil(
+    userId: string,
+    lockedUntil: Date,
+  ): Promise<number> {
+    const result = await this.userRepository.update(userId, {
+      accountLockedUntil: lockedUntil,
+    });
+    return result?.affected ?? 0;
   }
 
   async deactivateUser(userId: string): Promise<boolean> {

@@ -57,7 +57,9 @@ import { DatabaseModule } from '../database/database.module';
 
         return {
           secret: secret,
-          signOptions: { expiresIn: '1y' },
+          // Using this causes any token with 'exp' to be rejected
+          // Either set expiresIn, or use 'exp' in the token payload
+          //signOptions: { expiresIn: '1y' },
         };
       },
       inject: [AppConfigService, LoggerService],

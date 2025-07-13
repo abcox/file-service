@@ -59,7 +59,9 @@ export class JwtAuthService {
 
   async login(request: UserLoginRequest): Promise<UserLoginResponse> {
     this.logger.log('Logging in user');
-    const user = await this.userDb.getUserByEmail(request.email);
+    const user: UserEntity | null = await this.userDb.getUserByEmail(
+      request.email,
+    );
     if (!user) {
       return {
         success: false,
@@ -68,7 +70,55 @@ export class JwtAuthService {
         user: null,
       } as UserLoginResponse;
     }
-    if (user.passwordHash !== request.password) {
+    // TODO: implement account lockout strategy as 5 tries before lockout for 1 hour?
+    const accountLocked =
+      user.accountLockedUntil && user?.accountLockedUntil > new Date();
+    if (!user.isActive || accountLocked) {
+      return {
+        success: false,
+        message: 'User invalid; contact support',
+        token: '',
+        user: null,
+      } as UserLoginResponse;
+    }
+    const response = await this.validatePassword(user, request.password);
+    if (response) {
+      return response;
+    }
+    const jwtToken = await this.generateJwtToken(user);
+    const lastLoginDate = await this.userDb.updateLastLogin(user.id);
+    return {
+      success: true,
+      message: 'User logged in successfully',
+      token: jwtToken,
+      user: { ...user, lastLoginAt: lastLoginDate ?? user.lastLoginAt },
+    } as UserLoginResponse;
+  }
+
+  async validatePassword(
+    user: UserEntity,
+    password: string,
+  ): Promise<UserLoginResponse | null> {
+    if (user.passwordHash !== password) {
+      const failedAttempts = await this.userDb.updatePasswordAttempts(
+        user.id,
+        (user.passwordFailedAttempts ?? 0) + 1,
+      );
+      if (failedAttempts >= 5) {
+        // Progressive lockout: 15 mins for 5 failed attempts, 30 mins for 6 failed attempts, etc.
+        const lockoutDuration =
+          failedAttempts > 10
+            ? 1000 * 60 * 60 * 24 // 1 day
+            : 1000 * 60 * 15 * (failedAttempts - 4); // 15 mins, 30 mins, 1 hour, 2 hours, 4 hours, 8 hours
+        const lockoutUntil = new Date(Date.now() + lockoutDuration);
+        await this.userDb.updateAccountLockedUntil(user.id, lockoutUntil);
+        return {
+          success: false,
+          message: `Account locked until ${lockoutUntil.toLocaleString()}; contact support`,
+          token: '',
+          user: null,
+        } as UserLoginResponse;
+      }
       return {
         success: false,
         message: 'Invalid password',
@@ -76,13 +126,30 @@ export class JwtAuthService {
         user: null,
       } as UserLoginResponse;
     }
-    const jwtToken = await this.generateJwtToken(user);
-    return {
-      success: true,
-      message: 'User logged in successfully',
-      token: jwtToken,
-      user: user,
-    } as UserLoginResponse;
+    return null;
+  }
+
+  async passwordReset(email: string, token?: string): Promise<string | null> {
+    // TODO: implement password reset to send email with link to reset
+    // 1. get user by email
+    // 2. if user does not exist, return error (404), otherwise
+    // 3. if token invalid or expired or not for email, return error (401), otherwise
+
+    // 4a  if token not provided:
+    // 4b. generate password reset token that expires in 1 hour
+    // 4c. update db with token
+    // 4d. send email with link to reset password (with token)
+    // 4e. return token
+
+    // 5a. if provided token is valid, is for email, and not expired, then
+    // 5b. update user password
+    // 5c. return success (login token --> so client can navigate to login page, and user can have "logged in" experience)
+
+    void email;
+    void token;
+    return new Promise((resolve) => {
+      resolve(null);
+    });
   }
 
   async register(
@@ -179,14 +246,16 @@ export class JwtAuthService {
         sub: user.id,
         email: user.email,
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 3600,
+        //exp: Math.floor(Date.now() / 1000) + 3600,
         type: 'api-access',
         id: user.id,
         name: user.name,
         roles: user.roles,
       },
+      // Note: the secret is set in the module, so this is redundant
       {
         secret: secret,
+        expiresIn: '1h',
       },
     );
     return jwtToken;

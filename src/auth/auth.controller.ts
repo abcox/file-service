@@ -9,6 +9,8 @@ import { JwtAuthService } from './jwt-auth.service';
 import { Auth } from './auth.guard';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
+import { UserLoginRequest } from './dto/user-login.request';
+import { UserLoginResponse } from './dto/user-login.response';
 
 @Controller('auth')
 export class AuthController {
@@ -35,5 +37,15 @@ export class AuthController {
     @Body() registrationRequest: UserRegistrationRequest,
   ): Promise<UserRegistrationResponse> {
     return this.jwtAuthService.register(registrationRequest);
+  }
+
+  @Post('login')
+  @Auth({ public: true })
+  @ApiOperation({ summary: 'Login a user' })
+  @ApiBody({ type: UserLoginRequest })
+  @ApiResponse({ status: 200, description: 'User logged in successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  login(@Body() loginRequest: UserLoginRequest): Promise<UserLoginResponse> {
+    return this.jwtAuthService.login(loginRequest);
   }
 }
