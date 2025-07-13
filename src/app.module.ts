@@ -12,6 +12,7 @@ import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { ConfigController } from './controller/config/config.controller';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './controller/user/user.module';
+import { GptModule } from './controller/gpt/gpt.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserModule } from './controller/user/user.module';
     FileModule,
     DatabaseModule,
     UserModule,
+    GptModule,
   ],
   controllers: [AppController, FileController, ConfigController],
   providers: [AppService, SwaggerConfigService],
