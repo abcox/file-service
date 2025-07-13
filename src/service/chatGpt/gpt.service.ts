@@ -7,15 +7,22 @@ import { AppConfigService } from '../config/config.service';
 
 import OpenAI from 'openai';
 
-export interface GptAnalysisRequest {
+export class GptAnalysisRequest {
   content: string;
   context?: string;
   model?: string;
   maxTokens?: number;
   temperature?: number;
 }
+/* {
+"content":"Tell me about Gardenias",
+"context":"You are a helpful assistant that analyzes text and provides a summary of the content.",
+"model":"gpt-4o-mini",
+"maxTokens":100,
+"temperature":0.7
+} */
 
-export interface GptAnalysisResponse {
+export class GptAnalysisResponse {
   success: boolean;
   content?: string;
   error?: string;

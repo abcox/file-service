@@ -1,5 +1,5 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import {
   GptService,
   GptAnalysisRequest,
@@ -14,6 +14,7 @@ export class GptController {
   @Post('analyze')
   @Auth({ roles: ['admin', 'user'] })
   @ApiOperation({ summary: 'Analyze content with GPT' })
+  @ApiBody({ type: GptAnalysisRequest })
   @ApiResponse({ status: 200, description: 'Analysis completed' })
   async analyzeContent(@Body() request: GptAnalysisRequest) {
     return this.gptService.analyzeContent(request);
