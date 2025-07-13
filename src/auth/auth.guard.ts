@@ -6,7 +6,7 @@ import {
   applyDecorators,
 } from '@nestjs/common';
 import { Request } from 'express';
-import { JwtAuthService } from './jwt-auth.service';
+import { AuthService } from './auth.service';
 import { LoggerService } from '../service/logger/logger.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AppConfigService } from '../service/config/config.service';
@@ -52,7 +52,7 @@ export class JwtAuthGuard implements CanActivate {
   private config: AuthConfig;
 
   constructor(
-    private jwtAuthService: JwtAuthService,
+    private authService: AuthService,
     private logger: LoggerService,
     private configService: AppConfigService,
   ) {
@@ -131,7 +131,7 @@ export class JwtAuthGuard implements CanActivate {
       return false;
     }
 
-    const basePayload = this.jwtAuthService.validateToken(token);
+    const basePayload = this.authService.validateToken(token);
     if (!basePayload) {
       this.logger.warn('Auth token invalid', {
         ip: request.ip,
@@ -141,7 +141,7 @@ export class JwtAuthGuard implements CanActivate {
       return false;
     }
 
-    if (this.jwtAuthService.isTokenExpired(basePayload)) {
+    if (this.authService.isTokenExpired(basePayload)) {
       this.logger.warn('Auth token expired', {
         ip: request.ip,
         userAgent: request.get('User-Agent'),

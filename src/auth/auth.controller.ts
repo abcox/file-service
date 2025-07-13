@@ -5,7 +5,7 @@ import {
   ApiOperation,
   ApiResponse,
 } from '@nestjs/swagger';
-import { JwtAuthService } from './jwt-auth.service';
+import { AuthService } from './auth.service';
 import { Auth } from './auth.guard';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
@@ -14,7 +14,7 @@ import { UserLoginResponse } from './dto/user-login.response';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly jwtAuthService: JwtAuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
   // TODO: move this endpoint to new auth microservice?
   @ApiExcludeEndpoint()
@@ -22,7 +22,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Generate a new JWT token' })
   @ApiResponse({ status: 201, description: 'Token generated successfully' })
   generateToken(): { token: string } {
-    const token = this.jwtAuthService.generateToken('file-service-api');
+    const token = this.authService.generateToken('file-service-api');
     return { token };
   }
 
@@ -36,7 +36,7 @@ export class AuthController {
   register(
     @Body() registrationRequest: UserRegistrationRequest,
   ): Promise<UserRegistrationResponse> {
-    return this.jwtAuthService.register(registrationRequest);
+    return this.authService.register(registrationRequest);
   }
 
   @Post('login')
@@ -46,6 +46,6 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'User logged in successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   login(@Body() loginRequest: UserLoginRequest): Promise<UserLoginResponse> {
-    return this.jwtAuthService.login(loginRequest);
+    return this.authService.login(loginRequest);
   }
 }

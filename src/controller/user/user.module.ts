@@ -6,12 +6,11 @@ import { DatabaseModule } from '../../database/database.module';
 import { JwtModule } from '@nestjs/jwt';
 import { UserService } from '../../service/user/user.service';
 import { UserController } from './user.controller';
-import { JwtAuthService } from '../../auth/jwt-auth.service';
 
 @Module({
   imports: [ConfigModule, LoggingModule, DatabaseModule, JwtModule],
   controllers: [UserController],
-  providers: [UserService, UserDbService, JwtAuthService],
+  providers: [UserService, UserDbService],
   exports: [UserService],
 })
 export class UserModule {}

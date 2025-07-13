@@ -27,7 +27,7 @@ export interface User {
 }
 
 @Injectable()
-export class JwtAuthService {
+export class AuthService {
   private config: AppConfig;
   private user: User;
 

@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { UserDbService } from '../database/user-db.service';
 import { AppConfigService } from '../config/config.service';
-import { JwtAuthService } from '../../auth/jwt-auth.service';
 import { UserEntity } from '../../database/entities/user.entity';
 
 @Injectable()
@@ -10,7 +9,6 @@ export class UserService {
   constructor(
     private readonly logger: LoggerService,
     private readonly userDb: UserDbService,
-    private readonly jwtAuthService: JwtAuthService,
     private readonly configService: AppConfigService,
   ) {}
 

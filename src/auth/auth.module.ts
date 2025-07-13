@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './auth.guard';
-import { JwtAuthService } from './jwt-auth.service';
+import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { ConfigModule } from '../service/config/config.module';
 import { AppConfigService } from '../service/config/config.service';
@@ -67,7 +67,7 @@ import { DatabaseModule } from '../database/database.module';
   ],
   controllers: [AuthController],
   providers: [
-    JwtAuthService,
+    AuthService,
     JwtAuthGuard,
     UserDbService,
     {
@@ -75,6 +75,6 @@ import { DatabaseModule } from '../database/database.module';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [JwtAuthService, JwtAuthGuard, UserDbService],
+  exports: [AuthService, JwtAuthGuard, UserDbService],
 })
 export class AuthModule {}
