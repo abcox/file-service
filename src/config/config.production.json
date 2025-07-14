@@ -27,6 +27,15 @@
     "level": "info",
     "enableConsole": true
   },
+  "gptConfig": {
+    "apiKey": "",
+    "defaults": {
+      "model": "gpt-4",
+      "temperature": 0.7,
+      "maxTokens": 4000,
+      "topP": 1
+    }
+  },
   "storage": {
     "type": "azure",
     "local": {

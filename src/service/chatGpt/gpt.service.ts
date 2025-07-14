@@ -52,6 +52,18 @@ export interface FileUploadResponse {
   error?: string;
 }
 
+export interface GptConfig {
+  apiKey: string;
+  defaults: GptDefaults;
+}
+
+export interface GptDefaults {
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+}
+
 @Injectable()
 export class GptService {
   private openai: OpenAI;
@@ -61,33 +73,51 @@ export class GptService {
     private readonly logger: LoggerService,
     private readonly configService: AppConfigService,
   ) {
-    this.initializeGptService();
+    /* const gptConfig = this.configService.getConfig().gptConfig;
+    const config = this.getConfigWithDefaults(gptConfig);
+    this.init(config); */
   }
 
-  private initializeGptService(): void {
+  private initConfigWithDefaults(config: GptConfig | undefined): GptConfig {
+    if (!config) {
+      this.logger.error('GPT config not found');
+      throw new Error('GPT config not found');
+    }
+    if (!config.apiKey) {
+      this.logger.error('GPT API key not found');
+      throw new Error('GPT API key not found');
+    }
+    this.config = config;
+    const { apiKey, defaults } = config;
+    return {
+      ...config,
+      apiKey: apiKey || process.env.OPENAI_API_KEY,
+      defaults: {
+        model: defaults?.model || process.env.GPT_DEFAULT_MODEL || 'gpt-4',
+        temperature:
+          defaults?.temperature ||
+          parseFloat(process.env.GPT_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens:
+          defaults?.maxTokens ||
+          parseInt(process.env.GPT_DEFAULT_MAX_TOKENS || '4000'),
+        topP:
+          defaults?.topP || parseFloat(process.env.GPT_DEFAULT_TOP_P || '1'),
+      },
+    } as GptConfig;
+  }
+
+  init(config: GptConfig | undefined): void {
     try {
-      const apiKey = process.env.OPENAI_API_KEY;
-
-      if (!apiKey) {
-        this.logger.error('OpenAI API key not found in environment variables');
-        throw new Error('OpenAI API key is required');
-      }
-
-      this.config = {
-        apiKey,
-        defaultModel: process.env.GPT_DEFAULT_MODEL || 'gpt-4',
-        defaultMaxTokens: parseInt(process.env.GPT_MAX_TOKENS || '4000'),
-        defaultTemperature: parseFloat(process.env.GPT_TEMPERATURE || '0.7'),
-      };
-
+      this.config = this.initConfigWithDefaults(config);
+      const { apiKey } = this.config;
       this.openai = new OpenAI({
-        apiKey: this.config.apiKey,
+        apiKey: apiKey,
       });
-
+      const { defaults } = this.config;
       this.logger.info('GPT service initialized successfully', {
-        model: this.config.defaultModel,
-        maxTokens: this.config.defaultMaxTokens,
-        temperature: this.config.defaultTemperature,
+        model: defaults.model,
+        maxTokens: defaults.maxTokens,
+        temperature: defaults.temperature,
       });
     } catch (error) {
       this.logger.error('Failed to initialize GPT service', error as Error);

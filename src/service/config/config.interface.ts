@@ -1,3 +1,5 @@
+import { GptConfig } from '../chatGpt/gpt.service';
+
 export interface AppConfig {
   azure: {
     tenantId: string;
@@ -33,6 +35,7 @@ export interface AppConfig {
   auth?: { enabled: boolean; secret: string };
   environment: 'development' | 'production';
   keyVault?: { vaultUrl: string };
+  gptConfig?: GptConfig;
   storage: {
     type: 'local' | 'azure' | 'emulator';
     local: { subfolderPath: string };
