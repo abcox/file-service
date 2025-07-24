@@ -33,6 +33,16 @@ export interface AppConfig {
     version?: string;
   };
   auth?: { enabled: boolean; secret: string };
+  api: {
+    path: string;
+    port: number;
+    cors: {
+      enabled: boolean;
+      origin: string;
+      methods: string[];
+      allowedHeaders: string[];
+    };
+  };
   environment: 'development' | 'production';
   keyVault?: { vaultUrl: string };
   gptConfig?: GptConfig;

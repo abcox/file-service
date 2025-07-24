@@ -4,19 +4,13 @@ import { FileWorkflowService } from '../../service/workflow/file-workflow.servic
 import { FileService } from '../../service/file/file.service';
 import { GptService } from '../../service/chatGpt/gpt.service';
 import { LoggerService } from '../../service/logger/logger.service';
-import { AppConfigService } from '../../service/config/config.service';
 import { StorageModule } from '../../service/storage/storage.module';
+import { ConfigModule } from '../../service/config/config.module';
 
 @Module({
-  imports: [StorageModule],
+  imports: [StorageModule, ConfigModule, StorageModule],
   controllers: [WorkflowController],
-  providers: [
-    FileWorkflowService,
-    FileService,
-    GptService,
-    LoggerService,
-    AppConfigService,
-  ],
+  providers: [FileWorkflowService, FileService, GptService, LoggerService],
   exports: [FileWorkflowService],
 })
 export class WorkflowModule {}
