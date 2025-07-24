@@ -169,9 +169,10 @@ export class AuthService {
       } as UserRegistrationResponse;
     }
 
+    const passwordHash = request.email; // TODO:  this is a temporary solution to avoid hashing the password (using bcrypt)
     const user = {
       email: request.email,
-      passwordHash: request.password,
+      passwordHash: passwordHash,
       name: request.name,
       roles: ['guest'],
       username: request.email,
