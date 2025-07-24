@@ -14,6 +14,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   console.log('Application created.');
 
+  app.enableCors({
+    origin: '*', // TODO: add to environment variable like allowedOrigins: ['http://localhost:4200', 'http://localhost:3000']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
   // TODO: review this middleware:
   // 1. At minimum, we should organize this somewhere else? (it clutters the main file)
   // Add request logging middleware
