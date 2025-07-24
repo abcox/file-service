@@ -27,7 +27,8 @@ export class AuthController {
   }
 
   @Post('register')
-  @Auth({ roles: ['admin', 'user'] })
+  //@Auth({ roles: ['admin', 'user'] }) // why we did this?
+  @Auth({ public: true })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: UserRegistrationRequest })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
