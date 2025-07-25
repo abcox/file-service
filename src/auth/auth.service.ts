@@ -163,7 +163,7 @@ export class AuthService {
       const jwtToken = await this.generateJwtToken(existingUser);
       return {
         user: existingUser,
-        success: false,
+        success: true,
         message: 'User already exists',
         token: jwtToken,
       } as UserRegistrationResponse;
