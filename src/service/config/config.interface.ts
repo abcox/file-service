@@ -26,6 +26,13 @@ export interface AppConfig {
         connectionString?: string;
       };
     };
+    cosmosDb?: {
+      name?: string;
+      description?: string;
+      portalUrl?: string;
+      connectionString?: string;
+      database?: string;
+    };
   };
   info: {
     name: string;
