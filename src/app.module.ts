@@ -14,6 +14,8 @@ import { DatabaseModule } from './database/database.module';
 import { UserModule } from './controller/user/user.module';
 import { GptModule } from './controller/gpt/gpt.module';
 import { WorkflowModule } from './controller/workflow/workflow.module';
+import { QuizModule } from './module/quiz/quiz.module';
+import { QuizController } from './module/quiz/quiz.controller';
 
 @Module({
   imports: [
@@ -27,8 +29,14 @@ import { WorkflowModule } from './controller/workflow/workflow.module';
     UserModule,
     GptModule,
     WorkflowModule,
+    QuizModule,
   ],
-  controllers: [AppController, FileController, ConfigController],
+  controllers: [
+    AppController,
+    FileController,
+    ConfigController,
+    QuizController,
+  ],
   providers: [AppService, SwaggerConfigService],
 })
 export class AppModule {}

@@ -31,8 +31,10 @@
       "name": "vorba-cosmos-db-1",
       "description": "Cosmos for Mongo Emulator. See README for more details.",
       "portalUrl": "https://portal.azure.com/#@Vorba.onmicrosoft.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.DocumentDb/databaseAccounts/vorba-cosmos-db-1/overview",
-      "connectionString": "mongodb://<username>:<password>@<cosmos-host>:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@<cosmos-host>@",
-      "database": "vorba-quiz"
+      "connectionString2": "mongodb://localhost:C2y6yDjf5%2FR%2Bob0N8A7Cgv30VRDJIWEHLM%2B4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw%2FJw%3D%3D@localhost:10255/admin?ssl=true",
+      "connectionString": "mongodb://localhost:27017",
+      "connectionString4": "mongodb://localhost:8081",
+      "database": "vorba-file-service-db"
     }
   },
   "info": {

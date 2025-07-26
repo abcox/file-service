@@ -1,5 +1,5 @@
 // quiz-seed.ts
-import { Quiz } from '../entity/quiz';
+import { Quiz } from '../entity/quiz/quiz';
 
 export const quizSeed: Quiz = {
   title: 'Quiz 1',
