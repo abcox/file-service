@@ -9,7 +9,8 @@ export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
   @Post('generate-seed')
-  @Auth({ roles: ['admin'] })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   @ApiOperation({ summary: 'Generate and seed quiz data into Cosmos DB' })
   @ApiResponse({ status: 200, description: 'Quiz seed generation triggered' })
   async generateSeed(): Promise<{ message: string }> {
