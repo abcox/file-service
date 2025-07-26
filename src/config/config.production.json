@@ -33,11 +33,11 @@
       }
     },
     "cosmosDb": {
-      "name": "vorba-cosmos-db-1",
-      "description": "Vorba Cosmos DB 1 in Azure. See portalUrl to manage.",
-      "portalUrl": "https://portal.azure.com/#@Vorba.onmicrosoft.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.DocumentDb/databaseAccounts/vorba-cosmos-db-1/overview",
-      "connectionString": "mongodb+srv://fsadmin:fileservice1$@vorba-file-service-cmdb-1.global.mongocluster.cosmos.azure.com/?tls=true&authMechanism=SCRAM-SHA-256&retrywrites=false&maxIdleTimeMS=120000",
-      "database": "vorba-quiz"
+      "name": "vorba-file-service-cmdb-1",
+      "description": "Vorba Cosmos DB for Mongo 1 in Azure. See portalUrl to manage.",
+      "portalUrl": "https://portal.azure.com/#@Vorba.onmicrosoft.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.DocumentDB/mongoClusters/vorba-file-service-cmdb-1",
+      "connectionString": "",
+      "database": "vorba-quiz-db"
     }
   },
   "logging": {
