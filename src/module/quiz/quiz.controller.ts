@@ -25,7 +25,6 @@ export class QuizController {
 
   @Post('generate-seed')
   @Auth({ roles: ['admin'] })
-  //@Auth({ public: true })
   @ApiOperation({ summary: 'Generate and seed quiz data into Cosmos DB' })
   @ApiResponse({ status: 200, description: 'Quiz seed generation triggered' })
   async generateSeed(): Promise<{ message: string }> {
@@ -33,7 +32,7 @@ export class QuizController {
   }
 
   @Get('by-title')
-  @Auth({ public: true })
+  @Auth({ /* public: true ,*/ roles: ['admin'] })
   @ApiOperation({ summary: 'Get quiz by title' })
   @ApiQuery({ name: 'title', description: 'Quiz title to search for' })
   @ApiResponse({ status: 200, description: 'Quiz found' })
@@ -46,7 +45,7 @@ export class QuizController {
     return { message: 'Quiz found', quiz };
   }
 
-  @Get()
+  @Get('list')
   @Auth({ public: true })
   @ApiOperation({ summary: 'Get list of all quizzes' })
   @ApiResponse({ status: 200, description: 'Quiz list retrieved successfully' })
@@ -69,9 +68,8 @@ export class QuizController {
     }
   }
 
-  @Post()
-  //@Auth({ roles: ['admin'] })
-  @Auth({ public: true })
+  @Post('create')
+  @Auth({ /* public: true ,*/ roles: ['admin'] })
   @ApiOperation({ summary: 'Create a new quiz' })
   @ApiBody({ description: 'Quiz data to create' })
   @ApiResponse({ status: 201, description: 'Quiz created successfully' })
@@ -100,8 +98,7 @@ export class QuizController {
   }
 
   @Delete(':id')
-  //@Auth({ roles: ['admin'] })
-  @Auth({ public: true })
+  @Auth({ /* public: true ,*/ roles: ['admin'] })
   @ApiOperation({ summary: 'Delete a quiz by ID' })
   @ApiResponse({ status: 200, description: 'Quiz deleted successfully' })
   @ApiResponse({ status: 404, description: 'Quiz not found' })
