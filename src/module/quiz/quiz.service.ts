@@ -32,4 +32,27 @@ export class QuizService {
       throw new Error(`Quiz seed generation failed: ${errorMessage}`);
     }
   }
+
+  async getQuizByTitle(title: string): Promise<Quiz | null> {
+    try {
+      this.logger.log(`Fetching quiz with title: ${title}`);
+      const quiz = await this.quizModel.findOne({ title }).exec();
+
+      if (!quiz) {
+        this.logger.warn(`Quiz with title '${title}' not found`);
+        return null;
+      }
+
+      this.logger.log(`Quiz found: ${quiz.title}`);
+      return quiz;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to fetch quiz by title '${title}'`,
+        errorMessage,
+      );
+      throw new Error(`Failed to fetch quiz: ${errorMessage}`);
+    }
+  }
 }
