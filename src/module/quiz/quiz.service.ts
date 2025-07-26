@@ -55,4 +55,59 @@ export class QuizService {
       throw new Error(`Failed to fetch quiz: ${errorMessage}`);
     }
   }
+
+  async createQuiz(
+    quizData: Omit<Quiz, '_id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Quiz> {
+    try {
+      this.logger.log(`Creating new quiz with title: ${quizData.title}`);
+
+      // Check if quiz with same title already exists
+      const existingQuiz = await this.quizModel
+        .findOne({ title: quizData.title })
+        .exec();
+      if (existingQuiz) {
+        this.logger.warn(`Quiz with title '${quizData.title}' already exists`);
+        throw new Error(`Quiz with title '${quizData.title}' already exists`);
+      }
+
+      // Create the new quiz
+      const newQuiz = await this.quizModel.create(quizData);
+      this.logger.log(`Quiz created successfully with ID: ${newQuiz._id}`);
+
+      return newQuiz;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to create quiz with title '${quizData.title}'`,
+        errorMessage,
+      );
+      throw new Error(`Failed to create quiz: ${errorMessage}`);
+    }
+  }
+
+  async deleteQuiz(id: string): Promise<{ message: string }> {
+    try {
+      this.logger.log(`Attempting to delete quiz with ID: ${id}`);
+
+      // Check if quiz exists
+      const existingQuiz = await this.quizModel.findById(id).exec();
+      if (!existingQuiz) {
+        this.logger.warn(`Quiz with ID '${id}' not found`);
+        throw new Error(`Quiz with ID '${id}' not found`);
+      }
+
+      // Delete the quiz
+      await this.quizModel.findByIdAndDelete(id).exec();
+      this.logger.log(`Quiz with ID '${id}' deleted successfully`);
+
+      return { message: 'Quiz deleted successfully' };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to delete quiz with ID '${id}'`, errorMessage);
+      throw new Error(`Failed to delete quiz: ${errorMessage}`);
+    }
+  }
 }
