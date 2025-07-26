@@ -46,6 +46,29 @@ export class QuizController {
     return { message: 'Quiz found', quiz };
   }
 
+  @Get()
+  @Auth({ public: true })
+  @ApiOperation({ summary: 'Get list of all quizzes' })
+  @ApiResponse({ status: 200, description: 'Quiz list retrieved successfully' })
+  async getQuizList(): Promise<QuizResponse> {
+    try {
+      const quizList = await this.quizService.getQuizList();
+      return {
+        success: true,
+        message: `Found ${quizList.length} quizzes`,
+        quiz: quizList,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      return {
+        success: false,
+        message: errorMessage,
+        errors: [errorMessage],
+      };
+    }
+  }
+
   @Post()
   //@Auth({ roles: ['admin'] })
   @Auth({ public: true })

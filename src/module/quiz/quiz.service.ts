@@ -121,4 +121,39 @@ export class QuizService {
       throw new Error(`Failed to delete quiz: ${errorMessage}`);
     }
   }
+
+  async getQuizList(): Promise<
+    Array<{
+      _id: string;
+      title: string;
+      createdAt: Date;
+      updatedAt: Date;
+      questionCount: number;
+    }>
+  > {
+    try {
+      this.logger.log('Fetching quiz list');
+
+      const quizzes = await this.quizModel
+        .find({}, { title: 1, createdAt: 1, updatedAt: 1, questions: 1 })
+        .sort({ createdAt: -1 }) // Most recent first
+        .exec();
+
+      const quizList = quizzes.map((quiz) => ({
+        _id: quiz._id.toString(),
+        title: quiz.title,
+        createdAt: quiz.createdAt || new Date(),
+        updatedAt: quiz.updatedAt || new Date(),
+        questionCount: quiz.questions ? quiz.questions.length : 0,
+      }));
+
+      this.logger.log(`Found ${quizList.length} quizzes`);
+      return quizList;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error('Failed to fetch quiz list', errorMessage);
+      throw new Error(`Failed to fetch quiz list: ${errorMessage}`);
+    }
+  }
 }
