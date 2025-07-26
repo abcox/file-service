@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Error as MongooseError } from 'mongoose';
 import { Quiz } from '../db/doc/entity/quiz/quiz';
 import { quizSeed } from '../db/doc/seed/quiz-seed';
 
@@ -77,6 +77,17 @@ export class QuizService {
 
       return newQuiz;
     } catch (error) {
+      // Handle Mongoose validation errors specifically
+      if (error instanceof MongooseError.ValidationError) {
+        const validationErrors = Object.values(error.errors).map(
+          (err) => err.message,
+        );
+        const errorMessage = `Validation failed: ${validationErrors.join(', ')}`;
+        this.logger.warn(`Quiz validation failed: ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
+
+      // Handle other errors
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(

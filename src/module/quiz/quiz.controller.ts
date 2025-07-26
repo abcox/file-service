@@ -16,6 +16,7 @@ import {
 } from '@nestjs/swagger';
 import { Auth } from '../../auth/auth.guard';
 import { QuizService } from './quiz.service';
+import { QuizResponse } from './dto/quiz-response.dto';
 
 @ApiTags('Quiz')
 @Controller('quiz')
@@ -53,14 +54,26 @@ export class QuizController {
   @ApiResponse({ status: 201, description: 'Quiz created successfully' })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - quiz with same title already exists',
+    description:
+      'Bad request - validation failed or quiz with same title already exists',
   })
-  async createQuiz(@Body() quizData: any) {
-    const newQuiz = await this.quizService.createQuiz(quizData);
-    return {
-      message: 'Quiz created successfully',
-      quiz: newQuiz,
-    };
+  async createQuiz(@Body() quizData: any): Promise<QuizResponse> {
+    try {
+      const newQuiz = await this.quizService.createQuiz(quizData);
+      return {
+        success: true,
+        message: 'Quiz created successfully',
+        quiz: newQuiz,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      return {
+        success: false,
+        message: errorMessage,
+        errors: [errorMessage],
+      };
+    }
   }
 
   @Delete(':id')
