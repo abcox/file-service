@@ -315,6 +315,7 @@ export class AuthService {
         expiresAt: new Date(payload.exp * 1000).toISOString(),
       });
 
+      // TODO: review this because it appears like dead code
       this.setUser(payload);
 
       return payload;
@@ -324,6 +325,7 @@ export class AuthService {
     }
   }
 
+  // TODO: review this because it appears like dead code
   setUser(payload: JwtPayload) {
     this.user = {
       id: payload.sub,
@@ -333,6 +335,7 @@ export class AuthService {
     };
   }
 
+  // TODO: review this because it appears like dead code
   getUser(): User {
     return this.user;
   }

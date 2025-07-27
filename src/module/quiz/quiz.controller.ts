@@ -32,7 +32,7 @@ export class QuizController {
   }
 
   @Get('by-title')
-  @Auth({ /* public: true ,*/ roles: ['admin'] })
+  @Auth({ roles: ['guest'] })
   @ApiOperation({ summary: 'Get quiz by title' })
   @ApiQuery({ name: 'title', description: 'Quiz title to search for' })
   @ApiResponse({ status: 200, description: 'Quiz found' })
@@ -40,9 +40,9 @@ export class QuizController {
   async getQuizByTitle(@Query('title') title: string) {
     const quiz = await this.quizService.getQuizByTitle(title);
     if (!quiz) {
-      return { message: 'Quiz not found', quiz: null };
+      return { message: 'Quiz not found', quiz: null, success: false };
     }
-    return { message: 'Quiz found', quiz };
+    return { message: 'Quiz found', quiz, success: true };
   }
 
   @Get('list')
