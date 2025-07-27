@@ -32,7 +32,7 @@ export class QuizController {
   }
 
   @Get('by-title')
-  @Auth({ roles: ['guest'] })
+  @Auth({ roles: ['admin', 'guest'] })
   @ApiOperation({ summary: 'Get quiz by title' })
   @ApiQuery({ name: 'title', description: 'Quiz title to search for' })
   @ApiResponse({ status: 200, description: 'Quiz found' })
