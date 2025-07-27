@@ -31,11 +31,7 @@ export class GptAnalysisResponse {
   success: boolean;
   content?: string;
   error?: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  usage?: OpenAI.Completions.CompletionUsage;
 }
 
 export interface GptConfig {
