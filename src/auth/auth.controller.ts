@@ -31,7 +31,11 @@ export class AuthController {
   @Auth({ public: true })
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: UserRegistrationRequest })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiResponse({
+    type: UserRegistrationResponse,
+    status: 201,
+    description: 'User registered successfully',
+  })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 409, description: 'User already exists' })
   register(
@@ -44,7 +48,11 @@ export class AuthController {
   @Auth({ public: true })
   @ApiOperation({ summary: 'Login a user' })
   @ApiBody({ type: UserLoginRequest })
-  @ApiResponse({ status: 200, description: 'User logged in successfully' })
+  @ApiResponse({
+    type: UserLoginResponse,
+    status: 200,
+    description: 'User logged in successfully',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   login(@Body() loginRequest: UserLoginRequest): Promise<UserLoginResponse> {
     return this.authService.login(loginRequest);

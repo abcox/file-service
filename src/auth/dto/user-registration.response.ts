@@ -1,8 +1,28 @@
-import { UserEntity } from '../../database/entities/user.entity';
+import { ApiProperty } from '@nestjs/swagger';
+import { UserDto } from './user.dto';
 
 export class UserRegistrationResponse {
+  @ApiProperty({ 
+    description: 'Operation success status', 
+    example: true 
+  })
   success: boolean;
+
+  @ApiProperty({ 
+    description: 'Response message', 
+    example: 'User registered successfully' 
+  })
   message: string;
+
+  @ApiProperty({ 
+    description: 'JWT authentication token', 
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' 
+  })
   token: string;
-  user: UserEntity;
+
+  @ApiProperty({ 
+    description: 'Registered user information', 
+    type: UserDto 
+  })
+  user: UserDto;
 }
