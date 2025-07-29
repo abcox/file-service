@@ -16,7 +16,9 @@ import {
 } from '@nestjs/swagger';
 import { Auth } from '../../auth/auth.guard';
 import { QuizService } from './quiz.service';
-import { QuizResponse } from './dto/quiz-response.dto';
+import { QuizResponseDto } from './dto/quiz-response.dto';
+import { QuizSummaryDto } from './dto/quiz-summary.dto';
+import { BaseSearchResponseDto } from '../../shared/model/controller';
 
 @ApiTags('Quiz')
 @Controller('quiz')
@@ -35,36 +37,57 @@ export class QuizController {
   @Auth({ roles: ['admin', 'guest'] })
   @ApiOperation({ summary: 'Get quiz by title' })
   @ApiQuery({ name: 'title', description: 'Quiz title to search for' })
-  @ApiResponse({ status: 200, description: 'Quiz found' })
-  @ApiResponse({ status: 404, description: 'Quiz not found' })
-  async getQuizByTitle(@Query('title') title: string) {
+  @ApiResponse({
+    type: QuizResponseDto,
+    status: 200,
+    description: 'Quiz found',
+  })
+  @ApiResponse({
+    type: QuizResponseDto,
+    status: 404,
+    description: 'Quiz not found',
+  })
+  async getQuizByTitle(
+    @Query('title') title: string,
+  ): Promise<QuizResponseDto> {
     const quiz = await this.quizService.getQuizByTitle(title);
-    if (!quiz) {
-      return { message: 'Quiz not found', quiz: null, success: false };
-    }
-    return { message: 'Quiz found', quiz, success: true };
+    const response = new QuizResponseDto();
+    response.success = !!quiz;
+    response.message = `Quiz ${quiz ? 'found' : 'not found'} with title: ${title}`;
+    response.data = quiz || undefined;
+    return response;
   }
 
   @Get('list')
   @Auth({ public: true })
   @ApiOperation({ summary: 'Get list of all quizzes' })
-  @ApiResponse({ status: 200, description: 'Quiz list retrieved successfully' })
-  async getQuizList(): Promise<QuizResponse> {
+  @ApiResponse({
+    status: 200,
+    description: 'Quiz list retrieved successfully',
+    type: BaseSearchResponseDto,
+  })
+  async getQuizList(): Promise<BaseSearchResponseDto<QuizSummaryDto>> {
     try {
       const quizList = await this.quizService.getQuizList();
-      return {
-        success: true,
-        message: `Found ${quizList.length} quizzes`,
-        quiz: quizList,
-      };
+      const response = new BaseSearchResponseDto<QuizSummaryDto>();
+      response.success = true;
+      response.message = `Found ${quizList.length} quizzes`;
+      response.data = quizList;
+      response.totalCount = quizList.length;
+      response.pageSize = quizList.length;
+      response.currentPage = 1;
+      response.totalPages = 1;
+      response.hasNext = false;
+      response.hasPrevious = false;
+      return response;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      return {
-        success: false,
-        message: errorMessage,
-        errors: [errorMessage],
-      };
+      const response = new BaseSearchResponseDto<QuizSummaryDto>();
+      response.success = false;
+      response.message = errorMessage;
+      response.errors = [errorMessage];
+      return response;
     }
   }
 
@@ -78,22 +101,22 @@ export class QuizController {
     description:
       'Bad request - validation failed or quiz with same title already exists',
   })
-  async createQuiz(@Body() quizData: any): Promise<QuizResponse> {
+  async createQuiz(@Body() quizData: any): Promise<QuizResponseDto> {
     try {
       const newQuiz = await this.quizService.createQuiz(quizData);
-      return {
-        success: true,
-        message: 'Quiz created successfully',
-        quiz: newQuiz,
-      };
+      const response = new QuizResponseDto();
+      response.success = true;
+      response.message = 'Quiz created successfully';
+      response.data = newQuiz;
+      return response;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      return {
-        success: false,
-        message: errorMessage,
-        errors: [errorMessage],
-      };
+      const response = new QuizResponseDto();
+      response.success = false;
+      response.message = errorMessage;
+      response.errors = [errorMessage];
+      return response;
     }
   }
 
