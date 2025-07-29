@@ -18,6 +18,7 @@ import { Auth } from '../../auth/auth.guard';
 import { QuizService } from './quiz.service';
 import { QuizResponseDto } from './dto/quiz-response.dto';
 import { QuizSearchResponseDto } from './dto/quiz-search-response.dto';
+import { CreateQuizDto } from './dto/create-quiz.dto';
 
 @ApiTags('Quiz')
 @Controller('quiz')
@@ -100,7 +101,7 @@ export class QuizController {
     description:
       'Bad request - validation failed or quiz with same title already exists',
   })
-  async createQuiz(@Body() quizData: any): Promise<QuizResponseDto> {
+  async createQuiz(@Body() quizData: CreateQuizDto): Promise<QuizResponseDto> {
     try {
       const newQuiz = await this.quizService.createQuiz(quizData);
       const response = new QuizResponseDto();

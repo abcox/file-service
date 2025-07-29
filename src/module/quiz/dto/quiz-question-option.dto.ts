@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNumber } from 'class-validator';
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
@@ -31,12 +31,11 @@ export class QuizQuestionOptionDto {
   @IsNumber()
   archetypeId: number;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description: 'Additional context for the option',
     example: 'This option indicates a systematic problem-solving approach',
     type: String,
   })
-  @IsOptional()
   @IsString()
-  context?: string;
-} 
+  context: string;
+}

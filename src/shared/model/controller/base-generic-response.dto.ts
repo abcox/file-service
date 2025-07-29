@@ -48,7 +48,7 @@ export class BaseGenericResponseDto<T = any> {
 /**
  * Helper function to create typed response DTOs
  */
-export function createTypedResponseDto<T>(dataType: any) {
+export function createTypedResponseDto<T>() {
   return class TypedResponseDto extends BaseGenericResponseDto<T> {
     declare data?: T;
   };
