@@ -35,6 +35,7 @@ export class QuizDto {
     description: 'Questions in the quiz',
     type: 'array',
     items: {
+      type: 'object',
       $ref: '#/components/schemas/QuizQuestionDto',
     },
   })

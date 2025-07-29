@@ -4,9 +4,9 @@ import { IsBoolean, IsString, IsOptional, IsArray } from 'class-validator';
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
 /**
- * Base response DTO for single object responses
+ * Base generic response DTO that properly handles type references
  */
-export class BaseResponseDto<T = any> {
+export class BaseGenericResponseDto<T = any> {
   @ApiProperty({
     description: 'Indicates whether the operation was successful',
     example: true,
@@ -25,6 +25,8 @@ export class BaseResponseDto<T = any> {
 
   @ApiPropertyOptional({
     description: 'Response data payload',
+    type: 'object',
+    additionalProperties: true
   })
   @IsOptional()
   data?: T;
@@ -34,11 +36,20 @@ export class BaseResponseDto<T = any> {
     example: ['Validation failed', 'Resource not found'],
     type: 'array',
     items: {
-      type: 'string',
-    },
+      type: 'string'
+    }
   })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   errors?: string[];
 }
+
+/**
+ * Helper function to create typed response DTOs
+ */
+export function createTypedResponseDto<T>(dataType: any) {
+  return class TypedResponseDto extends BaseGenericResponseDto<T> {
+    declare data?: T;
+  };
+} 

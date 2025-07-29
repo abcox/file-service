@@ -17,8 +17,7 @@ import {
 import { Auth } from '../../auth/auth.guard';
 import { QuizService } from './quiz.service';
 import { QuizResponseDto } from './dto/quiz-response.dto';
-import { QuizSummaryDto } from './dto/quiz-summary.dto';
-import { BaseSearchResponseDto } from '../../shared/model/controller';
+import { QuizSearchResponseDto } from './dto/quiz-search-response.dto';
 
 @ApiTags('Quiz')
 @Controller('quiz')
@@ -64,12 +63,12 @@ export class QuizController {
   @ApiResponse({
     status: 200,
     description: 'Quiz list retrieved successfully',
-    type: BaseSearchResponseDto,
+    type: QuizSearchResponseDto,
   })
-  async getQuizList(): Promise<BaseSearchResponseDto<QuizSummaryDto>> {
+  async getQuizList(): Promise<QuizSearchResponseDto> {
     try {
       const quizList = await this.quizService.getQuizList();
-      const response = new BaseSearchResponseDto<QuizSummaryDto>();
+      const response = new QuizSearchResponseDto();
       response.success = true;
       response.message = `Found ${quizList.length} quizzes`;
       response.data = quizList;
@@ -83,7 +82,7 @@ export class QuizController {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
-      const response = new BaseSearchResponseDto<QuizSummaryDto>();
+      const response = new QuizSearchResponseDto();
       response.success = false;
       response.message = errorMessage;
       response.errors = [errorMessage];
