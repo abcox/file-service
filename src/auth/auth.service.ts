@@ -58,7 +58,10 @@ export class AuthService {
   // 3. admin: lock user account: temp or permanent
 
   async login(request: UserLoginRequest): Promise<UserLoginResponse> {
-    this.logger.log('Logging in user');
+    /* this.logger.log('Logging in user', {
+      email: request.email,
+      password: request.password,
+    }); */
     const user: UserEntity | null = await this.userDb.getUserByEmail(
       request.email,
     );
@@ -82,23 +85,35 @@ export class AuthService {
       } as UserLoginResponse;
     }
     const response = await this.validatePassword(user, request.password);
-    if (response) {
+    if (!response.success) {
       return response;
     }
-    const jwtToken = await this.generateJwtToken(user);
+    const userWithUpdatedRoles = this.getUserWithUpdatedRoles(user);
+    const jwtToken = await this.generateJwtToken(userWithUpdatedRoles);
     const lastLoginDate = await this.userDb.updateLastLogin(user.id);
     return {
       success: true,
       message: 'User logged in successfully',
       token: jwtToken,
-      user: { ...user, lastLoginAt: lastLoginDate ?? user.lastLoginAt },
+      user: {
+        ...userWithUpdatedRoles,
+        lastLoginAt: lastLoginDate ?? user.lastLoginAt,
+      },
     } as UserLoginResponse;
+  }
+
+  getUserWithUpdatedRoles(user: UserEntity): UserEntity {
+    if (user.roles.includes('admin') || user.isAdmin) {
+      user.isAdmin = true;
+      user.roles = ['admin'];
+    }
+    return user;
   }
 
   async validatePassword(
     user: UserEntity,
     password: string,
-  ): Promise<UserLoginResponse | null> {
+  ): Promise<UserLoginResponse> {
     if (user.passwordHash !== password) {
       const failedAttempts = await this.userDb.updatePasswordAttempts(
         user.id,
@@ -126,7 +141,12 @@ export class AuthService {
         user: null,
       } as UserLoginResponse;
     }
-    return null;
+    return {
+      success: true,
+      message: 'Password validated',
+      token: '',
+      user: user,
+    } as UserLoginResponse;
   }
 
   async passwordReset(email: string, token?: string): Promise<string | null> {
