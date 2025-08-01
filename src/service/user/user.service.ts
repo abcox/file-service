@@ -71,4 +71,8 @@ export class UserService {
     const userFileList = await this.storageService.getFiles(userEmail);
     return userFileList;
   }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.userDb.deleteUser(userId);
+  }
 }

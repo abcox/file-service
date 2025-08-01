@@ -144,4 +144,8 @@ export class UserDbService {
     const user = await this.getUserById(userId);
     return user?.roles.includes(role) || false;
   }
+
+  async deleteUser(userId: string): Promise<void> {
+    await this.userRepository.delete(userId);
+  }
 }
