@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsString, IsOptional, IsArray } from 'class-validator';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * Base generic response DTO that properly handles type references
  */
@@ -26,7 +24,7 @@ export class BaseGenericResponseDto<T = any> {
   @ApiPropertyOptional({
     description: 'Response data payload',
     type: 'object',
-    additionalProperties: true
+    additionalProperties: true,
   })
   @IsOptional()
   data?: T;
@@ -36,8 +34,8 @@ export class BaseGenericResponseDto<T = any> {
     example: ['Validation failed', 'Resource not found'],
     type: 'array',
     items: {
-      type: 'string'
-    }
+      type: 'string',
+    },
   })
   @IsOptional()
   @IsArray()
@@ -52,4 +50,4 @@ export function createTypedResponseDto<T>() {
   return class TypedResponseDto extends BaseGenericResponseDto<T> {
     declare data?: T;
   };
-} 
+}
