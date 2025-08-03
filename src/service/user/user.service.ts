@@ -1,14 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { UserDbService } from '../database/user-db.service';
 import { AppConfigService } from '../config/config.service';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuthService, User } from '../../auth/auth.service';
 import { FileInfo, StorageService } from '../storage/storage.service';
+import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
+import { UserDto } from '../../auth/dto/user.dto';
+import { UserMapper } from './user-mapper';
 
 export class UserFileUploadResponse {
   fileInfo: FileInfo;
   fileUrl: string;
+}
+
+export class UserUpdateResponse {
+  success: boolean;
+  message: string;
+  data?: UserDto;
 }
 
 @Injectable()
@@ -21,13 +30,18 @@ export class UserService {
     private authService: AuthService,
   ) {}
 
+  async getUserById(userId: string): Promise<Partial<UserEntity> | null> {
+    const user = await this.userDb.getUserById(userId);
+    if (!user) return null;
+
+    return UserMapper.toSafeDto(user);
+  }
+
   async getUserByEmail(email: string): Promise<Partial<UserEntity> | null> {
     const user = await this.userDb.getUserByEmail(email);
     if (!user) return null;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...safeUser } = user;
-    return safeUser as Partial<UserEntity>;
+    return UserMapper.toSafeDto(user);
   }
 
   async getUserList(): Promise<Partial<UserEntity>[]> {
@@ -64,6 +78,34 @@ export class UserService {
       fileInfo: uploadedFile,
       fileUrl: uploadedFile.url,
     } as UserFileUploadResponse;
+  }
+
+  async updateUser(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserUpdateResponse> {
+    try {
+      const result = await this.userDb.updateUser(userId, updateUserDto);
+      if ((result.affected ?? 0) === 0) {
+        throw new NotFoundException('User not found');
+      }
+      const user: UserEntity | null = await this.userDb.getUserById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+      return {
+        success: (result.affected ?? 0) > 0,
+        message: 'User updated',
+        data: UserMapper.toSafeDto(user),
+      };
+    } catch (error) {
+      this.logger.error(`updateUser failed with error: ${error}`);
+      return {
+        success: false,
+        message: 'User update failed',
+        data: undefined,
+      };
+    }
   }
 
   async getUserFileList(user: User): Promise<FileInfo[]> {

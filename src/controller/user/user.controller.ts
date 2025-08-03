@@ -7,6 +7,8 @@ import {
   Req,
   UploadedFile,
   UseInterceptors,
+  Body,
+  Put,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,6 +25,8 @@ import { Auth } from '../../auth/auth.guard';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { User } from '../../auth/auth.service';
+import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
+import { UserUpdateResponse } from '../../service/user/user.service';
 
 interface UploadedFile {
   originalname: string;
@@ -35,18 +39,6 @@ interface UploadedFile {
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
-
-  // get user by email
-  @Get('email/:email')
-  @Auth({ roles: ['admin', 'user'] })
-  @ApiOperation({ summary: 'Get user by email' })
-  @ApiResponse({ status: 200, description: 'User found' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserByEmail(
-    @Param('email') email: string,
-  ): Promise<Partial<UserEntity> | null> {
-    return await this.userService.getUserByEmail(email);
-  }
 
   // get all users (admin only)
   @Get('list')
@@ -61,6 +53,34 @@ export class UserController {
     return await this.userService.getUserList();
   }
 
+  // get user by email
+  @Get('email/:email')
+  @Auth({ roles: ['admin', 'user'] })
+  @ApiOperation({ summary: 'Get user by email' })
+  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserByEmail(
+    @Param('email') email: string,
+  ): Promise<Partial<UserEntity> | null> {
+    return await this.userService.getUserByEmail(email);
+  }
+
+  // get user by ID
+  @Get(':userId')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Get user by ID (admin only)' })
+  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async getUserById(
+    @Param('userId') userId: string,
+  ): Promise<Partial<UserEntity> | null> {
+    return await this.userService.getUserById(userId);
+  }
+
   @Delete(':userId')
   @Auth({ roles: ['admin'] })
   @ApiOperation({ summary: 'Delete user (admin only)' })
@@ -73,6 +93,31 @@ export class UserController {
     return await this.userService.deleteUser(userId);
   }
 
+  @Put(':userId')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Update user (admin only)' })
+  @ApiResponse({
+    type: UserUpdateResponse,
+    status: 200,
+    description: 'User updated',
+  })
+  @ApiResponse({
+    type: UserUpdateResponse,
+    status: 404,
+    description: 'User not found',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async updateUser(
+    @Param('userId') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ): Promise<UserUpdateResponse> {
+    return await this.userService.updateUser(userId, updateUserDto);
+  }
+
+  //#region File Upload
   @Post('file/upload')
   @Auth({ roles: ['admin', 'user', 'guest'] })
   @ApiOperation({ summary: 'Upload a file' })
@@ -107,4 +152,5 @@ export class UserController {
     const user = request.user as User;
     return this.userService.uploadFile(user, filename, fileBuffer);
   }
+  //#endregion File Upload
 }
