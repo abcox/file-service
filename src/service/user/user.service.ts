@@ -128,6 +128,60 @@ export class UserService {
     return userFileList;
   }
 
+  async activateUser(userId: string): Promise<UserUpdateResponse> {
+    try {
+      const result = await this.userDb.activateUser(userId);
+      if (!result) {
+        throw new NotFoundException('User not found or already active');
+      }
+
+      const user = await this.userDb.getUserById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found after activation');
+      }
+
+      return {
+        success: true,
+        message: 'User activated successfully',
+        data: UserMapper.toSafeDto(user),
+      };
+    } catch (error) {
+      this.logger.error(`activateUser failed with error: ${error}`);
+      return {
+        success: false,
+        message: 'User activation failed',
+        data: undefined,
+      };
+    }
+  }
+
+  async deactivateUser(userId: string): Promise<UserUpdateResponse> {
+    try {
+      const result = await this.userDb.deactivateUser(userId);
+      if (!result) {
+        throw new NotFoundException('User not found or already inactive');
+      }
+
+      const user = await this.userDb.getUserById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found after deactivation');
+      }
+
+      return {
+        success: true,
+        message: 'User deactivated successfully',
+        data: UserMapper.toSafeDto(user),
+      };
+    } catch (error) {
+      this.logger.error(`deactivateUser failed with error: ${error}`);
+      return {
+        success: false,
+        message: 'User deactivation failed',
+        data: undefined,
+      };
+    }
+  }
+
   async deleteUser(userId: string): Promise<void> {
     await this.userDb.deleteUser(userId);
   }

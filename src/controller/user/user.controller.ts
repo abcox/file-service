@@ -95,6 +95,34 @@ export class UserController {
     return await this.userService.deleteUser(userId);
   }
 
+  @Put(':userId/activate')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Activate user (admin only)' })
+  @ApiResponse({ status: 200, description: 'User activated' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async activateUser(
+    @Param('userId') userId: string,
+  ): Promise<UserUpdateResponse> {
+    return await this.userService.activateUser(userId);
+  }
+
+  @Put(':userId/deactivate')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Deactivate user (admin only)' })
+  @ApiResponse({ status: 200, description: 'User deactivated' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async deactivateUser(
+    @Param('userId') userId: string,
+  ): Promise<UserUpdateResponse> {
+    return await this.userService.deactivateUser(userId);
+  }
+
   @Post('create')
   @Auth({ roles: ['admin'] })
   @ApiOperation({ summary: 'Create user (admin only)' })

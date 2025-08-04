@@ -75,7 +75,7 @@ export class UserDbService {
 
   async getAllUsers(): Promise<UserEntity[]> {
     return this.userRepository.find({
-      where: { isActive: true },
+      //where: { isActive: true },
       order: { createdAt: 'DESC' },
     });
   }
@@ -106,6 +106,13 @@ export class UserDbService {
       accountLockedUntil: lockedUntil,
     });
     return result?.affected ?? 0;
+  }
+
+  async activateUser(userId: string): Promise<boolean> {
+    const result = await this.userRepository.update(userId, {
+      isActive: true,
+    });
+    return (result?.affected ?? 0) > 0;
   }
 
   async deactivateUser(userId: string): Promise<boolean> {
