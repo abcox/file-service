@@ -27,6 +27,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { User } from '../../auth/auth.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserUpdateResponse } from '../../service/user/user.service';
+import { CreateUserDto } from '../../shared/model/user/create-user.dto';
+import { UserDto } from '../../auth/dto/user.dto';
 
 interface UploadedFile {
   originalname: string;
@@ -91,6 +93,18 @@ export class UserController {
   })
   async deleteUser(@Param('userId') userId: string): Promise<void> {
     return await this.userService.deleteUser(userId);
+  }
+
+  @Post('create')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Create user (admin only)' })
+  @ApiResponse({ status: 201, description: 'User created' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<UserDto> {
+    return await this.userService.createUser(createUserDto);
   }
 
   @Put(':userId')

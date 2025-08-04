@@ -8,6 +8,7 @@ import { FileInfo, StorageService } from '../storage/storage.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserDto } from '../../auth/dto/user.dto';
 import { UserMapper } from './user-mapper';
+import { CreateUserDto } from '../../shared/model/user/create-user.dto';
 
 export class UserFileUploadResponse {
   fileInfo: FileInfo;
@@ -29,6 +30,19 @@ export class UserService {
     private readonly storageService: StorageService,
     private authService: AuthService,
   ) {}
+
+  async createUser(createUserDto: CreateUserDto): Promise<UserDto> {
+    // Hash the password before creating user
+    const passwordHash = Buffer.from(createUserDto.password).toString('base64');
+
+    const user = await this.userDb.createUser({
+      ...createUserDto,
+      passwordHash,
+      roles: createUserDto.roles || ['user'],
+    });
+
+    return UserMapper.toSafeDto(user);
+  }
 
   async getUserById(userId: string): Promise<Partial<UserEntity> | null> {
     const user = await this.userDb.getUserById(userId);

@@ -17,7 +17,7 @@ export class UserDbService {
     username: string;
     email: string;
     passwordHash: string;
-    displayName?: string;
+    name?: string;
     roles?: string[];
     azureObjectId?: string;
     azureTenantId?: string;
