@@ -2,6 +2,8 @@ import { Schema } from 'mongoose';
 import {
   QuizAnswer,
   QuizScore,
+  UserQuizAction,
+  UserQuizActionMetadata,
   UserQuizResult,
 } from '../entity/user/user-quiz-result';
 
@@ -30,3 +32,21 @@ export const UserQuizResultSchema = new Schema<UserQuizResult>(
   },
   { timestamps: true },
 );
+
+const UserQuizActionMetadataSchema = new Schema<UserQuizActionMetadata>({
+  timeStarted: { type: Date, required: true },
+  timeCompleted: { type: Date, required: true },
+  durationSeconds: { type: Number, required: true },
+  userAgent: { type: String, required: false },
+  ipAddress: { type: String, required: false },
+});
+
+export const UserQuizActionSchema = new Schema<UserQuizAction>({
+  userId: { type: String, required: true },
+  quizId: { type: String, required: true },
+  sessionId: { type: String, required: true },
+  action: { type: String, required: true },
+  questionId: { type: Number, required: true },
+  selectedOptionId: { type: Number, required: true },
+  metadata: { type: UserQuizActionMetadataSchema, required: true },
+});

@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { UserQuizResult } from '../db/doc/entity/user/user-quiz-result';
+import {
+  UserQuizAction,
+  UserQuizResult,
+} from '../db/doc/entity/user/user-quiz-result';
 import {
   QuizAnalyticsDto,
   UserBehaviorAnalyticsDto,
@@ -16,7 +19,37 @@ export class UserQuizResultService {
   constructor(
     @InjectModel('UserQuizResult')
     private readonly userQuizResultModel: Model<UserQuizResult>,
+    @InjectModel('UserQuizAction')
+    private readonly userQuizActionModel: Model<UserQuizAction>,
   ) {}
+
+  async submitQuizAction(
+    quizActionData: Partial<UserQuizAction>,
+  ): Promise<UserQuizAction> {
+    try {
+      this.logger.log(
+        `Submitting quiz action for user: ${quizActionData.userId}`,
+        quizActionData,
+      );
+
+      const newQuizAction =
+        await this.userQuizActionModel.create(quizActionData);
+
+      this.logger.log(
+        `Quiz action submitted successfully with ID: ${newQuizAction._id}`,
+      );
+
+      return newQuizAction;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to submit quiz action for user ${quizActionData.userId}`,
+        errorMessage,
+      );
+      throw new Error(`Failed to submit quiz action: ${errorMessage}`);
+    }
+  }
 
   async submitQuizResult(
     quizResultData: Partial<UserQuizResult>,

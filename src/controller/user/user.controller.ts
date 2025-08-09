@@ -16,6 +16,7 @@ import {
   ApiResponse,
   ApiBody,
   ApiConsumes,
+  ApiParam,
 } from '@nestjs/swagger';
 import {
   UserFileUploadResponse,
@@ -29,6 +30,8 @@ import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserUpdateResponse } from '../../service/user/user.service';
 import { CreateUserDto } from '../../shared/model/user/create-user.dto';
 import { UserDto } from '../../auth/dto/user.dto';
+import { UserQuizResultService } from '../../module/user-quiz-result/user-quiz-result.service';
+import { SubmitQuizActionDto } from './user-quiz-action.dto';
 
 interface UploadedFile {
   originalname: string;
@@ -40,7 +43,10 @@ interface UploadedFile {
 @ApiTags('User')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly userQuizResultService: UserQuizResultService,
+  ) {}
 
   // get all users (admin only)
   @Get('list')
@@ -195,4 +201,60 @@ export class UserController {
     return this.userService.uploadFile(user, filename, fileBuffer);
   }
   //#endregion File Upload
+
+  //#region User Quiz Result
+
+  @ApiTags('User Quiz Results')
+  @Post('quiz/action/submit')
+  @Auth({ roles: ['admin', 'user', 'guest'] }) // Require at least guest authentication
+  @ApiOperation({ summary: 'Submit a quiz action' })
+  @ApiBody({
+    type: SubmitQuizActionDto,
+    description: 'Quiz action data to submit',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Quiz action submitted successfully',
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  async submitQuizAction(
+    @Body()
+    quizActionDataIn: Partial<Omit<SubmitQuizActionDto, 'userId'>>,
+    @Req() request: any,
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const user = request.user as User;
+    const quizActionData = {
+      ...quizActionDataIn,
+      userId: user.id,
+    };
+
+    const result =
+      await this.userQuizResultService.submitQuizAction(quizActionData);
+    return {
+      success: true,
+      message: 'Quiz action submitted successfully',
+      result,
+    };
+  }
+
+  @ApiTags('User Quiz Results')
+  @Get(':userId/quiz/result')
+  @Auth({ public: true })
+  @ApiOperation({ summary: 'Get all quiz results for a user' })
+  @ApiParam({ name: 'userId', description: 'User ID to fetch results for' })
+  @ApiResponse({
+    status: 200,
+    description: 'Quiz results retrieved successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async getUserQuizResults(@Param('userId') userId: string) {
+    const results = await this.userQuizResultService.getUserQuizResults(userId);
+    return {
+      success: true,
+      message: `Found ${results.length} quiz results`,
+      results,
+    };
+  }
+  //#endregion User Quiz Result
 }
