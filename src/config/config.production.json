@@ -11,8 +11,21 @@
     }
   },
   "auth": {
-    "enabled": true,
-    "secret": ""
+    "enabled": false,
+    "session": {
+      "accessTokenDurationSeconds": 3600,
+      "refreshTokenDurationSeconds": 604800,
+      "secret": "",
+      "name": "vorba-file-service-session",
+      "cookie": {
+        "secure": false
+      },
+      "activityConfig": {
+        "warningBeforeTokenExpiryMs": 300000,
+        "refreshBeforeTokenExpiryMs": 600000,
+        "activityTimeoutMultiplier": 0.8
+      }
+    }
   },
   "info": {
     "name": "Vorba File Service",

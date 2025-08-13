@@ -39,7 +39,23 @@ export interface AppConfig {
     description?: string;
     version?: string;
   };
-  auth?: { enabled: boolean; secret: string };
+  auth?: {
+    enabled: boolean;
+    session: {
+      secret: string;
+      name: string;
+      cookie: {
+        secure: boolean;
+      };
+      accessTokenDurationSeconds?: number; // Default: 3600 (1 hour)
+      refreshTokenDurationSeconds?: number; // Default: 604800 (7 days)
+      activityConfig?: {
+        warningBeforeTokenExpiryMs?: number; // Default: 300000 (5 minutes)
+        refreshBeforeTokenExpiryMs?: number; // Default: 600000 (10 minutes)
+        activityTimeoutMultiplier?: number; // Default: 0.8 (80% of token duration)
+      };
+    };
+  };
   api: {
     path: string;
     port: number;

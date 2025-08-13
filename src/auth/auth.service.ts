@@ -6,17 +6,21 @@ import { AppConfig } from '../service/config/config.interface';
 import { UserEntity } from '../database/entities/user.entity';
 import { UserLoginRequest } from './dto/user-login.request';
 import { UserLoginResponse } from './dto/user-login.response';
+import { ActivityConfigDto } from './dto/activity-config.dto';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
 import { UserDbService } from '../service/database/user-db.service';
+import { UnauthorizedException } from '@nestjs/common';
+import * as crypto from 'crypto';
 
 interface JwtPayload {
   sub: string;
-  type: string;
+  type: 'access' | 'refresh';
   iat: number;
   exp: number;
   email?: string;
   roles?: string[];
+  jti?: string; // JWT ID for refresh token tracking
 }
 
 export interface User {
@@ -26,10 +30,19 @@ export interface User {
   roles: string[];
 }
 
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+const DEFAULT_SESSION_DURATION_SECONDS = 3600;
+const DEFAULT_REFRESH_TOKEN_DURATION_SECONDS = 604800;
+
 @Injectable()
 export class AuthService {
   private config: AppConfig;
   private user: User;
+  private refreshTokens = new Map<string, string>(); // userId -> refreshTokenHash
 
   constructor(
     private jwtService: NestJwtService,
@@ -70,6 +83,10 @@ export class AuthService {
         success: false,
         message: 'User not found',
         token: '',
+        refreshToken: '',
+        tokenExpiry: 0,
+        sessionDurationSeconds: 0,
+        activityConfig: null,
         user: null,
       } as UserLoginResponse;
     }
@@ -81,6 +98,10 @@ export class AuthService {
         success: false,
         message: 'User invalid; contact support',
         token: '',
+        refreshToken: '',
+        tokenExpiry: 0,
+        sessionDurationSeconds: 0,
+        activityConfig: null,
         user: null,
       } as UserLoginResponse;
     }
@@ -89,12 +110,26 @@ export class AuthService {
       return response;
     }
     const userWithUpdatedRoles = this.getUserWithUpdatedRoles(user);
-    const jwtToken = await this.generateJwtToken(userWithUpdatedRoles);
+    const tokenPair = await this.generateTokenPair(userWithUpdatedRoles);
     const lastLoginDate = await this.userDb.updateLastLogin(user.id);
+
+    // Get session duration from config
+    const config = this.configService.getConfig();
+    const sessionDuration =
+      config?.auth?.session?.accessTokenDurationSeconds ||
+      DEFAULT_SESSION_DURATION_SECONDS;
+
+    // Calculate token expiry
+    const tokenExpiry = Math.floor(Date.now() / 1000) + sessionDuration;
+
     return {
       success: true,
       message: 'User logged in successfully',
-      token: jwtToken,
+      token: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
+      tokenExpiry: tokenExpiry,
+      sessionDurationSeconds: sessionDuration,
+      activityConfig: this.getActivityConfig(),
       user: {
         ...userWithUpdatedRoles,
         lastLoginAt: lastLoginDate ?? user.lastLoginAt,
@@ -131,6 +166,10 @@ export class AuthService {
           success: false,
           message: `Account locked until ${lockoutUntil.toLocaleString()}; contact support`,
           token: '',
+          refreshToken: '',
+          tokenExpiry: 0,
+          sessionDurationSeconds: 0,
+          activityConfig: null,
           user: null,
         } as UserLoginResponse;
       }
@@ -138,6 +177,10 @@ export class AuthService {
         success: false,
         message: 'Invalid password',
         token: '',
+        refreshToken: '',
+        tokenExpiry: 0,
+        sessionDurationSeconds: 0,
+        activityConfig: null,
         user: null,
       } as UserLoginResponse;
     }
@@ -145,6 +188,10 @@ export class AuthService {
       success: true,
       message: 'Password validated',
       token: '',
+      refreshToken: '',
+      tokenExpiry: 0,
+      sessionDurationSeconds: 0,
+      activityConfig: this.getActivityConfig(),
       user: user,
     } as UserLoginResponse;
   }
@@ -180,12 +227,24 @@ export class AuthService {
     // Check if user already exists
     const existingUser = await this.userDb.getUserByEmail(request.email);
     if (existingUser) {
-      const jwtToken = await this.generateJwtToken(existingUser);
+      const tokenPair = await this.generateTokenPair(existingUser);
+
+      // Get session duration from config
+      const config = this.configService.getConfig();
+      const sessionDuration =
+        config?.auth?.session?.accessTokenDurationSeconds ||
+        DEFAULT_SESSION_DURATION_SECONDS;
+      const tokenExpiry = Math.floor(Date.now() / 1000) + sessionDuration;
+
       return {
         user: existingUser,
         success: true,
         message: 'User already exists',
-        token: jwtToken,
+        token: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+        tokenExpiry: tokenExpiry,
+        sessionDurationSeconds: sessionDuration,
+        activityConfig: this.getActivityConfig(),
       } as UserRegistrationResponse;
     }
 
@@ -201,22 +260,71 @@ export class AuthService {
     // Create user in database
     const createdUser: UserEntity = await this.userDb.createUser(user);
 
-    // Generate JWT token
-    const jwtToken = await this.generateJwtToken(createdUser);
+    // Generate JWT token pair
+    const tokenPair = await this.generateTokenPair(createdUser);
+
+    // Get session duration from config
+    const config = this.configService.getConfig();
+    const sessionDuration =
+      config?.auth?.session?.accessTokenDurationSeconds ||
+      DEFAULT_SESSION_DURATION_SECONDS;
+    const tokenExpiry = Math.floor(Date.now() / 1000) + sessionDuration;
 
     return {
       user: createdUser,
       success: true,
       message: 'User registered successfully',
-      token: jwtToken,
+      token: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
+      tokenExpiry: tokenExpiry,
+      sessionDurationSeconds: sessionDuration,
+      activityConfig: this.getActivityConfig(),
     } as UserRegistrationResponse;
   }
+
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+    try {
+      const payload = this.jwtService.verify(
+        refreshToken,
+      ) as unknown as JwtPayload;
+
+      if (payload.type !== 'refresh') {
+        throw new UnauthorizedException('Invalid refresh token type');
+      }
+
+      // Verify refresh token is still valid in memory
+      const storedTokenHash = this.refreshTokens.get(payload.sub);
+      const providedTokenHash = this.hashToken(refreshToken);
+
+      if (!storedTokenHash || storedTokenHash !== providedTokenHash) {
+        throw new UnauthorizedException('Refresh token revoked or invalid');
+      }
+
+      // Get user and generate new token pair
+      const user = await this.userDb.getUserById(payload.sub);
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+
+      const tokenPair = await this.generateTokenPair(user);
+
+      return { accessToken: tokenPair.accessToken };
+    } catch (error) {
+      this.logger.warn('Token refresh failed', error as Error);
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  revokeRefreshToken(userId: string): void {
+    this.refreshTokens.delete(userId);
+  }
+
   //#endregion
 
   generateToken(subject: string): string {
     try {
       const config = this.configService.getConfig();
-      const secret = config?.auth?.secret;
+      const secret = config?.auth?.session?.secret;
 
       if (!secret) {
         this.logger.error('JWT secret not found in config');
@@ -237,7 +345,7 @@ export class AuthService {
 
       const payload: JwtPayload = {
         sub: subject,
-        type: 'api-access',
+        type: 'access',
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60, // 1 year
       };
@@ -256,36 +364,66 @@ export class AuthService {
     }
   }
 
-  async generateJwtToken(user: UserEntity): Promise<string> {
+  async generateTokenPair(user: UserEntity): Promise<TokenPair> {
     const config = this.configService.getConfig();
-    const secret = config?.auth?.secret;
+    const secret = config?.auth?.session?.secret;
     if (!secret) {
       throw new Error('JWT secret is not configured');
     }
-    const jwtToken = await this.jwtService.signAsync(
+
+    // Get session duration from config with defaults
+    const sessionDuration =
+      config?.auth?.session?.accessTokenDurationSeconds ||
+      DEFAULT_SESSION_DURATION_SECONDS;
+    const refreshTokenDuration =
+      config?.auth?.session?.refreshTokenDurationSeconds ||
+      DEFAULT_REFRESH_TOKEN_DURATION_SECONDS;
+
+    // Generate access token with configured duration
+    const accessToken = await this.jwtService.signAsync(
       {
         sub: user.id,
+        type: 'access',
         email: user.email,
         iat: Math.floor(Date.now() / 1000),
-        //exp: Math.floor(Date.now() / 1000) + 3600,
-        type: 'api-access',
         id: user.id,
         name: user.name,
         roles: user.roles,
       },
-      // Note: the secret is set in the module, so this is redundant
       {
         secret: secret,
-        expiresIn: '1h',
+        expiresIn: `${sessionDuration}s`,
       },
     );
-    return jwtToken;
+
+    // Generate refresh token with configured duration
+    const refreshToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        type: 'refresh',
+        jti: crypto.randomUUID(),
+        iat: Math.floor(Date.now() / 1000),
+      },
+      {
+        secret: secret,
+        expiresIn: `${refreshTokenDuration}s`,
+      },
+    );
+
+    // Store refresh token hash for validation
+    this.refreshTokens.set(user.id, this.hashToken(refreshToken));
+
+    return { accessToken, refreshToken };
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   validateToken(token: string): JwtPayload | null {
     try {
       const config = this.configService.getConfig();
-      const secret = config?.auth?.secret;
+      const secret = config?.auth?.session?.secret;
 
       if (!secret) {
         this.logger.warn('JWT secret not found in config');
@@ -363,5 +501,20 @@ export class AuthService {
   isTokenExpired(payload: JwtPayload): boolean {
     const now = Math.floor(Date.now() / 1000);
     return payload.exp < now;
+  }
+
+  // Helper methods for activity configuration
+  private getActivityConfig(): ActivityConfigDto {
+    const config = this.configService.getConfig();
+    const activityConfig = config?.auth?.session?.activityConfig;
+
+    return {
+      warningBeforeTokenExpiry:
+        activityConfig?.warningBeforeTokenExpiryMs || 300000, // 5 minutes
+      refreshBeforeTokenExpiry:
+        activityConfig?.refreshBeforeTokenExpiryMs || 600000, // 10 minutes
+      activityTimeoutMultiplier:
+        activityConfig?.activityTimeoutMultiplier || 0.8, // 80%
+    };
   }
 }

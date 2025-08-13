@@ -11,6 +11,10 @@ import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
 import { UserLoginRequest } from './dto/user-login.request';
 import { UserLoginResponse } from './dto/user-login.response';
+import {
+  RefreshTokenRequestDto,
+  RefreshTokenResponseDto,
+} from './dto/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -56,5 +60,35 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   login(@Body() loginRequest: UserLoginRequest): Promise<UserLoginResponse> {
     return this.authService.login(loginRequest);
+  }
+
+  @Post('refresh')
+  @Auth({ public: true })
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBody({ type: RefreshTokenRequestDto })
+  @ApiResponse({
+    type: RefreshTokenResponseDto,
+    status: 200,
+    description: 'Token refreshed successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  async refreshToken(
+    @Body() request: RefreshTokenRequestDto,
+  ): Promise<RefreshTokenResponseDto> {
+    try {
+      const result = await this.authService.refreshToken(request.refreshToken);
+      return {
+        success: true,
+        message: 'Token refreshed successfully',
+        accessToken: result.accessToken,
+      };
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return {
+        success: false,
+        message: (error as Error).message || 'Token refresh failed',
+        accessToken: '',
+      };
+    }
   }
 }

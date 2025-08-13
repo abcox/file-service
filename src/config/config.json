@@ -12,7 +12,20 @@
   },
   "auth": {
     "enabled": false,
-    "secret": ""
+    "session": {
+      "accessTokenDurationSeconds": 60,
+      "refreshTokenDurationSeconds": 300,
+      "secret": "",
+      "name": "vorba-file-service-session",
+      "cookie": {
+        "secure": false
+        },
+        "activityConfig": {
+          "warningBeforeTokenExpiryMs": 30000,
+          "refreshBeforeTokenExpiryMs": 45000,
+          "activityTimeoutMultiplier": 0.8
+        }
+    }
   },
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",

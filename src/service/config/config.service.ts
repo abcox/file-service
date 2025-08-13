@@ -54,13 +54,15 @@ export class AppConfigService {
         await keyVaultService.resolveEmptyConfigValues(resolvedConfig);
       config = resolvedConfig;
       logger.info('Key Vault secrets loaded successfully');
-      if (config.auth?.secret) {
+      if (config.auth?.session?.secret) {
         logger.info('Auth secret loaded from Key Vault', {
-          secretLength: config.auth.secret.length,
+          secretLength: config.auth.session.secret.length,
           secretPreview:
-            config.auth.secret.substring(0, 9) +
+            config.auth.session.secret.substring(0, 9) +
             '...' +
-            config.auth.secret.substring(config.auth.secret.length - 9),
+            config.auth.session.secret.substring(
+              config.auth.session.secret.length - 9,
+            ),
         });
       }
     } catch (err) {
@@ -102,7 +104,7 @@ export class AppConfigService {
     const envJwtSecret = process.env.JWT_SECRET;
     if (envJwtSecret && config.auth) {
       logger.info('Using JWT_SECRET from environment variable');
-      config.auth.secret = envJwtSecret;
+      config.auth.session.secret = envJwtSecret;
     }
 
     return config;

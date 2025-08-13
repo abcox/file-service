@@ -23,7 +23,7 @@ import { DatabaseModule } from '../database/database.module';
         let configSecret: string | undefined;
         try {
           const config = configService.getConfig();
-          configSecret = config.auth?.secret;
+          configSecret = config.auth?.session?.secret;
         } catch {
           logger.warn(
             'Config service not ready yet, will use environment fallback',
