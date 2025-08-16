@@ -6,7 +6,7 @@ import { AppConfig } from '../service/config/config.interface';
 import { UserEntity } from '../database/entities/user.entity';
 import { UserLoginRequest } from './dto/user-login.request';
 import { UserLoginResponse } from './dto/user-login.response';
-import { ActivityConfigDto } from './dto/activity-config.dto';
+import { IdelSessionConfigDto } from './dto/idle-session-config.dto';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
 import { UserDbService } from '../service/database/user-db.service';
@@ -504,17 +504,13 @@ export class AuthService {
   }
 
   // Helper methods for activity configuration
-  private getActivityConfig(): ActivityConfigDto {
+  private getActivityConfig(): IdelSessionConfigDto {
     const config = this.configService.getConfig();
-    const activityConfig = config?.auth?.session?.activityConfig;
+    const activityConfig = config?.auth?.session?.idleSessionConfig;
 
     return {
-      warningBeforeTokenExpiry:
-        activityConfig?.warningBeforeTokenExpiryMs || 300000, // 5 minutes
-      refreshBeforeTokenExpiry:
-        activityConfig?.refreshBeforeTokenExpiryMs || 600000, // 10 minutes
-      activityTimeoutMultiplier:
-        activityConfig?.activityTimeoutMultiplier || 0.8, // 80%
+      inactivityWarningSeconds: activityConfig?.inactivityWarningSeconds || 600, // 10 minutes
+      warningCountdownSeconds: activityConfig?.warningCountdownSeconds || 300, // 5 minutes
     };
   }
 }

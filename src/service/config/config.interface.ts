@@ -49,10 +49,9 @@ export interface AppConfig {
       };
       accessTokenDurationSeconds?: number; // Default: 3600 (1 hour)
       refreshTokenDurationSeconds?: number; // Default: 604800 (7 days)
-      activityConfig?: {
-        warningBeforeTokenExpiryMs?: number; // Default: 300000 (5 minutes)
-        refreshBeforeTokenExpiryMs?: number; // Default: 600000 (10 minutes)
-        activityTimeoutMultiplier?: number; // Default: 0.8 (80% of token duration)
+      idleSessionConfig?: {
+        inactivityWarningSeconds?: number; // Default: 600 (10 minutes) - Show warning after X seconds of inactivity
+        warningCountdownSeconds?: number; // Default: 300 (5 minutes) - Warning dialog countdown before logout
       };
     };
   };

@@ -13,17 +13,16 @@
   "auth": {
     "enabled": false,
     "session": {
-      "accessTokenDurationSeconds": 60,
-      "refreshTokenDurationSeconds": 300,
+      "accessTokenDurationSeconds": 3600,
+      "refreshTokenDurationSeconds": 604800,
       "secret": "",
       "name": "vorba-file-service-session",
       "cookie": {
         "secure": false
         },
-        "activityConfig": {
-          "warningBeforeTokenExpiryMs": 30000,
-          "refreshBeforeTokenExpiryMs": 45000,
-          "activityTimeoutMultiplier": 0.8
+        "idleSessionConfig": {
+          "inactivityWarningSeconds": 30,
+          "warningCountdownSeconds": 30
         }
     }
   },

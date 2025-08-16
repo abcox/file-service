@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { UserDto } from './user.dto';
-import { ActivityConfigDto } from './activity-config.dto';
+import { IdelSessionConfigDto } from './idle-session-config.dto';
 
 export class UserRegistrationResponse {
   @ApiProperty({
@@ -42,14 +42,13 @@ export class UserRegistrationResponse {
   @ApiProperty({
     description: 'Activity configuration for frontend when user is registered',
     example: {
-      warningBeforeTokenExpiry: 300000,
-      refreshBeforeTokenExpiry: 600000,
-      activityTimeoutMultiplier: 0.8,
+      inactivityWarningSeconds: 600,
+      warningCountdownSeconds: 300,
     },
     nullable: true,
-    type: ActivityConfigDto,
+    type: IdelSessionConfigDto,
   })
-  activityConfig: ActivityConfigDto | null;
+  activityConfig: IdelSessionConfigDto | null;
 
   @ApiProperty({
     description: 'Registered user information',

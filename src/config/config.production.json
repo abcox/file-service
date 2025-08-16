@@ -20,10 +20,9 @@
       "cookie": {
         "secure": false
       },
-      "activityConfig": {
-        "warningBeforeTokenExpiryMs": 300000,
-        "refreshBeforeTokenExpiryMs": 600000,
-        "activityTimeoutMultiplier": 0.8
+      "idleSessionConfig": {
+        "inactivityWarningSeconds": 30,
+        "warningCountdownSeconds": 30
       }
     }
   },
