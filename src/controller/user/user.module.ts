@@ -9,6 +9,7 @@ import { UserController } from './user.controller';
 import { StorageModule } from '../../service/storage/storage.module';
 import { AuthModule } from '../../auth/auth.module';
 import { UserQuizResultModule } from '../../module/user-quiz-result/user-quiz-result.module';
+import { AuthService } from '../../auth/auth.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { UserQuizResultModule } from '../../module/user-quiz-result/user-quiz-re
     UserQuizResultModule,
   ],
   controllers: [UserController],
-  providers: [UserService, UserDbService],
+  providers: [UserService, UserDbService, AuthService],
   exports: [UserService],
 })
 export class UserModule {}

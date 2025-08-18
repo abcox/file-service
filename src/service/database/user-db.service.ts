@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, UpdateResult } from 'typeorm';
+import { FindOptionsWhere, Repository, UpdateResult } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
 import { LoggerService } from '../logger/logger.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
@@ -47,9 +47,17 @@ export class UserDbService {
     });
   }
 
-  async getUserByEmail(email: string): Promise<UserEntity | null> {
+  async getUserByEmail(option: {
+    email: string;
+    isActive?: boolean;
+  }): Promise<UserEntity | null> {
+    const { email, isActive } = option;
+    const where: FindOptionsWhere<UserEntity> = { email };
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    }
     return this.userRepository.findOne({
-      where: { email, isActive: true },
+      where,
     });
   }
 

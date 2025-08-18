@@ -25,13 +25,14 @@ import {
 import { Auth } from '../../auth/auth.guard';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { User } from '../../auth/auth.service';
+import { AuthService, User } from '../../auth/auth.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserUpdateResponse } from '../../service/user/user.service';
 import { CreateUserDto } from '../../shared/model/user/create-user.dto';
 import { UserDto } from '../../auth/dto/user.dto';
 import { UserQuizResultService } from '../../module/user-quiz-result/user-quiz-result.service';
 import { SubmitQuizActionDto } from './user-quiz-action.dto';
+import { JwtPayload } from 'jsonwebtoken';
 
 interface UploadedFile {
   originalname: string;
@@ -40,12 +41,24 @@ interface UploadedFile {
   mimetype: string;
 }
 
+/* interface AuthenticatedRequest extends Request {
+  user: {
+    sub: string;
+    id: string;
+    email: string;
+    name: string;
+    roles: string[];
+    // ... other JWT payload fields
+  };
+} */
+
 @ApiTags('User')
 @Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly userQuizResultService: UserQuizResultService,
+    private readonly authService: AuthService,
   ) {}
 
   // get all users (admin only)
@@ -204,7 +217,7 @@ export class UserController {
 
   //#region User Quiz Result
 
-  @ApiTags('User Quiz Results')
+  @ApiTags('Submit User Quiz Results')
   @Post('quiz/action/submit')
   @Auth({ roles: ['admin', 'user', 'guest'] }) // Require at least guest authentication
   @ApiOperation({ summary: 'Submit a quiz action' })
@@ -222,13 +235,30 @@ export class UserController {
     quizActionDataIn: Partial<Omit<SubmitQuizActionDto, 'userId'>>,
     @Req() request: any,
   ) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const user = request.user as User;
+    console.log('🎯 submitQuizAction: Method called');
+    console.log('🎯 submitQuizAction: Request body:', quizActionDataIn);
+
+    console.log('🎯 submitQuizAction: Calling this.authService.getUser()...');
+    const { sub: userId } = (request as Record<string, any>).user as JwtPayload;
+    console.log('🎯 submitQuizAction: authService.getUser() result:', userId);
+
+    if (!userId) {
+      console.log(
+        '❌ submitQuizAction: authService.getUser() returned null/undefined',
+      );
+      throw new Error('User not found - authentication failed');
+    }
+
+    /* console.log('✅ submitQuizAction: User found:', {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles: user.roles,
+    }); */
     const quizActionData = {
       ...quizActionDataIn,
-      userId: user.id,
+      userId: userId,
     };
-
     const result =
       await this.userQuizResultService.submitQuizAction(quizActionData);
     return {

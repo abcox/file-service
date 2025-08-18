@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   //Query,
 } from '@nestjs/common';
 import {
@@ -17,16 +18,21 @@ import {
   //ApiQuery,
 } from '@nestjs/swagger';
 import { Auth } from '../../auth/auth.guard';
+import { AuthService } from '../../auth/auth.service';
 import { UserQuizResultService } from './user-quiz-result.service';
 import { UserQuizResult } from '../db/doc/entity/user/user-quiz-result';
+import { JwtPayload } from 'jsonwebtoken';
 
 @ApiTags('User Quiz Results')
 @Controller('user-quiz-result')
 export class UserQuizResultController {
-  constructor(private readonly userQuizResultService: UserQuizResultService) {}
+  constructor(
+    private readonly userQuizResultService: UserQuizResultService,
+    private readonly authService: AuthService,
+  ) {}
 
   @Post('submit')
-  @Auth({ public: true })
+  @Auth({ roles: ['admin', 'user', 'guest'] }) // Require authentication
   @ApiOperation({ summary: 'Submit a quiz result' })
   @ApiBody({ description: 'Quiz result data to submit' })
   @ApiResponse({
@@ -34,7 +40,37 @@ export class UserQuizResultController {
     description: 'Quiz result submitted successfully',
   })
   @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
-  async submitQuizResult(@Body() quizResultData: Partial<UserQuizResult>) {
+  async submitQuizResult(
+    @Body() quizResultDataIn: Partial<Omit<UserQuizResult, 'userId'>>,
+    @Req() request: any,
+  ) {
+    console.log('🎯 submitQuizResult: Method called');
+    console.log('🎯 submitQuizResult: Request body:', quizResultDataIn);
+
+    // Get user from auth service (extracted from JWT token)
+    const { sub: userId } = (request as Record<string, any>).user as JwtPayload;
+    //console.log('🎯 submitQuizResult: authService.getUser() result:', user);
+
+    if (!userId) {
+      console.log(
+        '❌ submitQuizResult: authService.getUser() returned null/undefined',
+      );
+      throw new Error('User not found - authentication failed');
+    }
+
+    /* console.log('✅ submitQuizResult: User found:', {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roles: user.roles,
+    }); */
+
+    // Add userId from token to the quiz result data
+    const quizResultData = {
+      ...quizResultDataIn,
+      userId: userId,
+    };
+
     const result =
       await this.userQuizResultService.submitQuizResult(quizResultData);
     return {

@@ -75,9 +75,9 @@ export class AuthService {
       email: request.email,
       password: request.password,
     }); */
-    const user: UserEntity | null = await this.userDb.getUserByEmail(
-      request.email,
-    );
+    const user: UserEntity | null = await this.userDb.getUserByEmail({
+      email: request.email,
+    });
     if (!user) {
       return {
         success: false,
@@ -225,7 +225,10 @@ export class AuthService {
     this.logger.log('Registering user');
 
     // Check if user already exists
-    const existingUser = await this.userDb.getUserByEmail(request.email);
+    const existingUser = await this.userDb.getUserByEmail({
+      email: request.email,
+      isActive: false,
+    });
     if (existingUser) {
       const tokenPair = await this.generateTokenPair(existingUser);
 
@@ -494,7 +497,9 @@ export class AuthService {
   }
 
   // TODO: review this because it appears like dead code
-  getUser(): User {
+  public getUser(): User {
+    // we should not be using this method anymore
+    // user context is available through the JWT payload (request.user)
     return this.user;
   }
 

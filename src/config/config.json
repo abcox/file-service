@@ -11,7 +11,7 @@
     }
   },
   "auth": {
-    "enabled": false,
+    "enabled": true,
     "session": {
       "accessTokenDurationSeconds": 3600,
       "refreshTokenDurationSeconds": 604800,
@@ -21,7 +21,7 @@
         "secure": false
         },
         "idleSessionConfig": {
-          "inactivityWarningSeconds": 900,
+          "inactivityWarningSeconds": 30,
           "warningCountdownSeconds": 30
         }
     }

@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   SetMetadata,
   applyDecorators,
+  //UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -40,7 +41,11 @@ export const AuthGuard = (options: AuthGuardOptions = {}) =>
 
 // Create a decorator that applies both @Auth() and @ApiBearerAuth()
 export const Auth = (options: AuthGuardOptions = {}) => {
-  return applyDecorators(AuthGuard(options), ApiBearerAuth());
+  return applyDecorators(
+    AuthGuard(options),
+    //UseGuards(JwtAuthGuard),
+    ApiBearerAuth(),
+  );
 };
 
 export interface AuthConfig {
@@ -103,7 +108,10 @@ export class JwtAuthGuard implements CanActivate {
   }
 
   canActivate(context: ExecutionContext): boolean {
+    console.log('🔐 JwtAuthGuard: canActivate called');
+
     if (!this.config.enabled) {
+      console.log('⚠️ JwtAuthGuard: Auth disabled, skipping authentication');
       this.logger.warn('Auth disabled, skipping authentication');
       return true;
     }
@@ -111,17 +119,27 @@ export class JwtAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
 
+    //console.log('🔐 JwtAuthGuard: request:', request);
+
     // Get auth options from decorator
     const AuthGuardOptions = Reflect.getMetadata(AUTH_GUARD_KEY, handler) as
       | AuthGuardOptions
       | undefined;
 
+    console.log('🔐 JwtAuthGuard: AuthGuardOptions:', AuthGuardOptions);
+
     // Check if route is public
     if (AuthGuardOptions?.public) {
+      console.log('🔐 JwtAuthGuard: Route is public, allowing access');
       return true;
     }
 
+    console.log('🔐 JwtAuthGuard: Route requires authentication');
     const token = this.extractTokenFromHeader(request);
+    console.log(
+      '🔐 JwtAuthGuard: Extracted token:',
+      token ? `${token.substring(0, 20)}...` : 'No token',
+    );
 
     if (!token) {
       this.logger.warn('Auth token missing', {
@@ -131,8 +149,15 @@ export class JwtAuthGuard implements CanActivate {
       return false;
     }
 
+    console.log('🔐 JwtAuthGuard: Validating token...');
     const basePayload = this.authService.validateToken(token);
+    console.log(
+      '🔐 JwtAuthGuard: Token validation result:',
+      basePayload ? 'SUCCESS' : 'FAILED',
+    );
+
     if (!basePayload) {
+      console.log('❌ JwtAuthGuard: Auth token invalid');
       this.logger.warn('Auth token invalid', {
         ip: request.ip,
         userAgent: request.get('User-Agent'),
@@ -214,7 +239,15 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     // Attach the payload to the request for use in controllers
+    console.log('🔐 JwtAuthGuard: Setting request.user with payload:', {
+      id: (payload as Record<string, any>).id as string,
+      sub: payload.sub,
+      email: (payload as Record<string, any>).email as string,
+      roles: (payload as Record<string, any>).roles as string[],
+    });
+
     (request as Record<string, any>).user = payload;
+    console.log('✅ JwtAuthGuard: Authentication successful, request.user set');
     return true;
   }
 }

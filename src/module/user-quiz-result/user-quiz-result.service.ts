@@ -27,6 +27,16 @@ export class UserQuizResultService {
     quizActionData: Partial<UserQuizAction>,
   ): Promise<UserQuizAction> {
     try {
+      // Auto-generate metadata if not provided
+      if (!quizActionData.metadata) {
+        const now = new Date();
+        quizActionData.metadata = {
+          timeStarted: now,
+          timeCompleted: now,
+          durationSeconds: 0,
+        };
+      }
+
       this.logger.log(
         `Submitting quiz action for user: ${quizActionData.userId}`,
         quizActionData,
