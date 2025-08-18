@@ -227,7 +227,6 @@ export class AuthService {
     // Check if user already exists
     const existingUser = await this.userDb.getUserByEmail({
       email: request.email,
-      isActive: false,
     });
     if (existingUser) {
       const tokenPair = await this.generateTokenPair(existingUser);
