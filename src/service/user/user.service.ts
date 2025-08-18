@@ -52,7 +52,7 @@ export class UserService {
   }
 
   async getUserByEmail(email: string): Promise<Partial<UserEntity> | null> {
-    const user = await this.userDb.getUserByEmail(email);
+    const user = await this.userDb.getUserByEmail({ email });
     if (!user) return null;
 
     return UserMapper.toSafeDto(user);
