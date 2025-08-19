@@ -11,7 +11,7 @@
     }
   },
   "auth": {
-    "enabled": false,
+    "enabled": true,
     "session": {
       "accessTokenDurationSeconds": 3600,
       "refreshTokenDurationSeconds": 604800,
