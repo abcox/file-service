@@ -12,7 +12,7 @@ import { ConfigController } from './controller/config/config.controller';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './controller/user/user.module';
 import { GptModule } from './controller/gpt/gpt.module';
-import { WorkflowModule } from './controller/workflow/workflow.module';
+import { WorkflowModule } from './module/workflow/workflow.module';
 import { QuizModule } from './module/quiz/quiz.module';
 import { QuizController } from './module/quiz/quiz.controller';
 import { UserQuizResultModule } from './module/user-quiz-result/user-quiz-result.module';

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { LoggerService } from '../logger/logger.service';
-import { FileService } from '../../module/file/file.service'; // TODO: refactor this service to workflow module and then import file.module (and remove this reference)
-import { GptService } from '../chatGpt/gpt.service';
+import { LoggerService } from '../../service/logger/logger.service';
+import { FileService } from '../../module/file/file.service';
+import { GptService } from '../../service/chatGpt/gpt.service';
 import { ChatCompletionContentPart } from 'openai/resources/chat/completions';
 
 export interface WorkflowStatus {

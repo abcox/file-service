@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { WorkflowController } from './workflow.controller';
-import { FileWorkflowService } from '../../service/workflow/file-workflow.service';
-import { FileService } from '../../module/file/file.service';
+import { FileWorkflowService } from './file-workflow.service';
+import { FileModule } from '../file/file.module';
 
 // TODO: refactor all these services to modules and then import to the workflow module as required
 import { GptService } from '../../service/chatGpt/gpt.service';
@@ -10,9 +10,9 @@ import { StorageModule } from '../../service/storage/storage.module';
 import { ConfigModule } from '../../service/config/config.module';
 
 @Module({
-  imports: [StorageModule, ConfigModule, StorageModule],
+  imports: [StorageModule, ConfigModule, StorageModule, FileModule],
   controllers: [WorkflowController],
-  providers: [FileWorkflowService, FileService, GptService, LoggerService],
+  providers: [FileWorkflowService, GptService, LoggerService],
   exports: [FileWorkflowService],
 })
 export class WorkflowModule {}

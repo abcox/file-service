@@ -9,7 +9,7 @@ import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import {
   FileWorkflowService,
   AnalysisWorkflowRequest,
-} from '../../service/workflow/file-workflow.service';
+} from './file-workflow.service';
 import { LoggerService } from '../../service/logger/logger.service';
 
 export interface FileReportRequest {
