@@ -22,14 +22,14 @@ import {
   UserFileUploadResponse,
   UserService,
 } from '../../service/user/user.service';
-import { Auth } from '../../auth/auth.guard';
+import { Auth } from '../../module/auth/auth.guard';
 import { UserEntity } from '../../database/entities/user.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { AuthService, User } from '../../auth/auth.service';
+import { AuthService, User } from '../../module/auth/auth.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserUpdateResponse } from '../../service/user/user.service';
 import { CreateUserDto } from '../../shared/model/user/create-user.dto';
-import { UserDto } from '../../auth/dto/user.dto';
+import { UserDto } from '../../module/auth/dto/user.dto';
 import { UserQuizResultService } from '../../module/user-quiz-result/user-quiz-result.service';
 import { SubmitQuizActionDto } from './user-quiz-action.dto';
 import { JwtPayload } from 'jsonwebtoken';

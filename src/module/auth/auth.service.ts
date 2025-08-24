@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import { LoggerService } from '../service/logger/logger.service';
-import { AppConfigService } from '../service/config/config.service';
-import { AppConfig } from '../service/config/config.interface';
-import { UserEntity } from '../database/entities/user.entity';
+import { LoggerService } from '../../service/logger/logger.service';
+import { AppConfigService } from '../../service/config/config.service';
+import { AppConfig } from '../../service/config/config.interface';
+import { UserEntity } from '../../database/entities/user.entity';
 import { UserLoginRequest } from './dto/user-login.request';
 import { UserLoginResponse } from './dto/user-login.response';
 import { IdelSessionConfigDto } from './dto/idle-session-config.dto';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
-import { UserDbService } from '../service/database/user-db.service';
+import { UserDbService } from '../../service/database/user-db.service';
 import { UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'crypto';
 

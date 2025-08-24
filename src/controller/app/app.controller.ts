@@ -23,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 //import { Response } from 'express';
 import { AppService } from '../../service/app/app.service';
-import { Auth } from '../../auth/auth.guard';
+import { Auth } from '../../module/auth/auth.guard';
 import { LoggerService } from '../../service/logger/logger.service';
 
 @Controller()

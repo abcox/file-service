@@ -4,7 +4,7 @@ import {
   GptService,
   GptAnalysisRequest,
 } from '../../service/chatGpt/gpt.service';
-import { Auth } from '../../auth/auth.guard';
+import { Auth } from '../../module/auth/auth.guard';
 
 @ApiTags('GPT')
 @Controller('gpt')

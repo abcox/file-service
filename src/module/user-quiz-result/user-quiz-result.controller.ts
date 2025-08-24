@@ -17,8 +17,8 @@ import {
   ApiParam,
   //ApiQuery,
 } from '@nestjs/swagger';
-import { Auth } from '../../auth/auth.guard';
-import { AuthService } from '../../auth/auth.service';
+import { Auth } from '../../module/auth/auth.guard';
+import { AuthService } from '../../module/auth/auth.service';
 import { UserQuizResultService } from './user-quiz-result.service';
 import { UserQuizResult } from '../db/doc/entity/user/user-quiz-result';
 import { JwtPayload } from 'jsonwebtoken';

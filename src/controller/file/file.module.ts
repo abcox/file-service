@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { LoggingModule } from '../../service/logger/logging.module';
 import { StorageModule } from '../../service/storage/storage.module';
 import { FileService } from '../../service/file/file.service';
-import { AuthModule } from '../../auth/auth.module';
+import { AuthModule } from '../../module/auth/auth.module';
 import { ConfigModule } from '../../service/config/config.module';
 import { FileDbService } from '../../service/database/file-db.service';
 import { DatabaseModule } from '../../database/database.module';

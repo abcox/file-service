@@ -10,7 +10,7 @@ import {
   USER_QUIZ_ACTION_COLLECTION,
   USER_QUIZ_RESULT_COLLECTION,
 } from '../db/doc/doc-db.constants';
-import { AuthModule } from '../../auth/auth.module';
+import { AuthModule } from '../../module/auth/auth.module';
 
 @Module({
   imports: [

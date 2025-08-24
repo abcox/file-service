@@ -7,9 +7,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { UserService } from '../../service/user/user.service';
 import { UserController } from './user.controller';
 import { StorageModule } from '../../service/storage/storage.module';
-import { AuthModule } from '../../auth/auth.module';
+import { AuthModule } from '../../module/auth/auth.module';
 import { UserQuizResultModule } from '../../module/user-quiz-result/user-quiz-result.module';
-import { AuthService } from '../../auth/auth.service';
+import { AuthService } from '../../module/auth/auth.service';
 
 @Module({
   imports: [

@@ -1,4 +1,4 @@
-import { UserDto } from '../../auth/dto/user.dto';
+import { UserDto } from '../../module/auth/dto/user.dto';
 import { UserEntity } from '../../database/entities/user.entity';
 
 // shared/utils/user-mapper.ts

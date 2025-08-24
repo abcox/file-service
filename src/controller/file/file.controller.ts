@@ -22,7 +22,7 @@ import {
   //ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import { Response } from 'express';
-import { Auth } from '../../auth/auth.guard';
+import { Auth } from '../../module/auth/auth.guard';
 import { FileService } from '../../service/file/file.service';
 
 interface UploadedFile {

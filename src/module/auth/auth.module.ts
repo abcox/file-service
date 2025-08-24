@@ -4,12 +4,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { ConfigModule } from '../service/config/config.module';
-import { AppConfigService } from '../service/config/config.service';
-import { LoggingModule } from '../service/logger/logging.module';
-import { LoggerService } from '../service/logger/logger.service';
-import { UserDbService } from '../service/database/user-db.service';
-import { DatabaseModule } from '../database/database.module';
+import { ConfigModule } from '../../service/config/config.module';
+import { AppConfigService } from '../../service/config/config.service';
+import { LoggingModule } from '../../service/logger/logging.module';
+import { LoggerService } from '../../service/logger/logger.service';
+import { UserDbService } from '../../service/database/user-db.service';
+import { DatabaseModule } from '../../database/database.module';
 
 @Module({
   imports: [
