@@ -4,7 +4,7 @@ import { UserDbService } from '../database/user-db.service';
 import { AppConfigService } from '../config/config.service';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuthService, User } from '../../module/auth/auth.service';
-import { FileInfo, StorageService } from '../storage/storage.service';
+import { FileInfo, StorageService } from '../../module/storage/storage.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserDto } from '../../module/auth/dto/user.dto';
 import { UserMapper } from './user-mapper';

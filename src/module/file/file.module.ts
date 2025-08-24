@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { FileService } from './file.service';
 //import { KeyVaultService } from '../../config/keyvault.service';
 import { LoggingModule } from '../../service/logger/logging.module';
-import { StorageModule } from '../../service/storage/storage.module';
+import { StorageModule } from '../../module/storage/storage.module';
 import { AuthModule } from '../../module/auth/auth.module';
 import { ConfigModule } from '../../service/config/config.module';
 import { FileDbService } from '../../service/database/file-db.service';
