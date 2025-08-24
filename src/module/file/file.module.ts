@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
+import { FileService } from './file.service';
 //import { KeyVaultService } from '../../config/keyvault.service';
 import { LoggingModule } from '../../service/logger/logging.module';
 import { StorageModule } from '../../service/storage/storage.module';
-import { FileService } from '../../service/file/file.service';
 import { AuthModule } from '../../module/auth/auth.module';
 import { ConfigModule } from '../../service/config/config.module';
 import { FileDbService } from '../../service/database/file-db.service';
 import { DatabaseModule } from '../../database/database.module';
+import { FileController } from '../../module/file/file.controller';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DatabaseModule } from '../../database/database.module';
     AuthModule,
     DatabaseModule,
   ],
+  controllers: [FileController],
   providers: [FileService, FileDbService],
   exports: [FileService],
 })

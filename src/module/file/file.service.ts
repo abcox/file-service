@@ -5,7 +5,7 @@ import {
   StorageService,
   FileInfo,
 } from '../../service/storage/storage.service';
-import { LoggerService } from '../logger/logger.service';
+import { LoggerService } from '../../service/logger/logger.service';
 
 interface UploadedFile {
   originalname: string;

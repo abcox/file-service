@@ -6,8 +6,7 @@ import { SwaggerConfigModule } from './config/swagger/swagger-config.module';
 import { StorageModule } from './service/storage/storage.module';
 import { LoggingModule } from './service/logger/logging.module';
 import { AuthModule } from './module/auth/auth.module';
-import { FileController } from './controller/file/file.controller';
-import { FileModule } from './controller/file/file.module';
+import { FileModule } from './module/file/file.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { ConfigController } from './controller/config/config.controller';
 import { DatabaseModule } from './database/database.module';
@@ -36,7 +35,6 @@ import { UserQuizResultController } from './module/user-quiz-result/user-quiz-re
   ],
   controllers: [
     AppController,
-    FileController,
     ConfigController,
     QuizController,
     UserQuizResultController,

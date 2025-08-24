@@ -23,7 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { Response } from 'express';
 import { Auth } from '../../module/auth/auth.guard';
-import { FileService } from '../../service/file/file.service';
+import { FileService } from './file.service';
 
 interface UploadedFile {
   originalname: string;
