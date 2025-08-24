@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   UserQuizAction,
   UserQuizActionMetadata,
-} from '../../module/db/doc/entity/user/user-quiz-result';
+} from '../db/doc/entity/user/user-quiz-result';
 
 export class UserQuizActionMetadataDto implements UserQuizActionMetadata {
   @ApiProperty({ required: true })

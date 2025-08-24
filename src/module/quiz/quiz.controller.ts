@@ -14,7 +14,7 @@ import {
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
-import { Auth } from '../../module/auth/auth.guard';
+import { Auth } from '../auth/auth.guard';
 import { QuizService } from './quiz.service';
 import { QuizResponseDto } from './dto/quiz-response.dto';
 import { QuizSearchResponseDto } from './dto/quiz-search-response.dto';

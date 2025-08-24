@@ -25,10 +25,10 @@ import {
   UserUpdateResponse,
 } from './user.service';
 import { SubmitQuizActionDto } from './user-quiz-action.dto';
-import { Auth } from '../../module/auth/auth.guard';
-import { UserDto } from '../../module/auth/dto/user.dto';
-import { AuthService, User } from '../../module/auth/auth.service';
-import { UserQuizResultService } from '../../module/user-quiz-result/user-quiz-result.service';
+import { Auth } from '../auth/auth.guard';
+import { UserDto } from '../auth/dto/user.dto';
+import { AuthService, User } from '../auth/auth.service';
+import { UserQuizResultService } from '../user-quiz-result/user-quiz-result.service';
 import { UserEntity } from '../../database/entities/user.entity';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { CreateUserDto } from '../../shared/model/user/create-user.dto';

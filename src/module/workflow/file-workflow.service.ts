@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LoggerService } from '../../service/logger/logger.service';
-import { FileService } from '../../module/file/file.service';
-import { GptService } from '../../module/gpt/gpt.service';
+import { FileService } from '../file/file.service';
+import { GptService } from '../gpt/gpt.service';
 import { ChatCompletionContentPart } from 'openai/resources/chat/completions';
 
 export interface WorkflowStatus {
