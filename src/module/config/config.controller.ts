@@ -24,7 +24,7 @@ import {
 //import { Response } from 'express';
 import { Auth } from '../auth/auth.guard';
 import { LoggerService } from '../logger/logger.service';
-import { KeyVaultService } from '../../service/keyvault/keyvault.service';
+import { KeyVaultService } from './keyvault.service';
 import { AppConfigService } from './config.service';
 
 @Controller()

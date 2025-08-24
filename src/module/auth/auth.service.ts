@@ -9,7 +9,7 @@ import { UserLoginResponse } from './dto/user-login.response';
 import { IdelSessionConfigDto } from './dto/idle-session-config.dto';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
-import { UserDbService } from '../../service/database/user-db.service';
+import { UserDbService } from '../../database/service/user-db.service';
 import { UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'crypto';
 

@@ -5,7 +5,7 @@ import { LoggingModule } from '../logger/logging.module';
 import { StorageModule } from '../storage/storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { ConfigModule } from '../config/config.module';
-import { FileDbService } from '../../service/database/file-db.service';
+import { FileDbService } from '../../database/service/file-db.service';
 import { DatabaseModule } from '../../database/database.module';
 import { FileController } from '../file/file.controller';
 

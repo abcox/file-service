@@ -7,7 +7,7 @@ import { StorageModule } from '../storage/storage.module';
 import { UserQuizResultModule } from '../user-quiz-result/user-quiz-result.module';
 import { ConfigModule } from '../config/config.module';
 import { DatabaseModule } from '../../database/database.module';
-import { UserDbService } from '../../service/database/user-db.service';
+import { UserDbService } from '../../database/service/user-db.service';
 import { LoggingModule } from '../logger/logging.module';
 
 @Module({

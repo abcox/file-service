@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
-import { UserDbService } from '../../service/database/user-db.service';
+import { UserDbService } from '../../database/service/user-db.service';
 import { AppConfigService } from '../config/config.service';
 import { UserEntity } from '../../database/entities/user.entity';
 import { AuthService, User } from '../auth/auth.service';

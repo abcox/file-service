@@ -8,7 +8,7 @@ import { ConfigModule } from '../config/config.module';
 import { AppConfigService } from '../config/config.service';
 import { LoggingModule } from '../logger/logging.module';
 import { LoggerService } from '../logger/logger.service';
-import { UserDbService } from '../../service/database/user-db.service';
+import { UserDbService } from '../../database/service/user-db.service';
 import { DatabaseModule } from '../../database/database.module';
 
 @Module({
