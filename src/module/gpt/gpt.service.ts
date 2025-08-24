@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 import { Injectable } from '@nestjs/common';
-import { LoggerService } from '../logger/logger.service';
-import { AppConfigService } from '../config/config.service';
 
+// OpenAI SDK
 import OpenAI from 'openai';
 import { FileCreateParams } from 'openai/resources/files';
 import {
@@ -11,6 +10,9 @@ import {
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
 import { RequestOptions } from 'openai/internal/request-options';
+
+import { LoggerService } from '../../service/logger/logger.service';
+import { AppConfigService } from '../../service/config/config.service';
 
 export class GptAnalysisRequest {
   content: string;

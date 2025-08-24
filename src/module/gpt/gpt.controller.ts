@@ -1,10 +1,7 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
-import {
-  GptService,
-  GptAnalysisRequest,
-} from '../../service/chatGpt/gpt.service';
-import { Auth } from '../../module/auth/auth.guard';
+import { GptService, GptAnalysisRequest } from './gpt.service';
+import { Auth } from '../auth/auth.guard';
 
 @ApiTags('GPT')
 @Controller('gpt')

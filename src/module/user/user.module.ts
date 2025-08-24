@@ -1,15 +1,14 @@
 import { Module } from '@nestjs/common';
-import { LoggingModule } from '../../service/logger/logging.module';
-import { ConfigModule } from '../../service/config/config.module';
-import { UserDbService } from '../../service/database/user-db.service';
-import { DatabaseModule } from '../../database/database.module';
 import { JwtModule } from '@nestjs/jwt';
-import { UserService } from '../../service/user/user.service';
 import { UserController } from './user.controller';
-import { StorageModule } from '../../module/storage/storage.module';
+import { UserService } from './user.service';
 import { AuthModule } from '../../module/auth/auth.module';
+import { StorageModule } from '../../module/storage/storage.module';
 import { UserQuizResultModule } from '../../module/user-quiz-result/user-quiz-result.module';
-import { AuthService } from '../../module/auth/auth.service';
+import { ConfigModule } from '../../service/config/config.module';
+import { DatabaseModule } from '../../database/database.module';
+import { UserDbService } from '../../service/database/user-db.service';
+import { LoggingModule } from '../../service/logger/logging.module';
 
 @Module({
   imports: [
@@ -22,7 +21,7 @@ import { AuthService } from '../../module/auth/auth.service';
     UserQuizResultModule,
   ],
   controllers: [UserController],
-  providers: [UserService, UserDbService, AuthService],
+  providers: [UserService, UserDbService],
   exports: [UserService],
 })
 export class UserModule {}
