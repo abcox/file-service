@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 
 // Mock the JWT guard
 const mockJwtGuard = {

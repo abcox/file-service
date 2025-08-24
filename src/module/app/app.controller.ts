@@ -24,7 +24,7 @@ import {
 //import { Response } from 'express';
 import { AppService } from './app.service';
 import { Auth } from '../auth/auth.guard';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 
 @Controller()
 export class AppController {

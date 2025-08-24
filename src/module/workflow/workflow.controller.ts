@@ -10,7 +10,7 @@ import {
   FileWorkflowService,
   AnalysisWorkflowRequest,
 } from './file-workflow.service';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 
 export interface FileReportRequest {
   fileId: string;

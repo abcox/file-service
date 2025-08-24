@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { FileService } from './file.service';
 //import { KeyVaultService } from '../../config/keyvault.service';
-import { LoggingModule } from '../../service/logger/logging.module';
+import { LoggingModule } from '../logger/logging.module';
 import { StorageModule } from '../storage/storage.module';
 import { AuthModule } from '../auth/auth.module';
 import { ConfigModule } from '../config/config.module';

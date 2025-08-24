@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule } from '../config/config.module';
 import { SwaggerConfigModule } from '../../config/swagger/swagger-config.module';
 import { StorageModule } from '../storage/storage.module';
-import { LoggingModule } from '../../service/logger/logging.module';
+import { LoggingModule } from '../logger/logging.module';
 import { AuthModule } from '../auth/auth.module';
 import { FileModule } from '../file/file.module';
 import { DatabaseModule } from '../../database/database.module';

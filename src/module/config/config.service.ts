@@ -3,7 +3,7 @@ import { ConfigService as NestConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import { KeyVaultService } from '../../service/keyvault/keyvault.service';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 import { AppConfig } from './config.interface';
 
 @Injectable()

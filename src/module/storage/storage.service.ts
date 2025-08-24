@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppConfigService } from '../config/config.service';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';

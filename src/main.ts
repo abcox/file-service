@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './module/app/app.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
-import { LoggerService } from './service/logger/logger.service';
+import { LoggerService } from './module/logger/logger.service';
 import { Request, Response, NextFunction } from 'express';
 import { AppConfigService } from './module/config/config.service';
 

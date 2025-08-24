@@ -5,7 +5,7 @@ import { FileModule } from '../file/file.module';
 
 // TODO: refactor all these services to modules and then import to the workflow module as required
 import { GptModule } from '../gpt/gpt.module';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 import { StorageModule } from '../storage/storage.module';
 import { ConfigModule } from '../config/config.module';
 

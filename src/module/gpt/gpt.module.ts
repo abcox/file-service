@@ -3,8 +3,8 @@ import { GptController } from './gpt.controller';
 import { GptService } from './gpt.service';
 import { ConfigModule } from '../config/config.module';
 import { AppConfigService } from '../config/config.service';
-import { LoggingModule } from '../../service/logger/logging.module';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggingModule } from '../logger/logging.module';
+import { LoggerService } from '../logger/logger.service';
 
 @Module({
   imports: [LoggingModule, ConfigModule],

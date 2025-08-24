@@ -11,7 +11,7 @@ import {
 } from 'openai/resources/chat/completions';
 import { RequestOptions } from 'openai/internal/request-options';
 
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
 
 export class GptAnalysisRequest {

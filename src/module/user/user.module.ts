@@ -8,7 +8,7 @@ import { UserQuizResultModule } from '../user-quiz-result/user-quiz-result.modul
 import { ConfigModule } from '../config/config.module';
 import { DatabaseModule } from '../../database/database.module';
 import { UserDbService } from '../../service/database/user-db.service';
-import { LoggingModule } from '../../service/logger/logging.module';
+import { LoggingModule } from '../logger/logging.module';
 
 @Module({
   imports: [

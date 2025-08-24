@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
 import { AppConfigService } from '../config/config.service';
 import { StorageService, FileInfo } from '../storage/storage.service';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggerService } from '../logger/logger.service';
 
 interface UploadedFile {
   originalname: string;

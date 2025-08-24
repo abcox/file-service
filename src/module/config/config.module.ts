@@ -5,8 +5,8 @@ import {
 } from '@nestjs/config';
 import { AppConfigService } from './config.service';
 import { KeyVaultService } from '../../service/keyvault/keyvault.service';
-import { LoggingModule } from '../../service/logger/logging.module';
-import { LoggerService } from '../../service/logger/logger.service';
+import { LoggingModule } from '../logger/logging.module';
+import { LoggerService } from '../logger/logger.service';
 
 @Module({
   imports: [

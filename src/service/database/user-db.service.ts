@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository, UpdateResult } from 'typeorm';
 import { UserEntity } from '../../database/entities/user.entity';
-import { LoggerService } from '../logger/logger.service';
+import { LoggerService } from '../../module/logger/logger.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 
 @Injectable()
