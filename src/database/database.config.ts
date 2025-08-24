@@ -1,5 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { AppConfig } from '../service/config/config.interface';
+import { AppConfig } from '../module/config/config.interface';
 
 export interface DatabaseConfig {
   type?: 'azureSql' | 'local-sql-express';

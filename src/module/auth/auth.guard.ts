@@ -10,7 +10,7 @@ import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoggerService } from '../../service/logger/logger.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { AppConfigService } from '../../service/config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 // Define proper interfaces for JWT payload
 interface BaseJwtPayload {

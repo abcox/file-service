@@ -4,7 +4,7 @@ import { AppModule } from './app.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { LoggerService } from './service/logger/logger.service';
 import { Request, Response, NextFunction } from 'express';
-import { AppConfigService } from './service/config/config.service';
+import { AppConfigService } from './module/config/config.service';
 
 async function bootstrap() {
   console.log('Starting application...');

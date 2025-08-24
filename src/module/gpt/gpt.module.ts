@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { GptController } from './gpt.controller';
 import { GptService } from './gpt.service';
-import { ConfigModule } from '../../service/config/config.module';
-import { AppConfigService } from '../../service/config/config.service';
+import { ConfigModule } from '../config/config.module';
+import { AppConfigService } from '../config/config.service';
 import { LoggingModule } from '../../service/logger/logging.module';
 import { LoggerService } from '../../service/logger/logger.service';
 

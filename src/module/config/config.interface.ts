@@ -1,4 +1,4 @@
-import { GptConfig } from '../../module/gpt/gpt.service';
+import { GptConfig } from '../gpt/gpt.service';
 
 export interface AppConfig {
   azure: {

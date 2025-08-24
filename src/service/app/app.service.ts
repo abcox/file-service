@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Response } from 'express';
-import { AppConfigService } from '../config/config.service';
+import { AppConfigService } from '../../module/config/config.service';
 import { StorageService } from '../../module/storage/storage.service';
 import { LoggerService } from '../logger/logger.service';
 

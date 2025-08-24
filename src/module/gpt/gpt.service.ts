@@ -12,7 +12,7 @@ import {
 import { RequestOptions } from 'openai/internal/request-options';
 
 import { LoggerService } from '../../service/logger/logger.service';
-import { AppConfigService } from '../../service/config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 export class GptAnalysisRequest {
   content: string;

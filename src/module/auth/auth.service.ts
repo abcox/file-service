@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
 import { LoggerService } from '../../service/logger/logger.service';
-import { AppConfigService } from '../../service/config/config.service';
-import { AppConfig } from '../../service/config/config.interface';
+import { AppConfigService } from '../config/config.service';
+import { AppConfig } from '../config/config.interface';
 import { UserEntity } from '../../database/entities/user.entity';
 import { UserLoginRequest } from './dto/user-login.request';
 import { UserLoginResponse } from './dto/user-login.response';

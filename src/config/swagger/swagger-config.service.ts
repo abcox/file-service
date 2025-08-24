@@ -1,6 +1,6 @@
 import { INestApplication, Injectable } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { AppConfigService } from '../../service/config/config.service';
+import { AppConfigService } from '../../module/config/config.service';
 import { readAssetFile } from '../../shared/util';
 
 interface SwaggerConfig {

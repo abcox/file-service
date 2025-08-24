@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { SwaggerConfigService } from './swagger-config.service';
-import { ConfigModule } from '../../service/config/config.module';
+import { ConfigModule } from '../../module/config/config.module';
 
 @Module({
   imports: [ConfigModule],

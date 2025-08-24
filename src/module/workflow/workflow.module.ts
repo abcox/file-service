@@ -7,7 +7,7 @@ import { FileModule } from '../file/file.module';
 import { GptModule } from '../../module/gpt/gpt.module';
 import { LoggerService } from '../../service/logger/logger.service';
 import { StorageModule } from '../../module/storage/storage.module';
-import { ConfigModule } from '../../service/config/config.module';
+import { ConfigModule } from '../config/config.module';
 
 @Module({
   imports: [StorageModule, ConfigModule, StorageModule, FileModule, GptModule],

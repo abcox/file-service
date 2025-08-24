@@ -22,10 +22,10 @@ import {
   //ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 //import { Response } from 'express';
-import { Auth } from '../../module/auth/auth.guard';
+import { Auth } from '../auth/auth.guard';
 import { LoggerService } from '../../service/logger/logger.service';
 import { KeyVaultService } from '../../service/keyvault/keyvault.service';
-import { AppConfigService } from '../../service/config/config.service';
+import { AppConfigService } from './config.service';
 
 @Controller()
 export class ConfigController {

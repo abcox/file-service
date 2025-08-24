@@ -5,7 +5,7 @@ import { UserService } from './user.service';
 import { AuthModule } from '../../module/auth/auth.module';
 import { StorageModule } from '../../module/storage/storage.module';
 import { UserQuizResultModule } from '../../module/user-quiz-result/user-quiz-result.module';
-import { ConfigModule } from '../../service/config/config.module';
+import { ConfigModule } from '../config/config.module';
 import { DatabaseModule } from '../../database/database.module';
 import { UserDbService } from '../../service/database/user-db.service';
 import { LoggingModule } from '../../service/logger/logging.module';

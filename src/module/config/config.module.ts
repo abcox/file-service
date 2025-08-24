@@ -4,9 +4,9 @@ import {
   ConfigService as NestConfigService,
 } from '@nestjs/config';
 import { AppConfigService } from './config.service';
-import { KeyVaultService } from '../keyvault/keyvault.service';
-import { LoggingModule } from '../logger/logging.module';
-import { LoggerService } from '../logger/logger.service';
+import { KeyVaultService } from '../../service/keyvault/keyvault.service';
+import { LoggingModule } from '../../service/logger/logging.module';
+import { LoggerService } from '../../service/logger/logger.service';
 
 @Module({
   imports: [

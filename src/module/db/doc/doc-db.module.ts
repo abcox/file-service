@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AppConfigService } from 'src/service/config/config.service';
-import { ConfigModule } from 'src/service/config/config.module';
+import { AppConfigService } from 'src/module/config/config.service';
+import { ConfigModule } from 'src/module/config/config.module';
 import { QuizSchema } from './schema/quiz/quiz.schema';
 import { QUIZ_COLLECTION } from './doc-db.constants';
 
