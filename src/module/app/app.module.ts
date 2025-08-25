@@ -14,6 +14,7 @@ import { WorkflowModule } from '../workflow/workflow.module';
 import { QuizModule } from '../quiz/quiz.module';
 import { UserQuizResultModule } from '../user-quiz-result/user-quiz-result.module';
 import { ConfigController } from '../config/config.controller';
+import { PdfModule } from '../pdf/pdf.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ConfigController } from '../config/config.controller';
     WorkflowModule,
     QuizModule,
     UserQuizResultModule,
+    PdfModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

@@ -6,13 +6,14 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { FileCreateParams } from 'openai/resources/files';
 import {
-  ChatCompletionContentPart,
+  //ChatCompletionContentPart,
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
 import { RequestOptions } from 'openai/internal/request-options';
 
 import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
+import { FileContent } from '../workflow/file-workflow.service';
 
 export class GptAnalysisRequest {
   content: string;
@@ -176,7 +177,7 @@ export class GptService {
   }
 
   async analyzeFile(
-    fileContent: ChatCompletionContentPart.File,
+    fileContent: FileContent, // ChatCompletionContentPart.File,
     analysisPrompt: string,
     options?: Partial<GptAnalysisRequest>,
   ): Promise<GptAnalysisResponse> {
@@ -184,14 +185,22 @@ export class GptService {
       this.logger.info('Starting file analysis with GPT', {
         prompt: analysisPrompt,
         model: options?.model || this.config.defaultModel,
+        file: fileContent?.file,
       });
 
-      const { file, type } = fileContent;
-      const content: ChatCompletionContentPart[] = [
+      //const { file, type } = fileContent;
+      // TODO: review whether there exists any types for making this call?
+      // I had been using ChatCompletionContentPart[] but it was possibly causing issues??
+      if (!fileContent?.file?.file_id) {
+        throw new Error('Missing file_id for GPT analysis.');
+      }
+      const content: any[] = [
         { type: 'text', text: 'Please analyze this document.' },
         {
-          type: type,
-          file: file,
+          type: 'file',
+          file: {
+            file_id: fileContent.file.file_id,
+          },
         },
       ];
       const params: ChatCompletionCreateParamsNonStreaming = {

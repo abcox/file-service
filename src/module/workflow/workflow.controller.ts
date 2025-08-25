@@ -4,13 +4,16 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { Response } from 'express';
 import {
   FileWorkflowService,
   AnalysisWorkflowRequest,
 } from './file-workflow.service';
 import { LoggerService } from '../logger/logger.service';
+import { Auth } from '../auth/auth.guard';
 
 export interface FileReportRequest {
   fileId: string;
@@ -40,6 +43,7 @@ export class WorkflowController {
   ) {}
 
   @Get('file/report')
+  @Auth({ public: true })
   @ApiOperation({
     summary: 'Generate analysis report for a file',
     description:
@@ -164,6 +168,152 @@ export class WorkflowController {
         error:
           error instanceof Error ? error.message : 'Unknown error occurred',
       };
+    }
+  }
+
+  @Get('file/report/download')
+  @Auth({ public: true })
+  @ApiOperation({
+    summary: 'Generate and download analysis report as PDF',
+    description:
+      'Uploads a file from blob storage to OpenAI, generates an analysis report, and returns it as a downloadable PDF',
+  })
+  @ApiQuery({
+    name: 'fileId',
+    description: 'The ID of the file to analyze',
+    type: String,
+    required: true,
+  })
+  @ApiQuery({
+    name: 'userId',
+    description: 'The ID of the user requesting the analysis',
+    type: String,
+    required: true,
+  })
+  @ApiQuery({
+    name: 'analysisType',
+    description: 'Type of analysis to perform',
+    enum: ['contract', 'document', 'general'],
+    required: true,
+  })
+  @ApiQuery({
+    name: 'customPrompt',
+    description: 'Custom prompt for the analysis (optional)',
+    type: String,
+    required: false,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'PDF report generated and downloaded successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - missing required parameters',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'File not found',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error during analysis',
+  })
+  async downloadFileReport(
+    @Query('fileId') fileId: string,
+    @Query('userId') userId: string,
+    @Query('analysisType') analysisType: 'contract' | 'document' | 'general',
+    @Res() res: Response,
+    @Query('customPrompt') customPrompt?: string,
+  ): Promise<void> {
+    try {
+      this.logger.info('File report download requested', {
+        fileId,
+        userId,
+        analysisType,
+        hasCustomPrompt: !!customPrompt,
+      });
+
+      // Validate required parameters
+      if (!fileId || !userId || !analysisType) {
+        res.status(400).json({
+          success: false,
+          error:
+            'Missing required parameters: fileId, userId, and analysisType are required',
+        });
+        return;
+      }
+
+      // Validate analysis type
+      if (!['contract', 'document', 'general'].includes(analysisType)) {
+        res.status(400).json({
+          success: false,
+          error:
+            'Invalid analysisType. Must be one of: contract, document, general',
+        });
+        return;
+      }
+
+      const request: AnalysisWorkflowRequest = {
+        fileId,
+        userId,
+        analysisType,
+        customPrompt,
+      };
+
+      const result =
+        await this.workflowService.analyzeFileFromBlobStorage(request);
+
+      if (!result.success || !result.pdfResponse?.success) {
+        res.status(500).json({
+          success: false,
+          error: result.error || 'Failed to generate PDF report',
+        });
+        return;
+      }
+
+      // Extract filename from fileId
+      const filename =
+        fileId
+          .split('/')
+          .pop()
+          ?.replace(/\.[^/.]+$/, '') || 'report';
+      const pdfFilename = `${filename}_analysis_report.pdf`;
+
+      // Convert base64 to buffer and send as PDF download
+      if (result.pdfResponse.pdfBase64) {
+        const pdfBuffer = Buffer.from(result.pdfResponse.pdfBase64, 'base64');
+
+        res.set({
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${pdfFilename}"`,
+          'Content-Length': pdfBuffer.length,
+        });
+
+        res.send(pdfBuffer);
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'PDF content not available',
+        });
+      }
+
+      this.logger.info('File report downloaded successfully', {
+        fileId,
+        analysisId: result.analysisId,
+        filename: pdfFilename,
+      });
+    } catch (error) {
+      this.logger.error('File report download failed', error as Error, {
+        fileId,
+        userId,
+        analysisType,
+      });
+
+      res.status(500).json({
+        success: false,
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
+      });
     }
   }
 }

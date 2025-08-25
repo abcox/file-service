@@ -2,7 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { LoggerService } from '../logger/logger.service';
 import { FileService } from '../file/file.service';
 import { GptService } from '../gpt/gpt.service';
-import { ChatCompletionContentPart } from 'openai/resources/chat/completions';
+//import { ChatCompletionContentPart } from 'openai/resources/chat/completions';
+import { PdfService } from '../pdf/pdf.service';
+import { PdfResponseDto } from '../pdf/dto/pdf-response.dto';
+
+export type FileContent = {
+  type: string;
+  file: {
+    file_id: string;
+    filename?: string;
+    bytes?: number;
+  };
+};
 
 export interface WorkflowStatus {
   status:
@@ -29,6 +40,7 @@ export interface AnalysisWorkflowResponse {
   analysisId?: string;
   status?: WorkflowStatus;
   error?: string;
+  pdfResponse?: PdfResponseDto;
 }
 
 @Injectable()
@@ -37,6 +49,7 @@ export class FileWorkflowService {
     private readonly logger: LoggerService,
     private readonly fileService: FileService,
     private readonly gptService: GptService,
+    private readonly pdfService: PdfService,
   ) {}
 
   // Goal: Analyze a file from blob storage and return a report
@@ -75,11 +88,11 @@ export class FileWorkflowService {
       const file = {
         type: 'file',
         file: {
-          id: fileId,
+          file_id: fileId,
           filename: fileInfo.filename,
           bytes: fileInfo.size,
         },
-      } as ChatCompletionContentPart.File;
+      };
       const analysisResponse = await this.gptService.analyzeFile(
         file,
         request.customPrompt ||
@@ -96,6 +109,13 @@ export class FileWorkflowService {
         throw new Error(`Analysis failed: ${analysisResponse.error}`);
       }
 
+      console.log('analysisResponse', analysisResponse);
+
+      const pdfResponse = await this.pdfService.createPdfFromText({
+        text: analysisResponse.content || '',
+        title: fileInfo.filename,
+      });
+
       return {
         success: true,
         analysisId: FileUploadResponse.fileId,
@@ -103,8 +123,9 @@ export class FileWorkflowService {
           status: 'completed',
           step: 'analysis-completed',
           progress: 100,
-        },
-      };
+        } as WorkflowStatus,
+        pdfResponse,
+      } as AnalysisWorkflowResponse;
     } catch (error) {
       this.logger.error('File analysis workflow failed', error as Error, {
         fileId: request.fileId,

@@ -8,9 +8,17 @@ import { GptModule } from '../gpt/gpt.module';
 import { LoggerService } from '../logger/logger.service';
 import { StorageModule } from '../storage/storage.module';
 import { ConfigModule } from '../config/config.module';
+import { PdfModule } from '../pdf/pdf.module';
 
 @Module({
-  imports: [StorageModule, ConfigModule, StorageModule, FileModule, GptModule],
+  imports: [
+    StorageModule,
+    ConfigModule,
+    StorageModule,
+    FileModule,
+    GptModule,
+    PdfModule,
+  ],
   controllers: [WorkflowController],
   providers: [FileWorkflowService, LoggerService],
   exports: [FileWorkflowService],
