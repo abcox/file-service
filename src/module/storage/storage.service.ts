@@ -202,21 +202,6 @@ export class StorageService implements StorageClient {
           });
           throw deleteError;
         }
-        await blockBlobClient.upload(file, file.length);
-
-        this.logger.logFileOperation('uploaded', filename, {
-          storageType: 'azure',
-          size: file.length,
-          url: blockBlobClient.url,
-        });
-
-        return {
-          filename,
-          size: file.length,
-          created: new Date(),
-          modified: new Date(),
-          url: blockBlobClient.url,
-        };
       } else if (this.storageOptions.safeMode) {
         this.logger.info('Safe mode enabled, generating unique name', {
           filename,
@@ -249,6 +234,7 @@ export class StorageService implements StorageClient {
         throw new Error(`File ${filename} already exists in Azure`);
       }
     }
+    await blockBlobClient.upload(file, file.length);
 
     this.logger.logFileOperation('uploaded', filename, {
       storageType: 'azure',
