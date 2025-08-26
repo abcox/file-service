@@ -161,19 +161,24 @@ export class StorageService implements StorageClient {
     return containerClient;
   }
 
-  async uploadFile(file: Buffer, filename: string): Promise<FileInfo> {
+  async uploadFile(
+    file: Buffer,
+    filename: string,
+    overwrite: boolean = false,
+  ): Promise<FileInfo> {
     const storageType = this.config?.type;
 
     if (storageType === 'azure' || storageType === 'emulator') {
-      return this.uploadToAzure(file, filename);
+      return this.uploadToAzure(file, filename, overwrite);
     } else {
-      return this.uploadToLocal(file, filename);
+      return this.uploadToLocal(file, filename, overwrite);
     }
   }
 
   private async uploadToAzure(
     file: Buffer,
     filename: string,
+    overwrite: boolean = false,
   ): Promise<FileInfo> {
     const client = this.client;
     const blockBlobClient = client.getBlockBlobClient(filename);
@@ -182,8 +187,37 @@ export class StorageService implements StorageClient {
     const exists = await blockBlobClient.exists();
     if (exists) {
       this.logger.warn('File already exists in Azure', { filename });
+      this.logger.warn('overwrite:', { overwrite });
 
-      if (this.storageOptions.safeMode) {
+      if (overwrite === true) {
+        this.logger.warn('Overwriting file in Azure', {
+          filename,
+        });
+        try {
+          await blockBlobClient.delete();
+          this.logger.warn('File deleted successfully', { filename });
+        } catch (deleteError) {
+          this.logger.error('Failed to delete file', deleteError, {
+            filename,
+          });
+          throw deleteError;
+        }
+        await blockBlobClient.upload(file, file.length);
+
+        this.logger.logFileOperation('uploaded', filename, {
+          storageType: 'azure',
+          size: file.length,
+          url: blockBlobClient.url,
+        });
+
+        return {
+          filename,
+          size: file.length,
+          created: new Date(),
+          modified: new Date(),
+          url: blockBlobClient.url,
+        };
+      } else if (this.storageOptions.safeMode) {
         this.logger.info('Safe mode enabled, generating unique name', {
           filename,
         });
@@ -192,31 +226,29 @@ export class StorageService implements StorageClient {
           originalFilename: filename,
           newFilename: filename,
         });
+
+        // Get new blockBlobClient with unique name
+        const uniqueBlockBlobClient = client.getBlockBlobClient(filename);
+
+        await uniqueBlockBlobClient.upload(file, file.length);
+
+        this.logger.logFileOperation('uploaded', filename, {
+          storageType: 'azure',
+          size: file.length,
+          url: uniqueBlockBlobClient.url,
+        });
+
+        return {
+          filename,
+          size: file.length,
+          created: new Date(),
+          modified: new Date(),
+          url: uniqueBlockBlobClient.url,
+        };
       } else {
         throw new Error(`File ${filename} already exists in Azure`);
       }
-
-      // Get new blockBlobClient with unique name
-      const uniqueBlockBlobClient = client.getBlockBlobClient(filename);
-
-      await uniqueBlockBlobClient.upload(file, file.length);
-
-      this.logger.logFileOperation('uploaded', filename, {
-        storageType: 'azure',
-        size: file.length,
-        url: uniqueBlockBlobClient.url,
-      });
-
-      return {
-        filename,
-        size: file.length,
-        created: new Date(),
-        modified: new Date(),
-        url: uniqueBlockBlobClient.url,
-      };
     }
-
-    await blockBlobClient.upload(file, file.length);
 
     this.logger.logFileOperation('uploaded', filename, {
       storageType: 'azure',
@@ -241,10 +273,33 @@ export class StorageService implements StorageClient {
     return `${baseName}-${timestamp}${extension}`;
   }
 
-  private uploadToLocal(file: Buffer, filename: string): FileInfo {
+  private uploadToLocal(
+    file: Buffer,
+    filename: string,
+    overwrite: boolean = false,
+  ): FileInfo {
     const localConfig = this.config as LocalStorageConfig;
     const filePath = path.join(localConfig.subfolderPath, filename);
 
+    const exists = fs.existsSync(filePath);
+    if (exists) {
+      this.logger.warn('File already exists in local storage', { filename });
+      if (overwrite === true) {
+        this.logger.warn('Overwriting file in local storage', { filename });
+        fs.unlinkSync(filePath);
+      } else if (this.storageOptions.safeMode) {
+        this.logger.info('Safe mode enabled, generating unique name', {
+          filename,
+        });
+        filename = this.getUniqueFilename(filename);
+        this.logger.info('Generated unique name', {
+          originalFilename: filename,
+          newFilename: filename,
+        });
+      } else {
+        throw new Error(`File ${filename} already exists in local storage`);
+      }
+    }
     fs.writeFileSync(filePath, file);
 
     this.logger.logFileOperation('uploaded', filename, {

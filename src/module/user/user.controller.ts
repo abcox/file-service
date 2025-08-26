@@ -9,6 +9,8 @@ import {
   UseInterceptors,
   Body,
   Put,
+  Query,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -204,14 +206,16 @@ export class UserController {
   uploadFile(
     @UploadedFile() file: UploadedFile,
     @Req() request: any,
+    @Query('overwrite', ParseBoolPipe) overwrite: boolean = true,
   ): Promise<UserFileUploadResponse> {
     const { buffer: fileBuffer, originalname: filename } = file;
     if (!fileBuffer || !filename) {
       throw new Error('File buffer or originalname is missing');
     }
+    console.log('filename:', filename, 'overwrite:', overwrite);
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const user = request.user as User;
-    return this.userService.uploadFile(user, filename, fileBuffer);
+    return this.userService.uploadFile(user, filename, fileBuffer, overwrite);
   }
   //#endregion File Upload
 

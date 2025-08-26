@@ -81,12 +81,14 @@ export class UserService {
     user: User,
     filename: string,
     fileBuffer: Buffer,
+    overwrite: boolean = false,
   ): Promise<UserFileUploadResponse> {
     const userEmail = this.sanitizeEmailForBlobPath(user.email);
     const userFileName = `${userEmail}/${filename}`;
     const uploadedFile = await this.storageService.uploadFile(
       fileBuffer,
       userFileName,
+      overwrite,
     );
     return {
       fileInfo: uploadedFile,
