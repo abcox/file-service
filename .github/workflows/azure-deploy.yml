@@ -105,10 +105,15 @@ jobs:
           cd dist
           npm ci --only=production
       
+      # TODO: review this step, and if is better to make it part of the build process
+      #- name: Install Playwright browsers
+      #  run: |
+      #    cd dist
+      #    npx playwright install chromium --with-deps
       - name: Install Playwright browsers
         run: |
           cd dist
-          npx playwright install chromium --with-deps
+          npx playwright install chromium
       
       - name: Copy startup script
         run: |
