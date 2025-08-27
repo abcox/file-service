@@ -172,11 +172,11 @@ jobs:
             exit 1
           fi
           
-      - name: Show ACI logs
-        if: always()
-        run: |
-          echo "📋 Recent ACI logs:"
-          az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --tail 50
+                   - name: Show ACI logs
+               if: always()
+               run: |
+                 echo "📋 Recent ACI logs:"
+                 az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}
           
       - name: Post deployment info
         if: success()
