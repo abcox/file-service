@@ -66,7 +66,7 @@ jobs:
             echo "Build successful"
           fi
 
-      # TODO: review this step, and if is better to make it part of the build process
+            # TODO: review this step, and if is better to make it part of the build process
       - name: Copy config file to dist
         run: cp src/config/config.${{ env.DEPLOY_ENV }}.json dist/config.json
 
@@ -78,7 +78,7 @@ jobs:
             dist/
             package.json
             package-lock.json
-            #node_modules/ # TODO: review this step, and if is better to make it part of the build process (or leave in release step as an npm ci --only=production)
+            startup.sh
           retention-days: 10
           if-no-files-found: error
 
@@ -112,8 +112,8 @@ jobs:
       
       - name: Copy startup script
         run: |
-          cp ../startup.sh .
-          chmod +x startup.sh
+          cp startup.sh dist/
+          chmod +x dist/startup.sh
       
 
       
