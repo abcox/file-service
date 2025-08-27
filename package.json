@@ -14,7 +14,7 @@
     "start:dev:log": "powershell -ExecutionPolicy Bypass -File start-dev-log.ps1",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "start:azure": "npx playwright install chromium --with-deps && node dist/main",
+    "start:azure": "npx playwright install chromium --with-deps && node dist/src/main.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "------------ TEST ---------------": "--------------------------------------",
     "test": "jest",

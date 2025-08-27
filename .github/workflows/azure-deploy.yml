@@ -105,6 +105,16 @@ jobs:
           cd dist
           npm ci --only=production
       
+      - name: Install Playwright browsers
+        run: |
+          cd dist
+          npx playwright install chromium --with-deps
+      
+      - name: Copy startup script
+        run: |
+          cp ../startup.sh dist/
+          chmod +x dist/startup.sh
+      
 
       
       - name: Create release package
