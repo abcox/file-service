@@ -1,0 +1,195 @@
+name: Deploy to Azure Container Instances
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'Dockerfile'
+      - '.github/workflows/azure-deploy-aci.yml'
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: false
+        default: 'latest'
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+        - development
+        - staging
+        - production
+
+env:
+  ACR_NAME: vorbaacr
+  ACI_NAME: vorba-file-service-4
+  RESOURCE_GROUP: vorba-file-service-rg
+  IMAGE_NAME: file-service
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Login to Azure Container Registry
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+          
+      - name: Get ACR credentials
+        id: acr-credentials
+        run: |
+          echo "username=$(az acr credential show --name ${{ env.ACR_NAME }} --query "username" --output tsv)" >> $GITHUB_OUTPUT
+          echo "password=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" --output tsv)" >> $GITHUB_OUTPUT
+          
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          
+      - name: Get Key Vault secrets
+        id: secrets
+        run: |
+          # Get storage connection string
+          echo "storage_connection_string=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureStorageConnectionString --query "value" --output tsv)" >> $GITHUB_OUTPUT
+          
+          # Get Azure AD credentials
+          echo "azure_client_id=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureClientId --query "value" --output tsv)" >> $GITHUB_OUTPUT
+          echo "azure_client_secret=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureClientSecret --query "value" --output tsv)" >> $GITHUB_OUTPUT
+          echo "azure_tenant_id=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureTenantId --query "value" --output tsv)" >> $GITHUB_OUTPUT
+          echo "azure_key_vault_url=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureKeyVaultUrl --query "value" --output tsv)" >> $GITHUB_OUTPUT
+          
+      - name: Deploy to Azure Container Instances
+        run: |
+          # Check if ACI exists
+          ACI_EXISTS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output json 2>/dev/null | jq -r '.name // empty')
+          
+          if [ -n "$ACI_EXISTS" ]; then
+            echo "Updating existing ACI instance..."
+            az container create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name ${{ env.ACI_NAME }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-username ${{ steps.acr-credentials.outputs.username }} \
+              --registry-password ${{ steps.acr-credentials.outputs.password }} \
+              --dns-name-label ${{ env.ACI_NAME }} \
+              --ports 3000 \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy Always \
+              --environment-variables \
+                NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
+                PORT=3000 \
+                AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
+                AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
+                AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
+                AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
+                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
+                AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
+                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+              --secure-environment-variables \
+                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
+              --output none
+          else
+            echo "Creating new ACI instance..."
+            az container create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name ${{ env.ACI_NAME }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-username ${{ steps.acr-credentials.outputs.username }} \
+              --registry-password ${{ steps.acr-credentials.outputs.password }} \
+              --dns-name-label ${{ env.ACI_NAME }} \
+              --ports 3000 \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy Always \
+              --environment-variables \
+                NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
+                PORT=3000 \
+                AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
+                AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
+                AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
+                AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
+                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
+                AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
+                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+              --secure-environment-variables \
+                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
+              --output none
+          fi
+          
+      - name: Wait for ACI to be ready
+        run: |
+          echo "Waiting for ACI to be ready..."
+          az container wait --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --created
+          
+      - name: Get ACI status
+        run: |
+          ACI_STATUS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "provisioningState" --output tsv)
+          echo "ACI Status: $ACI_STATUS"
+          
+          if [ "$ACI_STATUS" = "Succeeded" ]; then
+            echo "✅ ACI deployment successful!"
+            
+            # Get the FQDN
+            FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
+            echo "🌐 ACI URL: http://$FQDN:3000"
+            
+            # Test health endpoint
+            echo "🏥 Testing health endpoint..."
+            sleep 30  # Wait for container to fully start
+            
+            HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:3000/health" || echo "000")
+            if [ "$HEALTH_RESPONSE" = "200" ]; then
+              echo "✅ Health check passed!"
+            else
+              echo "⚠️ Health check failed (HTTP $HEALTH_RESPONSE)"
+            fi
+          else
+            echo "❌ ACI deployment failed with status: $ACI_STATUS"
+            exit 1
+          fi
+          
+      - name: Show ACI logs
+        if: always()
+        run: |
+          echo "📋 Recent ACI logs:"
+          az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --tail 50
+          
+      - name: Post deployment info
+        if: success()
+        run: |
+          FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
+          echo "## 🚀 ACI Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **ACI Name**: ${{ env.ACI_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: http://$FQDN:3000" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'development' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- ACI has no free tier - you pay per second of runtime" >> $GITHUB_STEP_SUMMARY
+          echo "- Remember to stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Use \`az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\` to view logs" >> $GITHUB_STEP_SUMMARY
