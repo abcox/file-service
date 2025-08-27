@@ -209,7 +209,19 @@ export class PdfService {
       });
 
       // Launch browser and create PDF with proper CSS rendering
-      const browser = await chromium.launch({ headless: true });
+      const browser = await chromium.launch({
+        headless: true,
+        executablePath: process.env.PLAYWRIGHT_BROWSER_PATH || undefined,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+        ],
+      });
       const page = await browser.newPage();
 
       // Set content and wait for it to load
