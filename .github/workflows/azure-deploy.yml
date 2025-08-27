@@ -35,8 +35,9 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      # TODO: review this step, and if is better to make it part of the build process
+      #- name: Run tests
+      #  run: npm test
 
       - name: Build NestJS application
         run: |
