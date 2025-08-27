@@ -107,8 +107,12 @@ jobs:
       
       - name: Install Playwright browsers
         run: |
-          cd dist
-          npx playwright install chromium
+          npx playwright install chromium --with-deps
+      
+      - name: Copy Playwright browsers to dist
+        run: |
+          mkdir -p dist/.cache
+          cp -r ~/.cache/ms-playwright dist/.cache/
       
       - name: Create release package
         run: |
