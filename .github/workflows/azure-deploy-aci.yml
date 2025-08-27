@@ -94,6 +94,7 @@ jobs:
               --registry-username ${{ steps.acr-credentials.outputs.username }} \
               --registry-password ${{ steps.acr-credentials.outputs.password }} \
               --dns-name-label ${{ env.ACI_NAME }} \
+              --os-type Linux \
               --ports 3000 \
               --cpu 2 \
               --memory 4 \
@@ -121,6 +122,7 @@ jobs:
               --registry-username ${{ steps.acr-credentials.outputs.username }} \
               --registry-password ${{ steps.acr-credentials.outputs.password }} \
               --dns-name-label ${{ env.ACI_NAME }} \
+              --os-type Linux \
               --ports 3000 \
               --cpu 2 \
               --memory 4 \
