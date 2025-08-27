@@ -84,34 +84,33 @@ jobs:
           # Check if ACI exists
           ACI_EXISTS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output json 2>/dev/null | jq -r '.name // empty')
           
-          if [ -n "$ACI_EXISTS" ]; then
-            echo "Updating existing ACI instance..."
-            az container create \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --name ${{ env.ACI_NAME }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
-              --registry-username ${{ steps.acr-credentials.outputs.username }} \
-              --registry-password ${{ steps.acr-credentials.outputs.password }} \
-              --dns-name-label ${{ env.ACI_NAME }} \
-              --os-type Linux \
-              --ports 3000 \
-              --cpu 2 \
-              --memory 4 \
-              --restart-policy Always \
-              --environment-variables \
-                NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
-                PORT=3000 \
-                AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
-                AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
-                AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
-                AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
-                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
-                AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
-                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-              --secure-environment-variables \
-                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
-              --output none
+                     if [ -n "$ACI_EXISTS" ]; then
+             echo "Updating existing ACI instance..."
+             az container create \
+               --resource-group ${{ env.RESOURCE_GROUP }} \
+               --name ${{ env.ACI_NAME }} \
+               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+               --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
+               --registry-username ${{ steps.acr-credentials.outputs.username }} \
+               --registry-password ${{ steps.acr-credentials.outputs.password }} \
+               --dns-name-label ${{ env.ACI_NAME }} \
+               --os-type Linux \
+               --ports 3000 \
+               --cpu 2 \
+               --memory 4 \
+               --restart-policy Always \
+               --environment-variables \
+                 NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
+                 PORT=3000 \
+                 AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
+                 AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
+                 AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
+                 AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
+                 AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
+                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+               --secure-environment-variables \
+                 AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
+               --output none
           else
             echo "Creating new ACI instance..."
             az container create \
@@ -134,7 +133,6 @@ jobs:
                 AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
                 AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
                 AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
-                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
                 AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
               --secure-environment-variables \
