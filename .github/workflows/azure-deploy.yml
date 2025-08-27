@@ -105,6 +105,11 @@ jobs:
           cd dist
           npm ci --only=production
       
+      - name: Install Playwright browsers
+        run: |
+          cd dist
+          npx playwright install chromium
+      
       - name: Create release package
         run: |
           zip -r release-${{ github.run_number }}.zip .
