@@ -114,6 +114,38 @@ function Test-Docker {
     }
 }
 
+# Function to register required Azure providers
+function Register-AzureProviders {
+    Write-Host "Registering required Azure providers..." -ForegroundColor Yellow
+    
+    $providers = @(
+        "Microsoft.ContainerInstance",
+        "Microsoft.OperationalInsights", 
+        "Microsoft.Insights"
+    )
+    
+    foreach ($provider in $providers) {
+        Write-Host "Checking provider: $provider" -ForegroundColor Cyan
+        
+        try {
+            $state = az provider show --namespace $provider --query "registrationState" --output tsv 2>$null
+            if ($state -eq "Registered") {
+                Write-Host "[OK] Provider '$provider' is already registered" -ForegroundColor Green
+            }
+            else {
+                Write-Host "Registering provider: $provider" -ForegroundColor Yellow
+                az provider register --namespace $provider --output none
+                Write-Host "[OK] Provider '$provider' registration initiated" -ForegroundColor Green
+            }
+        }
+        catch {
+            Write-Host "[WARNING] Could not check provider '$provider' status" -ForegroundColor Yellow
+        }
+    }
+    
+    Write-Host "Provider registration complete. Some registrations may take a few minutes to complete." -ForegroundColor Cyan
+}
+
 # Function to create resource group
 function New-ResourceGroup {
     param([string]$Name, [string]$Location)
@@ -264,6 +296,9 @@ try {
     if (-not (Test-AzureCLI)) { exit 1 }
     if (-not (Test-AzureLogin)) { exit 1 }
     if (-not (Test-Docker)) { exit 1 }
+    
+    Write-Host "`n[STEP] Registering Azure providers..." -ForegroundColor Blue
+    Register-AzureProviders
     
     Write-Host "`n[STEP] Verifying existing resources..." -ForegroundColor Blue
     Test-ExistingResources
