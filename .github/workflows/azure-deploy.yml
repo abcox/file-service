@@ -108,7 +108,7 @@ jobs:
       - name: Install Playwright browsers
         run: |
           cd dist
-          npx playwright install chromium --with-deps --cache-dir /home/site/wwwroot/.playwright
+          npx playwright install chromium --with-deps
       
       - name: Copy startup script
         run: |
