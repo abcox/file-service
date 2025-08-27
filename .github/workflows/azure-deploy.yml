@@ -112,7 +112,7 @@ jobs:
       
       - name: Copy startup script
         run: |
-          cp ../startup.sh dist/
+          cp startup.sh dist/
           chmod +x dist/startup.sh
       
 
