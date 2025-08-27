@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Install production dependencies
+echo "Installing production dependencies..."
+npm ci --only=production
+
 # Create the playwright directory in the writable wwwroot
 mkdir -p /home/site/wwwroot/.playwright
 
