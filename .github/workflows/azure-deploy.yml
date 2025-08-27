@@ -99,7 +99,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
+      
+      - name: Install production dependencies
+        run: |
+          cd dist
+          npm ci --only=production
+      
+      - name: Install Playwright browsers
+        run: |
+          cd dist
+          npx playwright install chromium --with-deps --cache-dir /home/site/wwwroot/.playwright
       
       - name: Copy startup script
         run: |

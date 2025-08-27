@@ -1,15 +1,13 @@
 #!/bin/bash
 
-# Install production dependencies
-echo "Installing production dependencies..."
-npm ci --only=production
-
 # Create the playwright directory in the writable wwwroot
 mkdir -p /home/site/wwwroot/.playwright
 
-# Install Playwright browsers to the writable directory
-echo "Installing Playwright browsers to /home/site/wwwroot/.playwright..."
-npx playwright install chromium --with-deps --cache-dir /home/site/wwwroot/.playwright
+# Install Playwright browsers to the writable directory (if not already installed)
+if [ ! -d "/home/site/wwwroot/.playwright/ms-playwright" ]; then
+    echo "Installing Playwright browsers to /home/site/wwwroot/.playwright..."
+    npx playwright install chromium --with-deps --cache-dir /home/site/wwwroot/.playwright
+fi
 
 # Set the browser path environment variable
 export PLAYWRIGHT_BROWSER_PATH="/home/site/wwwroot/.playwright/ms-playwright/chromium_headless_shell-1187/chrome-linux/headless_shell"
