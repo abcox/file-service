@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            min-height: 100vh;
+            width: 100%;
+        }
+        
+        body {
+            padding: 40px;
+            margin: 0;
+        }
+        
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #3182ce;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+            background: linear-gradient(90deg, rgba(49, 130, 206, 0.1) 0%, rgba(49, 130, 206, 0.05) 100%);
+            border-radius: 10px;
+            padding: 30px;
+        }
+        
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            color: #3182ce;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-weight: 300;
+        }
+        .summary {
+            background: linear-gradient(135deg, rgba(49, 130, 206, 0.1) 0%, rgba(49, 130, 206, 0.05) 100%);
+            padding: 25px;
+            border-left: 4px solid #3182ce;
+            margin-bottom: 35px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .summary h2 {
+            color: #3182ce;
+            margin-top: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .summary p {
+            color: #2d3748;
+            line-height: 1.8;
+        }
+        
+        .key-findings {
+            background: linear-gradient(135deg, rgba(72, 187, 120, 0.1) 0%, rgba(72, 187, 120, 0.05) 100%);
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 35px;
+            border-left: 4px solid #48bb78;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .key-findings h2 {
+            color: #48bb78;
+            margin-top: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .key-findings ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .key-findings li {
+            margin-bottom: 12px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .section {
+            margin-bottom: 35px;
+            background: linear-gradient(135deg, rgba(160, 174, 192, 0.05) 0%, rgba(160, 174, 192, 0.02) 100%);
+            padding: 25px;
+            border-radius: 8px;
+            border-left: 4px solid #718096;
+        }
+        .section h2 {
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .section h3 {
+            color: #2d3748;
+            margin-top: 25px;
+            font-size: 18px;
+            font-weight: 500;
+        }
+        .section p {
+            color: #2d3748;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        .key-points {
+            background: linear-gradient(135deg, rgba(237, 137, 54, 0.1) 0%, rgba(237, 137, 54, 0.05) 100%);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ed8936;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .key-points h3 {
+            color: #ed8936;
+            margin-top: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .key-points ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .key-points li {
+            color: #2d3748;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        
+        .recommendations {
+            background: linear-gradient(135deg, rgba(245, 101, 101, 0.1) 0%, rgba(245, 101, 101, 0.05) 100%);
+            padding: 25px;
+            border-radius: 8px;
+            margin-top: 35px;
+            border-left: 4px solid #f56565;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .recommendations h2 {
+            color: #f56565;
+            margin-top: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .recommendations ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .recommendations li {
+            margin-bottom: 12px;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+            color: #4a5568;
+            font-size: 14px;
+            background: linear-gradient(135deg, rgba(160, 174, 192, 0.1) 0%, rgba(160, 174, 192, 0.05) 100%);
+            padding: 25px;
+            border-radius: 8px;
+        }
+        
+        .footer p {
+            margin-bottom: 8px;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">{{title}}</div>
+        <div class="subtitle">AI-Powered Document Analysis Report</div>
+        <div class="subtitle">Generated on {{generatedAt}}</div>
+    </div>
+
+    <div class="summary">
+        <h2>Executive Summary</h2>
+        <p>{{summary}}</p>
+    </div>
+
+    <div class="key-findings">
+        <h2>Key Findings</h2>
+        <ul>
+            {{#each keyFindings}}
+            <li>{{this}}</li>
+            {{/each}}
+        </ul>
+    </div>
+
+    {{#each sections}}
+    <div class="section">
+        <h2>{{title}}</h2>
+        <p>{{content}}</p>
+        
+        {{#if keyPoints}}
+        <div class="key-points">
+            <h3>Key Points</h3>
+            <ul>
+                {{#each keyPoints}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+        </div>
+        {{/if}}
+    </div>
+    {{/each}}
+
+    <div class="recommendations">
+        <h2>Recommendations</h2>
+        <ul>
+            {{#each recommendations}}
+            <li>{{this}}</li>
+            {{/each}}
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>This report was generated using AI analysis technology.</p>
+        <p>Analysis completed on {{generatedAt}}</p>
+    </div>
+</body>
+</html>

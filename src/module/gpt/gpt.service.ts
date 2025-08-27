@@ -37,13 +37,6 @@ export class GptAnalysisResponse {
   usage?: OpenAI.Completions.CompletionUsage;
 }
 
-export interface GptConfig {
-  apiKey: string;
-  defaultModel: string;
-  defaultMaxTokens: number;
-  defaultTemperature: number;
-}
-
 export interface FileUploadResponse {
   success: boolean;
   fileId?: string;
@@ -72,9 +65,32 @@ export class GptService {
     private readonly logger: LoggerService,
     private readonly configService: AppConfigService,
   ) {
-    /* const gptConfig = this.configService.getConfig().gptConfig;
-    const config = this.getConfigWithDefaults(gptConfig);
-    this.init(config); */
+    // Initialize GPT service with environment variables if config is not available
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      this.logger.error('OpenAI API key not found in environment variables');
+      throw new Error('OpenAI API key not found');
+    }
+
+    this.config = {
+      apiKey: apiKey,
+      defaults: {
+        model: process.env.GPT_DEFAULT_MODEL || 'gpt-4o-mini',
+        temperature: parseFloat(process.env.GPT_DEFAULT_TEMPERATURE || '0.7'),
+        maxTokens: parseInt(process.env.GPT_DEFAULT_MAX_TOKENS || '4000'),
+        topP: parseFloat(process.env.GPT_DEFAULT_TOP_P || '1'),
+      },
+    };
+
+    this.openai = new OpenAI({
+      apiKey: apiKey,
+    });
+
+    this.logger.info('GPT service initialized successfully', {
+      model: this.config.defaults.model,
+      maxTokens: this.config.defaults.maxTokens,
+      temperature: this.config.defaults.temperature,
+    });
   }
 
   private initConfigWithDefaults(config: GptConfig | undefined): GptConfig {
@@ -148,7 +164,7 @@ export class GptService {
       };
 
       const fileObj = await this.openai.files.create(fileCreateParams, {
-        timeout: 10000,
+        timeout: 30000, // Increased to 30 seconds for file upload
       });
 
       this.logger.info('File uploaded successfully to OpenAI', {
@@ -181,11 +197,52 @@ export class GptService {
     analysisPrompt: string,
     options?: Partial<GptAnalysisRequest>,
   ): Promise<GptAnalysisResponse> {
+    return this.analyzeFileWithFormat(
+      fileContent,
+      analysisPrompt,
+      'text',
+      options,
+    );
+  }
+
+  async analyzeFileAsHtml(
+    fileContent: FileContent,
+    analysisPrompt: string,
+    options?: Partial<GptAnalysisRequest>,
+  ): Promise<GptAnalysisResponse> {
+    return this.analyzeFileWithFormat(
+      fileContent,
+      analysisPrompt,
+      'html',
+      options,
+    );
+  }
+
+  async analyzeFileAsStructured(
+    fileContent: FileContent,
+    analysisPrompt: string,
+    options?: Partial<GptAnalysisRequest>,
+  ): Promise<GptAnalysisResponse> {
+    return this.analyzeFileWithFormat(
+      fileContent,
+      analysisPrompt,
+      'structured',
+      options,
+    );
+  }
+
+  private async analyzeFileWithFormat(
+    fileContent: FileContent,
+    analysisPrompt: string,
+    format: 'text' | 'html' | 'structured',
+    options?: Partial<GptAnalysisRequest>,
+  ): Promise<GptAnalysisResponse> {
     try {
       this.logger.info('Starting file analysis with GPT', {
         prompt: analysisPrompt,
-        model: options?.model || this.config.defaultModel,
+        model: options?.model || this.config.defaults.model,
         file: fileContent?.file,
+        format,
       });
 
       //const { file, type } = fileContent;
@@ -203,23 +260,65 @@ export class GptService {
           },
         },
       ];
+
+      // Add format-specific instructions to the system prompt
+      let formatInstructions = '';
+      if (format === 'html') {
+        formatInstructions =
+          '\n\nIMPORTANT: Please format your response as clean, professional HTML. Use appropriate HTML tags like <h1>, <h2>, <h3> for headers, <p> for paragraphs, <ul> and <li> for lists, <strong> for emphasis, and <br> for line breaks. Make it look professional and well-structured.';
+      } else if (format === 'structured') {
+        formatInstructions = `
+IMPORTANT: Please provide your analysis in the following JSON format:
+
+{
+  "title": "Document Analysis Report",
+  "summary": "Brief executive summary of the document",
+  "keyFindings": [
+    "Finding 1",
+    "Finding 2",
+    "Finding 3"
+  ],
+  "sections": [
+    {
+      "title": "Section Title",
+      "content": "Detailed content for this section",
+      "keyPoints": [
+        "Key point 1",
+        "Key point 2"
+      ]
+    }
+  ],
+  "recommendations": [
+    "Recommendation 1",
+    "Recommendation 2"
+  ]
+}
+
+Ensure the response is valid JSON and includes all required fields.`;
+      } else {
+        formatInstructions =
+          '\n\nPlease provide your analysis in plain text format.';
+      }
+
+      const systemPrompt = analysisPrompt + formatInstructions;
+
       const params: ChatCompletionCreateParamsNonStreaming = {
-        model: options?.model || this.config.defaultModel,
+        model: options?.model || this.config.defaults.model,
         messages: [
           {
             role: 'system',
-            content: analysisPrompt,
+            content: systemPrompt,
           },
           {
             role: 'user',
             content: content,
           },
         ],
-        max_tokens: options?.maxTokens || this.config.defaultMaxTokens,
-        temperature: options?.temperature || this.config.defaultTemperature,
+        max_tokens: options?.maxTokens || this.config.defaults.maxTokens,
+        temperature: options?.temperature || this.config.defaults.temperature,
       };
       const requestOptions: RequestOptions = {
-        timeout: 10000,
+        timeout: 60000, // Increased to 60 seconds for HTML analysis
       };
 
       const completion = await this.openai.chat.completions.create(
@@ -236,6 +335,7 @@ export class GptService {
       this.logger.info('File analysis completed successfully', {
         responseLength: response.length,
         usage: completion.usage,
+        format,
       });
 
       return {
@@ -246,6 +346,7 @@ export class GptService {
     } catch (error) {
       this.logger.error('File analysis failed', error as Error, {
         prompt: analysisPrompt,
+        format,
       });
 
       return {
@@ -275,17 +376,17 @@ export class GptService {
     try {
       this.logger.info('Starting GPT analysis', {
         contentLength: request.content.length,
-        model: request.model || this.config.defaultModel,
+        model: request.model || this.config.defaults.model,
         context: request.context ? 'provided' : 'none',
       });
 
       const messages = this.buildMessages(request);
 
       const completion = await this.openai.chat.completions.create({
-        model: request.model || this.config.defaultModel,
+        model: request.model || this.config.defaults.model,
         messages,
-        max_tokens: request.maxTokens || this.config.defaultMaxTokens,
-        temperature: request.temperature || this.config.defaultTemperature,
+        max_tokens: request.maxTokens || this.config.defaults.maxTokens,
+        temperature: request.temperature || this.config.defaults.temperature,
       });
 
       const response = completion.choices[0]?.message?.content;
@@ -307,7 +408,7 @@ export class GptService {
     } catch (error) {
       this.logger.error('GPT analysis failed', error as Error, {
         contentLength: request.content.length,
-        model: request.model || this.config.defaultModel,
+        model: request.model || this.config.defaults.model,
       });
 
       return {

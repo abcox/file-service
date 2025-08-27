@@ -9,6 +9,8 @@ import { LoggerService } from '../logger/logger.service';
 import { StorageModule } from '../storage/storage.module';
 import { ConfigModule } from '../config/config.module';
 import { PdfModule } from '../pdf/pdf.module';
+import { UserModule } from '../user/user.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -16,8 +18,10 @@ import { PdfModule } from '../pdf/pdf.module';
     ConfigModule,
     StorageModule,
     FileModule,
+    UserModule,
     GptModule,
     PdfModule,
+    AuthModule,
   ],
   controllers: [WorkflowController],
   providers: [FileWorkflowService, LoggerService],

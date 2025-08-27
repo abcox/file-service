@@ -5,6 +5,8 @@ import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { LoggerService } from './module/logger/logger.service';
 import { Request, Response, NextFunction } from 'express';
 import { AppConfigService } from './module/config/config.service';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
   console.log('Starting application...');
@@ -12,7 +14,23 @@ async function bootstrap() {
   const { PORT = '8080' } = process.env;
   console.log(`PORT: ${PORT}`);
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Increase global timeout for long-running operations
+    bodyParser: true,
+  });
+
+  // Serve static files from assets directory
+  app.useStaticAssets(join(__dirname, '..', 'assets'), {
+    prefix: '/assets/',
+  });
+
+  // Set global timeout for requests (5 minutes)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    req.setTimeout(300000); // 5 minutes
+    res.setTimeout(300000); // 5 minutes
+    next();
+  });
+
   console.log('Application created.');
 
   const configSvc = app.get(AppConfigService);

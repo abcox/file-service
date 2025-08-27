@@ -1,0 +1,39 @@
+{
+  "title": "Document Analysis Report",
+  "summary": "This document is an IT Services Agreement between SOA Group Inc. and Vorba Corp. outlining the terms for IT consulting services provided to the Ontario Treasury Board Secretariat.",
+  "keyFindings": [
+    "The agreement specifies the scope of services, payment terms, and conditions for termination.",
+    "VORBA is required to adhere to confidentiality and non-competition clauses.",
+    "The agreement includes provisions for quality of services and liability limitations."
+  ],
+  "sections": [
+    {
+      "title": "Services and Payment",
+      "content": "VORBA will provide IT consulting services at a rate of CAD $90 per hour, with specific conditions for overtime and payment schedules.",
+      "keyPoints": [
+        "Services are to be documented by the Client's requisition.",
+        "Payments are due on the 23rd of the following month after timesheet approval."
+      ]
+    },
+    {
+      "title": "Termination and Overpayment",
+      "content": "The agreement can be terminated with two weeks' notice or immediately under certain conditions. Overpayments must be repaid upon demand.",
+      "keyPoints": [
+        "Termination can occur with notice or due to unavoidable causes.",
+        "Any overpayment exceeding $176,175 is to be repaid immediately."
+      ]
+    },
+    {
+      "title": "Confidentiality and Non-Competition",
+      "content": "VORBA agrees to confidentiality and will not accept work from the Client without SOA's consent for 12 months post-agreement.",
+      "keyPoints": [
+        "VORBA must return all Client information upon completion or termination.",
+        "Non-competition clause restricts VORBA from soliciting the Client directly."
+      ]
+    }
+  ],
+  "recommendations": [
+    "Ensure all parties are aware of the payment and termination terms to avoid disputes.",
+    "Regularly review compliance with confidentiality and non-competition clauses."
+  ]
+}
