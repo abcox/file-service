@@ -67,50 +67,32 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           
-      - name: Get Key Vault secrets
-        id: secrets
-        run: |
-          # Get storage connection string
-          echo "storage_connection_string=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureStorageConnectionString --query "value" --output tsv)" >> $GITHUB_OUTPUT
-          
-          # Get Azure AD credentials
-          echo "azure_client_id=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureClientId --query "value" --output tsv)" >> $GITHUB_OUTPUT
-          echo "azure_client_secret=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureClientSecret --query "value" --output tsv)" >> $GITHUB_OUTPUT
-          echo "azure_tenant_id=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureTenantId --query "value" --output tsv)" >> $GITHUB_OUTPUT
-          echo "azure_key_vault_url=$(az keyvault secret show --vault-name vorba-file-service-kv --name AzureKeyVaultUrl --query "value" --output tsv)" >> $GITHUB_OUTPUT
-          
       - name: Deploy to Azure Container Instances
         run: |
           # Check if ACI exists
           ACI_EXISTS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output json 2>/dev/null | jq -r '.name // empty')
           
-                     if [ -n "$ACI_EXISTS" ]; then
-             echo "Updating existing ACI instance..."
-             az container create \
-               --resource-group ${{ env.RESOURCE_GROUP }} \
-               --name ${{ env.ACI_NAME }} \
-               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-               --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
-               --registry-username ${{ steps.acr-credentials.outputs.username }} \
-               --registry-password ${{ steps.acr-credentials.outputs.password }} \
-               --dns-name-label ${{ env.ACI_NAME }} \
-               --os-type Linux \
-               --ports 3000 \
-               --cpu 2 \
-               --memory 4 \
-               --restart-policy Always \
-               --environment-variables \
-                 NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
-                 PORT=3000 \
-                 AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
-                 AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
-                 AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
-                 AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
-                 AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
-                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-               --secure-environment-variables \
-                 AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
-               --output none
+          if [ -n "$ACI_EXISTS" ]; then
+            echo "Updating existing ACI instance..."
+            az container create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --name ${{ env.ACI_NAME }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
+              --registry-username ${{ steps.acr-credentials.outputs.username }} \
+              --registry-password ${{ steps.acr-credentials.outputs.password }} \
+              --dns-name-label ${{ env.ACI_NAME }} \
+              --os-type Linux \
+              --ports 3000 \
+              --cpu 2 \
+              --memory 4 \
+              --restart-policy Always \
+              --assign-identity [system] \
+              --environment-variables \
+                NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
+                PORT=3000 \
+                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+              --output none
           else
             echo "Creating new ACI instance..."
             az container create \
@@ -126,19 +108,56 @@ jobs:
               --cpu 2 \
               --memory 4 \
               --restart-policy Always \
+              --assign-identity [system] \
               --environment-variables \
-                NODE_ENV=${{ github.event.inputs.environment || 'development' }} \
+                NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
                 PORT=3000 \
-                AZURE_STORAGE_CONNECTION_STRING="${{ steps.secrets.outputs.storage_connection_string }}" \
-                AZURE_STORAGE_CONTAINER_NAME=file-service-uploads \
-                AZURE_KEY_VAULT_URL="${{ steps.secrets.outputs.azure_key_vault_url }}" \
-                AZURE_CLIENT_ID="${{ steps.secrets.outputs.azure_client_id }}" \
-                AZURE_TENANT_ID="${{ steps.secrets.outputs.azure_tenant_id }}" \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-              --secure-environment-variables \
-                AZURE_CLIENT_SECRET="${{ steps.secrets.outputs.azure_client_secret }}" \
               --output none
           fi
+          
+      - name: Grant Key Vault Access
+        run: |
+          echo "Granting Key Vault access to ACI managed identity..."
+          
+          # Get ACI principal ID
+          ACI_PRINCIPAL_ID=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" --output tsv)
+          
+          if [ -z "$ACI_PRINCIPAL_ID" ]; then
+            echo "❌ Could not get principal ID for ACI managed identity"
+            exit 1
+          fi
+          
+          echo "ACI Principal ID: $ACI_PRINCIPAL_ID"
+          
+          # Check Key Vault authorization type
+          KV_RBAC=$(az keyvault show --name vorba-file-service-kv --query "properties.enableRbacAuthorization" --output tsv)
+          
+          if [ "$KV_RBAC" = "true" ]; then
+            echo "Key Vault uses RBAC authorization. Checking for existing role assignment..."
+            
+            # Get scope
+            SUBSCRIPTION_ID=$(az account show --query id --output tsv)
+            RESOURCE_GROUP=$(az keyvault show --name vorba-file-service-kv --query resourceGroup --output tsv)
+            SCOPE="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/vorba-file-service-kv"
+            
+            # Check for existing role assignment
+            EXISTING_ROLE=$(az role assignment list --assignee $ACI_PRINCIPAL_ID --scope $SCOPE --query "[?roleDefinitionName=='Key Vault Secrets User']" --output json)
+            
+            if [ "$EXISTING_ROLE" = "[]" ]; then
+              echo "Assigning Key Vault Secrets User role..."
+              az role assignment create --assignee $ACI_PRINCIPAL_ID --role "Key Vault Secrets User" --scope $SCOPE
+              echo "✅ Key Vault RBAC access granted"
+            else
+              echo "✅ Key Vault Secrets User role already assigned"
+            fi
+          else
+            echo "Key Vault uses policy-based authorization. Setting access policy..."
+            az keyvault set-policy --name vorba-file-service-kv --object-id $ACI_PRINCIPAL_ID --secret-permissions get list
+            echo "✅ Key Vault policy access granted"
+          fi
+          
+      
           
       - name: Wait for ACI to be ready
         run: |
@@ -172,11 +191,11 @@ jobs:
             exit 1
           fi
           
-                   - name: Show ACI logs
-               if: always()
-               run: |
-                 echo "📋 Recent ACI logs:"
-                 az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}
+      - name: Show ACI logs
+        if: always()
+        run: |
+           echo "📋 Recent ACI logs:"
+           az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}
           
       - name: Post deployment info
         if: success()
@@ -187,9 +206,10 @@ jobs:
           echo "- **ACI Name**: ${{ env.ACI_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: http://$FQDN:3000" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: ${{ github.event.inputs.environment || 'development' }}" >> $GITHUB_STEP_SUMMARY
+                           echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
-          echo "- ACI has no free tier - you pay per second of runtime" >> $GITHUB_STEP_SUMMARY
-          echo "- Remember to stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Use \`az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\` to view logs" >> $GITHUB_STEP_SUMMARY
+                           echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
+                 echo "- ACI has no free tier - you pay per second of runtime" >> $GITHUB_STEP_SUMMARY
+                 echo "- ACI uses managed identity for Key Vault access (no secrets in environment variables)" >> $GITHUB_STEP_SUMMARY
+                 echo "- Remember to stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
+                 echo "- Use \`az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\` to view logs" >> $GITHUB_STEP_SUMMARY
