@@ -142,8 +142,8 @@ jobs:
           
       - name: Wait for ACI to be ready
         run: |
-          echo "Waiting for ACI to be ready..."
-          az container wait --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --created
+           echo "Waiting for ACI to be ready..."
+           sleep 30  # Give ACI time to provision
           
       - name: Get ACI status
         run: |
