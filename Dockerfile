@@ -72,8 +72,15 @@ RUN npm ci --only=production && npm cache clean --force
 COPY --from=builder --chown=nestjs:nestjs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nestjs /app/node_modules/playwright ./node_modules/playwright
 
+# Copy config files for production
+COPY --from=builder --chown=nestjs:nestjs /app/src/config/config.json ./dist/config.json
+
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R nestjs:nestjs /app/logs
+
+# Set production environment variables
+ENV NODE_ENV=production
+ENV PORT=3000
 
 # Switch to non-root user
 USER nestjs
