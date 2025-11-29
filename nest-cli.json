@@ -8,6 +8,10 @@
       {
         "include": "assets/**/*",
         "watchAssets": true
+      },
+      {
+        "include": "config/**/*",
+        "watchAssets": true
       }
     ]
   }

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/config';
 import { AppConfigService } from './config.service';
 import { KeyVaultService } from './keyvault.service';
+import { ConfigDebugService } from './config-debug.service';
 import { LoggingModule } from '../logger/logging.module';
 import { LoggerService } from '../logger/logger.service';
 
@@ -23,7 +24,6 @@ import { LoggerService } from '../logger/logger.service';
         keyVaultService: KeyVaultService,
         logger: LoggerService,
       ) => {
-        console.log('Initializing AppConfigService...');
         const config = await AppConfigService.init(logger);
         const configService = new AppConfigService(
           nestConfigService,
@@ -41,7 +41,8 @@ import { LoggerService } from '../logger/logger.service';
       inject: [NestConfigService, KeyVaultService, LoggerService],
     },
     KeyVaultService,
+    ConfigDebugService,
   ],
-  exports: [AppConfigService, KeyVaultService],
+  exports: [AppConfigService, KeyVaultService, ConfigDebugService],
 })
 export class ConfigModule {}

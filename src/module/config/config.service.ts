@@ -12,6 +12,12 @@ export class AppConfigService {
 
   // Static initializer for pre-bootstrap config loading
   static async init(logger: LoggerService): Promise<AppConfig> {
+    logger.info('🚀 Starting AppConfigService initialization...', {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      cwd: process.cwd(),
+    });
+
     // 1. Load base configuration from JSON files
     const environment = process.env.NODE_ENV || 'development';
     const configPath = path.join(
@@ -19,8 +25,28 @@ export class AppConfigService {
       environment === 'development' ? 'src/config' : 'dist',
       `config.json`,
     );
+
+    logger.info('📁 Config file path resolution', {
+      environment,
+      configPath,
+      cwd: process.cwd(),
+    });
+
     if (!fs.existsSync(configPath)) {
-      logger.error(`Configuration file not found: '${configPath}`);
+      logger.error(`❌ Configuration file not found: '${configPath}'`);
+
+      // Enhanced error message with troubleshooting hints
+      const troubleshootingHints = [
+        `Expected path: ${configPath}`,
+        `Current working directory: ${process.cwd()}`,
+        `Environment: ${environment}`,
+        `Check if config file exists in the correct location`,
+        `For production, ensure config is copied to dist/config.json`,
+      ];
+
+      logger.info('🔧 Troubleshooting hints:', {
+        hints: troubleshootingHints,
+      });
       throw new Error(`Configuration file not found: ${configPath}`);
     }
     logger.info('configPath', {
@@ -66,15 +92,47 @@ export class AppConfigService {
         });
       }
     } catch (err) {
-      logger.error('Failed to load secrets from Key Vault', err as Error);
+      logger.error('❌ Failed to load secrets from Key Vault', err as Error);
+
+      // Enhanced error diagnostics
+      const errorDetails = {
+        environment,
+        keyVaultUrl,
+        errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        errorStack: err instanceof Error ? err.stack : undefined,
+        hasAzureCredentials: !!(
+          process.env.AZURE_CLIENT_ID &&
+          process.env.AZURE_TENANT_ID &&
+          process.env.AZURE_CLIENT_SECRET
+        ),
+        isContainer: fs.existsSync('/.dockerenv'),
+        hasManagedIdentity:
+          fs.existsSync('/proc/1/cgroup') &&
+          fs.readFileSync('/proc/1/cgroup', 'utf8').includes('azure'),
+      };
+
+      logger.info('🔍 Key Vault Error Diagnostics', errorDetails);
+
       // In production, Key Vault failure should be fatal
       if (environment === 'production') {
+        const troubleshootingSteps = [
+          'Check if Managed Identity is properly configured',
+          'Verify role assignments for Key Vault access',
+          'Ensure Key Vault URL is correct',
+          'Check network connectivity to Key Vault',
+          'Verify Key Vault secrets exist and are accessible',
+        ];
+
+        logger.info('🔧 Production Key Vault Troubleshooting Steps', {
+          steps: troubleshootingSteps,
+        });
         throw new Error(
           `Key Vault configuration failed: ${err instanceof Error ? err.message : 'Unknown error'}`,
         );
       }
+
       logger.warn(
-        'Continuing with environment variables due to Key Vault failure',
+        '⚠️ Continuing with environment variables due to Key Vault failure (development mode)',
       );
     }
 

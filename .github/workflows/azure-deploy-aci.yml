@@ -92,6 +92,7 @@ jobs:
                 NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
                 PORT=3000 \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+                DEBUG_STARTUP=true \
               --output none
           else
             echo "Creating new ACI instance..."
@@ -113,6 +114,7 @@ jobs:
                 NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
                 PORT=3000 \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+                DEBUG_STARTUP=true \
               --output none
           fi
           
@@ -189,6 +191,17 @@ jobs:
         run: |
            echo "📋 Recent ACI logs:"
            az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}
+           
+           echo ""
+           echo "🔍 Waiting for debug diagnostics to complete..."
+           sleep 60  # Wait for debug diagnostics to run
+           
+           echo "📊 Debug Diagnostics Output:"
+           az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --tail 100
+           
+           echo ""
+           echo "🔧 Container Status:"
+           az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "{state:containers[0].instanceView.state,restartCount:containers[0].instanceView.restartCount,detailStatus:containers[0].instanceView.detailStatus}" --output table
           
       - name: Post deployment info
         if: success()
