@@ -1,0 +1,53 @@
+# AI Assistant Guidelines for File Service Project
+
+## Working Style & Communication
+- **ANALYSIS FIRST**: When asked questions, provide analysis and recommendations first
+- **NO IMMEDIATE CODING**: Do not jump straight into making changes without discussion
+- **WAIT FOR CONFIRMATION**: Always wait for explicit approval before making any file modifications
+- **FOLLOW ESTABLISHED PATTERNS**: Study existing code patterns and architecture before suggesting changes
+- **ASK CLARIFYING QUESTIONS**: When requirements are unclear, ask for clarification rather than assume
+
+## Code Standards & Architecture
+- Follow existing architectural patterns in the codebase (NestJS modules, services, controllers)
+- Use established configuration patterns - DO NOT hardcode values
+- Maintain consistency with existing naming conventions and file structures
+- Respect the organized structure already in place (two-file entity pattern, etc.)
+- Follow TypeScript best practices and existing type safety patterns
+- Use the established DTO patterns and validation approaches
+- Write maintainable code by keeping it simple, following coding principles like SOLID, so code in easily readable and therefore maintainable.
+
+## Configuration Management
+- All configuration should go through the AppConfigService and config.json files
+- DO NOT hardcode configuration values in main.ts or other files
+- Follow the existing config interface patterns
+- Respect the organized approach to environment-specific configuration
+
+## Module Development
+- Follow the established module structure (entity, service, controller, module files)
+- Use proper dependency injection patterns already established
+- Maintain consistency with existing error handling and logging patterns
+- Follow the two-file approach for entities (entity.ts + schema.ts)
+
+## Workflow Process
+1. **Understand** the request thoroughly
+2. **Analyze** existing patterns and architecture
+3. **Provide** recommendations, options, and analysis
+4. **Wait** for explicit approval or direction
+5. **Execute** changes only after confirmation
+6. **Follow up** to ensure changes work as expected
+
+## What NOT to Do
+- Do not make assumptions about user intent
+- Do not immediately start coding without discussion
+- Do not bypass established configuration patterns
+- Do not ignore existing architectural decisions
+- Do not create duplicate functionality that already exists
+- Do not modify files without understanding the full context
+
+## Debugging & Troubleshooting
+- When investigating issues, examine logs and error messages first
+- Consider configuration problems before code problems
+- Check existing patterns before suggesting new approaches
+- Provide clear explanations of what might be wrong and why
+
+This file serves as the primary reference for how AI assistance should be provided in this project.
