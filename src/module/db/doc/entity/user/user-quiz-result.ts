@@ -1,4 +1,4 @@
-import { BaseDocument } from '../base-document';
+import { BaseEntity } from '../base.entity';
 
 /**
  * UserQuizResult Data Structure Example:
@@ -116,7 +116,7 @@ export interface QuizMetadata {
 
 export type QuizStatus = 'in_progress' | 'completed' | 'abandoned';
 
-export interface UserQuizResult extends BaseDocument {
+export interface UserQuizResult extends BaseEntity {
   userId: string;
   quizId: string;
   quizTitle: string;
@@ -144,7 +144,7 @@ export interface UserQuizActionMetadata {
   ipAddress?: string;
 }
 
-export interface UserQuizAction extends BaseDocument {
+export interface UserQuizAction extends BaseEntity {
   userId: string;
   quizId: string;
   sessionId: string;

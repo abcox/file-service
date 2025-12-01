@@ -7,7 +7,7 @@ import { AuthModule } from '../auth/auth.module';
 import { ConfigModule } from '../config/config.module';
 import { FileDbService } from '../../database/service/file-db.service';
 import { DatabaseModule } from '../../database/database.module';
-import { FileController } from '../file/file.controller';
+import { FileController } from './file.controller';
 
 @Module({
   imports: [

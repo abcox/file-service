@@ -15,6 +15,8 @@ import { QuizModule } from '../quiz/quiz.module';
 import { UserQuizResultModule } from '../user-quiz-result/user-quiz-result.module';
 import { ConfigController } from '../config/config.controller';
 import { PdfModule } from '../pdf/pdf.module';
+import { ContactModule } from '../contact/contact.module';
+import { AssetModule } from '../asset/asset.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { PdfModule } from '../pdf/pdf.module';
     QuizModule,
     UserQuizResultModule,
     PdfModule,
+    ContactModule,
+    AssetModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],
