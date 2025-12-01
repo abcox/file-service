@@ -7,6 +7,8 @@ import { Request, Response, NextFunction } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { ConfigDebugService } from './module/config/config-debug.service';
+import { AppConfigService } from './module/config/config.service';
+import { AppConfig } from './module/config/config.interface';
 
 async function bootstrap() {
   console.log('Starting application...');
@@ -52,6 +54,34 @@ async function bootstrap() {
       res.setTimeout(300000); // 5 minutes
       next();
     });
+
+    console.log('Application created.');
+
+    const configSvc = app.get(AppConfigService);
+    console.log('Config service:', configSvc);
+    const config: AppConfig = configSvc.getConfig();
+    console.log('Config:', config);
+    if (!config) {
+      throw new Error('Api configuration not found');
+    }
+    const { api: apiCfg } = config;
+
+    /* app.enableCors({
+      origin: '*', // TODO: add to environment variable like allowedOrigins: ['http://localhost:4200', 'http://localhost:3000']
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }); */
+    if (!apiCfg) {
+      console.log('Api configuration not found');
+    } else {
+      if (apiCfg.cors.enabled) {
+        app.enableCors(apiCfg.cors);
+      } else {
+        console.warn('CORS is disabled');
+      }
+      app.setGlobalPrefix(apiCfg.path);
+      console.log(`Global prefix set to: ${apiCfg.path}`);
+    }
 
     // Get the logger service from the app
     const logger = app.get(LoggerService);
