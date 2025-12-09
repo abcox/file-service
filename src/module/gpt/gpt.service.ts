@@ -151,7 +151,8 @@ export class GptService {
       });
 
       // Create a File object from Buffer for OpenAI SDK
-      const fileBlob = new Blob([fileBuffer], {
+      const blobPart = new Uint8Array(fileBuffer);
+      const fileBlob = new Blob([blobPart], {
         type: 'application/octet-stream',
       });
       const file = new File([fileBlob], filename, {
