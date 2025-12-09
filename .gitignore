@@ -55,7 +55,7 @@ azurite/
 uploads/
 
 # JWT secrets and tokens (keep out of git!)
-scripts/auth/token/*
+scripts/auth/app/token/*
 
 # Runtime data
 pids
@@ -65,3 +65,6 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Gmail auth tokens
+src/assets/gmail/auth/*
