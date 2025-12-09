@@ -72,8 +72,8 @@ export interface GmailApis {
 }
 
 @Injectable()
-export class GmailSenderService {
-  private readonly logger = new Logger(GmailSenderService.name);
+export class GmailService {
+  private readonly logger = new Logger(GmailService.name);
   private oAuth2Client: OAuth2Client | null = null;
   private serviceAuth: Auth.GoogleAuth | null = null;
   private config: GmailApisEmailOptions | undefined;

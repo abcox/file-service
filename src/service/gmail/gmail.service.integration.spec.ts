@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-import { GmailSenderService } from './gmail.service';
+import { GmailService } from './gmail.service';
 import { AppConfigService } from '../../module/config/config.service';
 
 describe('Gmail Integration Tests (Real Email)', () => {
-  let service: GmailSenderService;
+  let service: GmailService;
   let module: TestingModule;
 
   beforeAll(async () => {
     module = await Test.createTestingModule({
       providers: [
-        GmailSenderService,
+        GmailService,
         {
           provide: AppConfigService,
           useValue: {
@@ -44,7 +44,7 @@ describe('Gmail Integration Tests (Real Email)', () => {
       ],
     }).compile();
 
-    service = module.get<GmailSenderService>(GmailSenderService);
+    service = module.get<GmailService>(GmailService);
   });
 
   afterAll(async () => {
@@ -79,7 +79,7 @@ describe('Gmail Integration Tests (Real Email)', () => {
         
         Test Details:
         - Timestamp: ${timestamp}
-        - Service: GmailSenderService
+        - Service: GmailService
         - Method: sendSimpleEmail()
         
         If you received this email, your Gmail integration is working correctly! ✅
@@ -120,7 +120,7 @@ describe('Gmail Integration Tests (Real Email)', () => {
                 <h3>Test Details:</h3>
                 <ul>
                   <li><strong>Timestamp:</strong> ${timestamp}</li>
-                  <li><strong>Service:</strong> GmailSenderService</li>
+                  <li><strong>Service:</strong> GmailService</li>
                   <li><strong>Method:</strong> sendSimpleEmail() with HTML</li>
                 </ul>
               </div>

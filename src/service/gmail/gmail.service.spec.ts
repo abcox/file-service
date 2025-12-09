@@ -2,7 +2,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-import { GmailSenderService, MimeMessageRequest } from './gmail.service';
+import { GmailService, MimeMessageRequest } from './gmail.service';
 import { AppConfigService } from '../../module/config/config.service';
 import { google } from 'googleapis';
 import * as fs from 'fs';
@@ -72,8 +72,8 @@ jest.mock('path', () => ({
   }),
 }));
 
-describe('GmailSenderService', () => {
-  let service: GmailSenderService;
+describe('GmailService', () => {
+  let service: GmailService;
   let mockLogger: jest.Mocked<Logger>;
 
   beforeEach(async () => {
@@ -112,7 +112,7 @@ describe('GmailSenderService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        GmailSenderService,
+        GmailService,
         {
           provide: Logger,
           useValue: mockLogger,
@@ -124,7 +124,7 @@ describe('GmailSenderService', () => {
       ],
     }).compile();
 
-    service = module.get<GmailSenderService>(GmailSenderService);
+    service = module.get<GmailService>(GmailService);
     // Reset all mocks
     jest.clearAllMocks();
     ((global as any).mockSendMessage as jest.Mock).mockResolvedValue({
