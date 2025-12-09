@@ -1,0 +1,34 @@
+{
+  "claims": {
+    "sub": "vorba-file-service-api",
+    "iss": "vorba.com",
+    "aud": "file-service-api",
+    "iat": 1751411357,
+    "exp": 1782947357,
+    "type": "api-access",
+    "id": "1",
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "roles": [
+      "admin"
+    ],
+    "permissions": [
+      "read",
+      "write",
+      "delete"
+    ],
+    "scopes": [
+      "files.read",
+      "files.write",
+      "files.delete"
+    ],
+    "groups": [
+      "admin",
+      "user"
+    ],
+    "description": "Test admin user"
+  },
+  "secret": "10d7bc8161427cfa07dc9bb1f5fd1af5474802be72ac03328d5fc174d60573cfe73ab7fb2349c631def27b9924cc491d55dddbce59d16576500ac0ca07e3514d",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0b2tlbiIsImlzcyI6InZvcmJhLmNvbSIsImF1ZCI6ImZpbGUtc2VydmljZS1hcGkiLCJpYXQiOjE3NTE2NDM2NTgsImV4cCI6MTc4Mjk0NzM1NywidHlwZSI6ImFwaS1hY2Nlc3MiLCJpZCI6IjMiLCJuYW1lIjoiSm9obiBEb2UiLCJlbWFpbCI6ImpvaG4uZG9lQGV4YW1wbGUuY29tIiwicm9sZXMiOlsiYWRtaW4iXSwicGVybWlzc2lvbnMiOlsicmVhZCIsIndyaXRlIiwiZGVsZXRlIl0sInNjb3BlcyI6WyJmaWxlcy5yZWFkIiwiZmlsZXMud3JpdGUiLCJmaWxlcy5kZWxldGUiXSwiZ3JvdXBzIjpbImFkbWluIiwidXNlciJdLCJkZXNjcmlwdGlvbiI6IlRlc3QgYWRtaW4gdXNlciJ9.4Cck9RPGPl4AiwPiQHLbwAwAgEHvWDwpwu4jeViq6rM",
+  "generatedAt": "2025-07-04T15:40:58.081Z"
+}

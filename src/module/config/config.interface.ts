@@ -1,3 +1,4 @@
+import { GmailApis } from '../../service/gmail/gmail.service';
 import { GptConfig } from '../gpt/gpt.service';
 
 export interface AppConfig {
@@ -68,6 +69,7 @@ export interface AppConfig {
   environment: 'development' | 'production';
   keyVault?: { vaultUrl: string };
   gptConfig?: GptConfig;
+  gmailApis?: GmailApis;
   storage: {
     type: 'local' | 'azure' | 'emulator';
     local: { subfolderPath: string };

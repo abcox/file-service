@@ -67,6 +67,20 @@
       "topP": 1
     }
   },
+  "gmailApis": {
+    "email": {
+      "scopes": [
+        "https://www.googleapis.com/auth/gmail.send",
+        "https://www.googleapis.com/auth/gmail.compose",
+        "https://www.googleapis.com/auth/gmail.modify",
+        "https://www.googleapis.com/auth/gmail.readonly"
+      ],
+      "serviceAccountJsonKeyFilePathname":
+        "./src/assets/gmail/auth/constantcontact2-1034-d1a0ae8c30a2.json",
+      "userEmail": "adam.cox@vorba.com",
+      "senderName": "Adam Cox (Vorba)"
+    }
+  },
   "storage": {
     "type": "emulator",
     "local": {

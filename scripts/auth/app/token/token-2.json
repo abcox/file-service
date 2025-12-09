@@ -1,0 +1,14 @@
+{
+  "config": {
+    "secret": "57584e782960965f4386fff40acc891d1a6096a3e13dd983af37a8fb6a0d11050e5bf1a93b96cd85e4c8ad33828ec7c7c2d2f19e4fd77efa97aa82d6669dc1f6",
+    "subject": "vorba-file-service-api",
+    "issuer": "vorba.com",
+    "audience": "file-service-api",
+    "expiresIn": 31536000,
+    "tokenType": "api-access",
+    "generatedAt": "2025-07-02T17:41:38.254Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ2b3JiYS1maWxlLXNlcnZpY2UtYXBpIiwiaXNzIjoidm9yYmEuY29tIiwiYXVkIjoiZmlsZS1zZXJ2aWNlLWFwaSIsImlhdCI6MTc1MTQ3ODA5OCwiZXhwIjoxNzgzMDE0MDk4LCJ0eXBlIjoiYXBpLWFjY2VzcyJ9._8P60ln92zIqIi_IbzxDUZSWBGrQOW3I_shSSf-7_dQ",
+  "generatedAt": "2025-07-02T17:41:38.254Z",
+  "fileIndex": 2
+}
