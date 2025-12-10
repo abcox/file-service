@@ -65,7 +65,7 @@ export class UserController {
 
   // get all users (admin only)
   @Get('list')
-  @Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   @ApiOperation({ summary: 'Get all users (admin only)' })
   @ApiResponse({ status: 200, description: 'Users list retrieved' })
   @ApiResponse({

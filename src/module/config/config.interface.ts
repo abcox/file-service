@@ -1,4 +1,4 @@
-import { GmailApis } from '../../service/gmail/gmail.service';
+import { GmailApis } from '../gmail/gmail.service';
 import { GptConfig } from '../gpt/gpt.service';
 
 export interface AppConfig {

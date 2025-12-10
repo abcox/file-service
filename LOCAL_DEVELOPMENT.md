@@ -1,5 +1,74 @@
 # Local Development Setup
 
+## CosmosDB Local Development (MongoDB API)
+
+### Azure Cosmos DB Emulator Setup
+
+**Start the Emulator:**
+```bash
+# Use the project script (recommended)
+npm run start-cosmos-emulator
+
+# This runs: "C:\Program Files\Azure Cosmos DB Emulator\Microsoft.Azure.Cosmos.Emulator.exe" 
+# with /EnableMongoDbEndpoint=4.2 and custom data path
+```
+
+**Connection Details:**
+- MongoDB Connection: `mongodb://localhost:27017`
+- Database Name: `vorba-file-service-db` (auto-created from config.json)
+- Web Interface: `https://localhost:8081/_explorer/` (NoSQL API - limited for MongoDB data)
+
+### Database Inspection Tools
+
+**Option 1: MongoDB Compass (Recommended)**
+1. Download [MongoDB Compass](https://www.mongodb.com/products/compass) (free)
+2. Connect using: `mongodb://localhost:27017`
+3. Navigate to database: `vorba-file-service-db`
+4. View collections: `contact-collection`, `asset-collection`, etc.
+
+**Option 2: VS Code Extensions**
+- Install "MongoDB for VS Code" extension
+- Add connection: `mongodb://localhost:27017`
+- Browse databases and collections in VS Code sidebar
+
+**Option 3: Command Line (mongosh)**
+```bash
+# Connect to local instance
+mongosh mongodb://localhost:27017
+
+# Switch to your database
+use vorba-file-service-db
+
+# List collections
+show collections
+
+# View documents in a collection
+db.contacts.find().pretty()
+db.assets.find().pretty()
+```
+
+### Important Notes
+
+- **CosmosDB uses MongoDB API**: Your app connects via MongoDB protocol, but data is stored in CosmosDB
+- **NoSQL Web Interface Limitation**: The web interface at `https://localhost:8081/_explorer/` uses NoSQL API and won't show MongoDB API data
+- **Use MongoDB Tools**: Always use MongoDB-compatible tools (Compass, mongosh, MongoDB VS Code extension) to inspect data
+- **Data Location**: Emulator data stored in `%LOCALAPPDATA%\CosmosDBEmulatorForMongo`
+
+### Troubleshooting CosmosDB Emulator
+
+**Multiple Restart Attempts Error:**
+1. Stop all processes: `taskkill /f /im "Microsoft.Azure.Cosmos.Emulator.exe"`
+2. Delete data directory: `%LOCALAPPDATA%\CosmosDBEmulatorForMongo`
+3. Restart using: `npm run start-cosmos-emulator`
+
+**Certificate Issues (Web Interface):**
+- Accept the self-signed certificate when accessing `https://localhost:8081/_explorer/`
+- This is normal for the local emulator
+
+**Empty Database in Compass:**
+- Database and collections are created when your app first inserts data
+- Start your NestJS app (`npm run start:dev`) and make API calls to populate data
+
 ## SQL Server Local Development Options
 
 ### Option 1: SQL Server Express (Recommended)

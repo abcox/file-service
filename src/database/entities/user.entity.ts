@@ -51,6 +51,12 @@ export class UserEntity {
   @Column({ nullable: true })
   passwordFailedAttempts?: number;
 
+  @Column({ nullable: true })
+  passwordResetFailedAttempts?: number;
+
+  @Column({ nullable: true })
+  passwordResetDueBy?: Date;
+
   // proposed: 2 days lockout
   // proposed: indefinite lockout value: 9999-12-31
   // proposed: lockout reason: user, system, admin

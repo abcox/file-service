@@ -9,9 +9,13 @@ import { UserLoginResponse } from './dto/user-login.response';
 import { IdelSessionConfigDto } from './dto/idle-session-config.dto';
 import { UserRegistrationRequest } from './dto/user-registration.request';
 import { UserRegistrationResponse } from './dto/user-registration.response';
-import { UserDbService } from '../../database/service/user-db.service';
+import {
+  UpdatePasswordResetDataDto,
+  UserDbService,
+} from '../../database/service/user-db.service';
 import { UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { GmailService } from '../gmail/gmail.service';
 
 interface JwtPayload {
   sub: string;
@@ -49,6 +53,7 @@ export class AuthService {
     private logger: LoggerService,
     private configService: AppConfigService,
     private userDb: UserDbService,
+    private emailService: GmailService,
   ) {}
 
   setConfig(config: AppConfig) {
@@ -97,6 +102,20 @@ export class AuthService {
       return {
         success: false,
         message: 'User invalid; contact support',
+        token: '',
+        refreshToken: '',
+        tokenExpiry: 0,
+        sessionDurationSeconds: 0,
+        activityConfig: null,
+        user: null,
+      } as UserLoginResponse;
+    }
+
+    // Check if password reset is required
+    if (user.passwordResetDueBy && user.passwordResetDueBy <= new Date()) {
+      return {
+        success: false,
+        message: 'Password reset required before login',
         token: '',
         refreshToken: '',
         tokenExpiry: 0,
@@ -198,25 +217,114 @@ export class AuthService {
 
   async passwordReset(email: string, token?: string): Promise<string | null> {
     // TODO: implement password reset to send email with link to reset
-    // 1. get user by email
-    // 2. if user does not exist, return error (404), otherwise
-    // 3. if token invalid or expired or not for email, return error (401), otherwise
+    try {
+      // 1. get user by email
+      const user = await this.userDb.getUserByEmail({ email });
+      // 2. if user does not exist, return error (404), otherwise
+      if (!user) {
+        throw new Error('User not found');
+      }
 
-    // 4a  if token not provided:
-    // 4b. generate password reset token that expires in 1 hour
-    // 4c. update db with token
-    // 4d. send email with link to reset password (with token)
-    // 4e. return token
+      // 3. if token invalid or expired or not for email, return error (401), otherwise
+      if (token) {
+        return await this.completePasswordReset(email, token, user);
+      }
+
+      // 4a  if token not provided:
+      // Check reset attempt limits first
+      const resetAttempts = user.passwordResetFailedAttempts || 0;
+      if (resetAttempts >= 3) {
+        const lockoutUntil = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await this.userDb.updateAccountLockedUntil(user.id, lockoutUntil);
+        throw new Error(
+          'Too many reset attempts. Account locked for 24 hours.',
+        );
+      }
+
+      // 4b. generate password reset token that expires in 1 hour
+      const resetToken = crypto.randomUUID();
+      const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);
+      const tempPassword = this.generateTempPassword();
+
+      // 4c. update db with token
+      await this.userDb.updatePasswordResetData(user.id, {
+        passwordResetToken: resetToken,
+        passwordResetTokenExpiresAt: resetExpiry,
+        passwordHash: tempPassword,
+        passwordResetDueBy: new Date(), // force reset on next login
+        passwordResetFailedAttempts: 0,
+      } as UpdatePasswordResetDataDto);
+
+      // 4d. send email with link to reset password (with token)
+      this.logger.log(
+        `Password reset initiated for ${email}. Temp password: ${tempPassword}`,
+      );
+
+      // send password reset email:
+      // TODO:
+      // 1. Make it a mime email with HTML content including
+      // 2. Link button to have user come to endpoint /auth/reset-password?token=xxxx
+      // 3. Include temp password in email body
+      // 4. If you didn't request, then ignore OR report at /auth/report-unauthorized-reset
+      // 5. This password reset link will expire in 1 hour.
+      await this.emailService.sendPasswordResetEmail(
+        email,
+        tempPassword,
+        resetToken,
+      );
+
+      // 4e. return token
+      return resetToken;
+    } catch (error) {
+      this.logger.error('Password reset failed', error as Error);
+      return null;
+    }
+  }
+
+  private async completePasswordReset(
+    email: string,
+    token: string,
+    user: UserEntity,
+  ): Promise<string | null> {
+    // Validate token
+    if (!user.passwordResetToken || user.passwordResetToken !== token) {
+      const failedAttempts = (user.passwordResetFailedAttempts || 0) + 1;
+      await this.userDb.updatePasswordResetFailedAttempts(
+        user.id,
+        failedAttempts,
+      );
+      throw new Error('Invalid reset token');
+    }
+
+    // Check token expiry
+    if (!user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+      throw new Error('Reset token has expired');
+    }
 
     // 5a. if provided token is valid, is for email, and not expired, then
     // 5b. update user password
-    // 5c. return success (login token --> so client can navigate to login page, and user can have "logged in" experience)
+    await this.userDb.updatePasswordResetData(user.id, {
+      passwordResetToken: null,
+      passwordResetTokenExpiresAt: null,
+      passwordResetFailedAttempts: 0,
+      passwordHash: null,
+      passwordResetDueBy: null,
+    } as UpdatePasswordResetDataDto);
 
-    void email;
-    void token;
-    return new Promise((resolve) => {
-      resolve(null);
-    });
+    // 5c. return success (login token --> so client can navigate to login page, and user can have "logged in" experience)
+    const tokenPair = await this.generateTokenPair(user);
+    this.logger.log(`Password reset completed for ${email}`);
+    return tokenPair.accessToken;
+  }
+
+  private generateTempPassword(): string {
+    const charset =
+      'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
   }
 
   async register(

@@ -5,6 +5,14 @@ import { UserEntity } from '../entities/user.entity';
 import { LoggerService } from '../../module/logger/logger.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 
+export interface UpdatePasswordResetDataDto {
+  passwordResetToken: string | null;
+  passwordResetTokenExpiresAt: Date | null;
+  passwordHash: string | null;
+  passwordResetDueBy: Date | null;
+  passwordResetFailedAttempts: number | null;
+}
+
 @Injectable()
 export class UserDbService {
   constructor(
@@ -174,5 +182,33 @@ export class UserDbService {
       updateUserDto,
     );
     return result;
+  }
+
+  async updatePasswordResetData(
+    userId: string,
+    resetData: UpdatePasswordResetDataDto,
+  ): Promise<number> {
+    // Transform null values to undefined for TypeORM compatibility
+    const partialEntity: Partial<UserEntity> = {
+      passwordResetToken: resetData?.passwordResetToken ?? undefined,
+      passwordResetExpires: resetData?.passwordResetTokenExpiresAt ?? undefined,
+      passwordHash: resetData?.passwordHash ?? undefined,
+      passwordResetDueBy: resetData?.passwordResetDueBy ?? undefined,
+      passwordResetFailedAttempts:
+        resetData?.passwordResetFailedAttempts ?? undefined,
+    };
+
+    const result = await this.userRepository.update(userId, partialEntity);
+    return result?.affected ?? 0;
+  }
+
+  async updatePasswordResetFailedAttempts(
+    userId: string,
+    attempts: number,
+  ): Promise<number> {
+    const result = await this.userRepository.update(userId, {
+      passwordResetFailedAttempts: attempts,
+    });
+    return result?.affected ?? 0;
   }
 }

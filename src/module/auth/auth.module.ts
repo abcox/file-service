@@ -10,12 +10,14 @@ import { LoggingModule } from '../logger/logging.module';
 import { LoggerService } from '../logger/logger.service';
 import { UserDbService } from '../../database/service/user-db.service';
 import { DatabaseModule } from '../../database/database.module';
+import { GmailModule } from '../gmail/gmail.module';
 
 @Module({
   imports: [
     ConfigModule,
     LoggingModule,
     DatabaseModule,
+    GmailModule, // Provides GmailService for AuthService
     JwtModule.registerAsync({
       imports: [ConfigModule, LoggingModule],
       useFactory: (configService: AppConfigService, logger: LoggerService) => {
