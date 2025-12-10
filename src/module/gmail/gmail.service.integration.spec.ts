@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { GmailService } from './gmail.service';
-import { AppConfigService } from '../../module/config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 describe('Gmail Integration Tests (Real Email)', () => {
   let service: GmailService;

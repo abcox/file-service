@@ -4,7 +4,7 @@ import { Credentials, OAuth2Client } from 'google-auth-library';
 import * as fs from 'fs';
 import * as path from 'path';
 //import { LoggerService } from '../../module/logger/logger.service';
-import { AppConfigService } from '../../module/config/config.service';
+import { AppConfigService } from '../config/config.service';
 
 export interface GmailCredentials {
   clientId: string;

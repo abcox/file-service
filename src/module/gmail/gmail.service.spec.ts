@@ -3,7 +3,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { GmailService, MimeMessageRequest } from './gmail.service';
-import { AppConfigService } from '../../module/config/config.service';
+import { AppConfigService } from '../config/config.service';
 import { google } from 'googleapis';
 import * as fs from 'fs';
 

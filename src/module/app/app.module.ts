@@ -17,6 +17,7 @@ import { ConfigController } from '../config/config.controller';
 import { PdfModule } from '../pdf/pdf.module';
 import { ContactModule } from '../contact/contact.module';
 import { AssetModule } from '../asset/asset.module';
+import { GmailModule } from '../gmail/gmail.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AssetModule } from '../asset/asset.module';
     PdfModule,
     ContactModule,
     AssetModule,
+    GmailModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { GmailService } from './gmail.service';
-import { ConfigModule } from '../../module/config/config.module';
-import { LoggingModule } from '../../module/logger/logging.module';
+import { GmailController } from './gmail.controller';
+import { ConfigModule } from '../config/config.module';
+import { LoggingModule } from '../logger/logging.module';
 
 @Module({
   imports: [
@@ -9,6 +10,7 @@ import { LoggingModule } from '../../module/logger/logging.module';
     LoggingModule, // Provides Logger
   ],
   providers: [GmailService],
+  controllers: [GmailController],
   exports: [GmailService], // Make GmailService available to other modules
 })
 export class GmailModule {}
