@@ -20,6 +20,7 @@ Write-Host "=========================================" -ForegroundColor Green
 # ACR details
 $acrName = "vorbaacr"
 $acrLoginServer = "vorbaacr.azurecr.io"
+$username = "vorbaacr"
 # Get password from Azure CLI instead of hardcoding
 $password = az acr credential show --name $acrName --query "passwords[0].value" --output tsv
 
