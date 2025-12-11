@@ -40,7 +40,7 @@ export class SendEmailFromTemplateDto {
 
   @ApiProperty({
     description: 'Path to template file relative to assets folder',
-    example: 'content/email-intro.html',
+    example: 'content/email/email-intro.html',
   })
   templatePath: string;
 

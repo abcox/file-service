@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            /* width: 100%; */
+            margin: auto;
+            background: url('https://vorba.com/assets/images/background-blue-1-dark.jpeg') no-repeat center center;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            padding: 40px;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            justify-content: center;
+        }
+        .content-wrapper {
+            max-width: 480px;
+            width: 100%;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .profile-pic {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-left: 64px;
+        }
+        .greeting {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 20px 0;
+            flex-grow: 1;
+        }
+        .intro {
+            font-size: 16px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            margin-top: 16px;
+        }
+        .image-containter {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-top: 24px;
+            flex-grow: 1;
+        }
+        .cta-button {
+            /* display: inline-block; */
+            padding: 12px 24px;
+            font-size: 18px;
+            color: white;
+            background-color: #0073e6;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 16px;
+        }
+        .button-container {
+            display: flex;
+            /* justify-content: center; */
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .footer {
+            margin-top: 24px;
+        }
+        .footer .signature {
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 32px;
+        }
+        .social-links {
+            margin-top: 24px;
+            font-size: 14px;
+        }
+        .social-links a {
+            margin-right: 10px;
+            color: white;
+            text-decoration: none;
+        }
+        .footer .profile-pic {
+            margin-left: 0;
+        }
+        @media screen and (max-width: 360px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .button-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .profile-pic {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="content-wrapper">
+            <div class="header">
+                <h1 class="greeting">Hello,</h1>
+                <!-- <img src="https://vorba.com/assets/images/team/AdamCox_400x400.jpg" alt="Your Photo" class="profile-pic"> -->
+            </div>
+            <div class="intro">
+                <p>
+                    I’m <strong>Adam Cox</strong>, a <strong>senior full-stack software developer</strong> currently contracting with the <strong>Government of Alberta</strong>. 
+                    As my current engagement wraps up at the end of March, I’m exploring new opportunities and open to exciting projects.
+                </p>
+                <p>
+                    If you or someone in your network is looking for a <strong>highly competent developer</strong> with a strong track record of delivering 
+                    <strong>scalable, high-performance software solutions</strong>, I’d love to connect.
+                </p>
+                <p>
+                    Feel free to <strong>pass my information along</strong> or <strong>book a quick chat with me</strong> using the link below:
+                </p>
+            </div>
+            <div class="button-container">
+                <a href="https://www.vorba.com/" class="cta-button">Let's Connect!</a>
+            </div>
+            <div class="footer">
+                <p>Best regards,</p>
+                <div class="signature">Adam Cox</div>
+                <div class="image-containter">
+                    <img src="https://vorba.com/assets/images/AdamCox_400x400.jpg" alt="Your Photo" class="profile-pic">
+                </div>
+                <div class="social-links">
+                    <a href="https://www.linkedin.com/in/adamcox27/">LinkedIn</a> | <a href="https://www.vorba.com/">Website</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
