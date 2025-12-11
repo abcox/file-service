@@ -330,42 +330,6 @@ If you did not request this password reset, please contact support immediately.
       // Load HTML template from assets folder
       const htmlContent = this.loadEmailTemplate(templatePath, templateData);
 
-      // Check if template uses embedded images (cid: references)
-      const embeddedImages: Array<{
-        cid: string;
-        url: string;
-        filePath?: string;
-      }> = [];
-
-      if (htmlContent.includes('cid:background-image')) {
-        // Extract background image URL and prepare for embedding
-        const backgroundImageUrl =
-          'https://vorba.com/assets/images/background-blue-1-dark.jpeg';
-        try {
-          const tempImagePath = await this.downloadImageForEmbedding(
-            backgroundImageUrl,
-            'background-image',
-          );
-
-          if (tempImagePath) {
-            embeddedImages.push({
-              cid: 'background-image',
-              url: backgroundImageUrl,
-              filePath: tempImagePath,
-            });
-            this.logger.debug('Background image prepared for embedding', {
-              cid: 'background-image',
-              filePath: tempImagePath,
-            });
-          }
-        } catch (error) {
-          this.logger.warn(
-            'Failed to prepare background image for embedding',
-            error,
-          );
-        }
-      }
-
       // For template emails, send HTML-only (no plain text alternative)
       // This ensures email clients display the HTML version with proper styling
       const mimeRequest: MimeMessageRequest = {
@@ -374,7 +338,6 @@ If you did not request this password reset, please contact support immediately.
         subject,
         bodyHtml: htmlContent,
         // bodyPlainText: '', // Don't include plain text for template emails
-        embeddedImages, // Add embedded images for better email client support
       };
 
       return await this.sendEmail(mimeRequest);
