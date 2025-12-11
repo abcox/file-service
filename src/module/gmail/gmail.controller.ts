@@ -10,6 +10,51 @@ import { GmailService } from './gmail.service';
 import { MimeMessageRequest, SendEmailResult } from './gmail.service';
 import { Auth } from '../auth';
 
+export class SendEmailFromTemplateDto {
+  @ApiProperty({
+    description: 'Email sender information',
+    example: {
+      name: 'Adam Cox (Vorba)',
+      email: 'adam.cox@vorba.com',
+    },
+  })
+  sender: {
+    name?: string;
+    email: string;
+  };
+
+  @ApiProperty({
+    description: 'Array of email recipients',
+    example: [{ name: 'Adam Cox', email: 'adam@adamcox.net' }],
+  })
+  recipients: Array<{
+    name?: string;
+    email: string;
+  }>;
+
+  @ApiProperty({
+    description: 'Email subject line',
+    example: 'Professional Introduction',
+  })
+  subject: string;
+
+  @ApiProperty({
+    description: 'Path to template file relative to assets folder',
+    example: 'content/email-intro.html',
+  })
+  templatePath: string;
+
+  @ApiProperty({
+    description: 'Template data for variable replacement',
+    required: false,
+    example: {
+      recipientName: 'John',
+      customMessage: 'Hope you are doing well!',
+    },
+  })
+  templateData?: Record<string, any>;
+}
+
 export class SendEmailDto {
   @ApiProperty({
     description: 'Email sender information',
@@ -25,7 +70,7 @@ export class SendEmailDto {
 
   @ApiProperty({
     description: 'Array of email recipients',
-    example: [{ email: 'recipient@example.com' }],
+    example: [{ email: 'adam@adamcox.net', name: 'Adam Cox' }],
   })
   recipients: Array<{
     name?: string;
@@ -78,7 +123,8 @@ export class GmailController {
           },
           recipients: [
             {
-              email: 'recipient@example.com',
+              email: 'adam@adamcox.net',
+              name: 'Adam Cox',
             },
           ],
           subject: 'Test Email from API',
@@ -95,7 +141,8 @@ export class GmailController {
           },
           recipients: [
             {
-              email: 'recipient@example.com',
+              email: 'adam@adamcox.net',
+              name: 'Adam Cox',
             },
           ],
           subject: 'HTML Test Email from API',
@@ -141,5 +188,37 @@ export class GmailController {
     };
 
     return this.gmailService.sendEmail(request);
+  }
+
+  @Post('send-template')
+  @Auth({ public: true })
+  @ApiOperation({
+    summary: 'Send email using HTML template',
+    description: 'Send an email using an HTML template from the assets folder',
+  })
+  @ApiBody({
+    type: SendEmailFromTemplateDto,
+    description: 'Template email details',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email sent successfully using template',
+    schema: {
+      type: 'object',
+      properties: {
+        messageId: { type: 'string', description: 'Gmail message ID' },
+        threadId: { type: 'string', description: 'Gmail thread ID' },
+        success: {
+          type: 'boolean',
+          description: 'Whether the email was sent successfully',
+        },
+        error: { type: 'string', description: 'Error message if send failed' },
+      },
+    },
+  })
+  async sendTemplateEmail(
+    @Body() emailData: SendEmailFromTemplateDto,
+  ): Promise<SendEmailResult> {
+    return this.gmailService.sendEmailFromTemplate(emailData);
   }
 }

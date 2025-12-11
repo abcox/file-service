@@ -46,6 +46,11 @@ export interface MimeMessageRequest {
   bodyPlainText?: string;
   bodyContentFileInfo?: FileInfo;
   attachmentFilePathName?: string;
+  embeddedImages?: Array<{
+    cid: string;
+    url: string;
+    filePath?: string;
+  }>;
 }
 
 export interface SendEmailResult {
@@ -69,6 +74,14 @@ export interface GmailApisEmailOptions {
 
 export interface GmailApis {
   email?: GmailApisEmailOptions;
+}
+
+export interface SendEmailFromTemplateRequestDto {
+  sender: MailboxAddress;
+  recipients: MailboxAddress[];
+  subject: string;
+  templatePath: string;
+  templateData?: Record<string, any>;
 }
 
 @Injectable()
@@ -150,8 +163,8 @@ export class GmailService {
     request: MimeMessageRequest,
   ): Promise<SendEmailResult> {
     try {
-      // 1. Compose MIME message
-      const mimeMessage = this.composeMimeMessage(request);
+      // 1. Compose MIME message with proper multipart handling (similar to .NET MimeKit)
+      const mimeMessage = this.composeMimeMessageImproved(request);
 
       // 2. Convert to Gmail API format (URL-safe base64)
       const rawMessage = this.encodeForGmailAPI(mimeMessage);
@@ -303,6 +316,386 @@ If you did not request this password reset, please contact support immediately.
       true,
       //options,
     );
+  }
+
+  /**
+   * Send email using HTML template from assets folder with embedded images
+   */
+  async sendEmailFromTemplate(
+    request: SendEmailFromTemplateRequestDto,
+  ): Promise<SendEmailResult> {
+    try {
+      const { sender, recipients, subject, templatePath, templateData } =
+        request;
+      // Load HTML template from assets folder
+      const htmlContent = this.loadEmailTemplate(templatePath, templateData);
+
+      // Check if template uses embedded images (cid: references)
+      const embeddedImages: Array<{
+        cid: string;
+        url: string;
+        filePath?: string;
+      }> = [];
+
+      if (htmlContent.includes('cid:background-image')) {
+        // Extract background image URL and prepare for embedding
+        const backgroundImageUrl =
+          'https://vorba.com/assets/images/background-blue-1-dark.jpeg';
+        try {
+          const tempImagePath = await this.downloadImageForEmbedding(
+            backgroundImageUrl,
+            'background-image',
+          );
+
+          if (tempImagePath) {
+            embeddedImages.push({
+              cid: 'background-image',
+              url: backgroundImageUrl,
+              filePath: tempImagePath,
+            });
+            this.logger.debug('Background image prepared for embedding', {
+              cid: 'background-image',
+              filePath: tempImagePath,
+            });
+          }
+        } catch (error) {
+          this.logger.warn(
+            'Failed to prepare background image for embedding',
+            error,
+          );
+        }
+      }
+
+      // For template emails, send HTML-only (no plain text alternative)
+      // This ensures email clients display the HTML version with proper styling
+      const mimeRequest: MimeMessageRequest = {
+        sender,
+        recipients,
+        subject,
+        bodyHtml: htmlContent,
+        // bodyPlainText: '', // Don't include plain text for template emails
+        embeddedImages, // Add embedded images for better email client support
+      };
+
+      return await this.sendEmail(mimeRequest);
+    } catch (error) {
+      this.logger.error('Failed to send email from template', error);
+      return {
+        messageId: '',
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Compose MIME message with improved multipart handling (similar to .NET MimeKit)
+   */
+  private composeMimeMessageImproved(request: MimeMessageRequest): string {
+    try {
+      const mainBoundary = this.generateBoundary();
+      const alternativeBoundary = this.generateBoundary();
+
+      // Build MIME headers
+      const headers = this.buildImprovedHeaders(request, mainBoundary);
+
+      // Build MIME body with proper multipart structure
+      const body = this.buildImprovedMimeBody(
+        request,
+        mainBoundary,
+        alternativeBoundary,
+      );
+
+      const mimeMessage = headers + '\r\n' + body;
+
+      this.logger.debug('Improved MIME message composed', {
+        to: request.recipients.map((r) => r.email),
+        subject: request.subject,
+        hasHtml: !!request.bodyHtml,
+        hasText: !!request.bodyPlainText,
+        hasAttachment: !!request.attachmentFilePathName,
+        bodyLength: mimeMessage.length,
+      });
+
+      return mimeMessage;
+    } catch (error) {
+      this.logger.error('Failed to compose improved MIME message', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Build improved MIME headers with proper multipart structure
+   */
+  private buildImprovedHeaders(
+    request: MimeMessageRequest,
+    boundary: string,
+  ): string {
+    const senderAddress = this.formatMailboxAddress(request.sender);
+    const recipientAddresses = request.recipients
+      .map((r) => this.formatMailboxAddress(r))
+      .join(', ');
+
+    const headers: string[] = [
+      `From: ${senderAddress}`,
+      `To: ${recipientAddresses}`,
+      `Subject: ${this.encodeSubject(request.subject)}`,
+      `Date: ${new Date().toUTCString()}`,
+      `Message-ID: <${this.generateMessageId()}>`,
+      `MIME-Version: 1.0`,
+    ];
+
+    // Always use multipart/mixed as the top level (like .NET MimeKit does)
+    // This ensures proper handling of HTML with potential embedded resources
+    const hasAttachment = !!(
+      request.attachmentFilePathName ||
+      request.bodyContentFileInfo ||
+      (request.embeddedImages && request.embeddedImages.length > 0)
+    );
+    const hasMultipleBodyTypes = !!(request.bodyHtml && request.bodyPlainText);
+
+    if (hasAttachment || hasMultipleBodyTypes) {
+      // Use multipart/mixed when we have attachments or multiple body types
+      headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+    } else if (request.bodyHtml) {
+      // Simple HTML message - don't use multipart for simple HTML
+      headers.push(`Content-Type: text/html; charset=utf-8`);
+      headers.push(`Content-Transfer-Encoding: quoted-printable`);
+    } else {
+      // Simple single-part text message
+      headers.push(`Content-Type: text/plain; charset=utf-8`);
+      headers.push(`Content-Transfer-Encoding: quoted-printable`);
+    }
+
+    return headers.join('\r\n');
+  }
+
+  /**
+   * Build improved MIME body with proper nesting like .NET MimeKit
+   */
+  private buildImprovedMimeBody(
+    request: MimeMessageRequest,
+    mainBoundary: string,
+    alternativeBoundary: string,
+  ): string {
+    const hasAttachment = !!(
+      request.attachmentFilePathName ||
+      request.bodyContentFileInfo ||
+      (request.embeddedImages && request.embeddedImages.length > 0)
+    );
+    const hasMultipleBodyTypes = !!(request.bodyHtml && request.bodyPlainText);
+
+    if (!hasAttachment && !hasMultipleBodyTypes && !request.bodyHtml) {
+      // Simple single-part text message
+      return this.encodeQuotedPrintable(request.bodyPlainText || '');
+    }
+
+    if (!hasAttachment && !hasMultipleBodyTypes && request.bodyHtml) {
+      // Simple single-part HTML message
+      return this.encodeQuotedPrintableFixed(request.bodyHtml);
+    }
+
+    const parts: string[] = [];
+
+    // Add content part (HTML and/or text)
+    if (hasMultipleBodyTypes) {
+      // Multipart/alternative nested within multipart/mixed
+      parts.push(`--${mainBoundary}`);
+      parts.push(
+        `Content-Type: multipart/alternative; boundary="${alternativeBoundary}"`,
+      );
+      parts.push('');
+
+      // Plain text alternative
+      parts.push(`--${alternativeBoundary}`);
+      parts.push('Content-Type: text/plain; charset=utf-8');
+      parts.push('Content-Transfer-Encoding: quoted-printable');
+      parts.push('');
+      parts.push(this.encodeQuotedPrintable(request.bodyPlainText || ''));
+      parts.push('');
+
+      // HTML alternative
+      parts.push(`--${alternativeBoundary}`);
+      parts.push('Content-Type: text/html; charset=utf-8');
+      parts.push('Content-Transfer-Encoding: quoted-printable');
+      parts.push('');
+      parts.push(this.encodeQuotedPrintableFixed(request.bodyHtml || ''));
+      parts.push('');
+
+      parts.push(`--${alternativeBoundary}--`);
+    } else if (request.bodyHtml) {
+      // Single HTML part within multipart/mixed (for embedded images)
+      parts.push(`--${mainBoundary}`);
+      parts.push('Content-Type: text/html; charset=utf-8');
+      parts.push('Content-Transfer-Encoding: quoted-printable');
+      parts.push('');
+      parts.push(this.encodeQuotedPrintableFixed(request.bodyHtml));
+      parts.push('');
+    } else if (request.bodyPlainText) {
+      // Single text part within multipart/mixed
+      parts.push(`--${mainBoundary}`);
+      parts.push('Content-Type: text/plain; charset=utf-8');
+      parts.push('Content-Transfer-Encoding: quoted-printable');
+      parts.push('');
+      parts.push(this.encodeQuotedPrintable(request.bodyPlainText));
+      parts.push('');
+    }
+
+    // Embedded images (cid: references) - like .NET MimeKit inline attachments
+    if (request.embeddedImages && request.embeddedImages.length > 0) {
+      for (const embeddedImage of request.embeddedImages) {
+        if (embeddedImage.filePath && fs.existsSync(embeddedImage.filePath)) {
+          const imageContent = fs.readFileSync(embeddedImage.filePath);
+          const filename = path.basename(embeddedImage.filePath);
+          const mimeType = this.getMimeType(filename);
+
+          parts.push(`--${mainBoundary}`);
+          parts.push(`Content-Type: ${mimeType}`);
+          parts.push('Content-Transfer-Encoding: base64');
+          parts.push(`Content-ID: <${embeddedImage.cid}>`);
+          parts.push(`Content-Disposition: inline; filename="${filename}"`);
+          parts.push('');
+          parts.push(imageContent.toString('base64'));
+          parts.push('');
+        }
+      }
+    }
+
+    // Regular attachment part
+    if (
+      request.attachmentFilePathName &&
+      fs.existsSync(request.attachmentFilePathName)
+    ) {
+      const attachmentContent = fs.readFileSync(request.attachmentFilePathName);
+      const filename = path.basename(request.attachmentFilePathName);
+      const mimeType = this.getMimeType(filename);
+
+      parts.push(`--${mainBoundary}`);
+      parts.push(`Content-Type: ${mimeType}; name="${filename}"`);
+      parts.push('Content-Transfer-Encoding: base64');
+      parts.push(`Content-Disposition: attachment; filename="${filename}"`);
+      parts.push('');
+      parts.push(attachmentContent.toString('base64'));
+      parts.push('');
+    }
+
+    // Close main boundary
+    parts.push(`--${mainBoundary}--`);
+
+    return parts.join('\r\n');
+  }
+
+  /**
+   * Get MIME type for file extension
+   */
+  private getMimeType(filename: string): string {
+    const ext = path.extname(filename).toLowerCase();
+    const mimeTypes: { [key: string]: string } = {
+      '.pdf': 'application/pdf',
+      '.doc': 'application/msword',
+      '.docx':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel',
+      '.xlsx':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.ppt': 'application/vnd.ms-powerpoint',
+      '.pptx':
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.txt': 'text/plain',
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.js': 'application/javascript',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.bmp': 'image/bmp',
+      '.svg': 'image/svg+xml',
+      '.zip': 'application/zip',
+      '.rar': 'application/x-rar-compressed',
+      '.7z': 'application/x-7z-compressed',
+    };
+
+    return mimeTypes[ext] || 'application/octet-stream';
+  }
+
+  /**
+   * Load email template from assets folder
+   */
+  private loadEmailTemplate(
+    templatePath: string,
+    data?: Record<string, any>,
+  ): string {
+    try {
+      // Resolve path relative to src/assets
+      const fullPath = path.resolve(
+        process.cwd(),
+        'src',
+        'assets',
+        templatePath,
+      );
+
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`Template file not found: ${fullPath}`);
+      }
+
+      let htmlContent = fs.readFileSync(fullPath, 'utf-8');
+
+      // Basic template variable replacement (simple {{variable}} syntax)
+      if (data) {
+        htmlContent = this.replaceTemplateVariables(htmlContent, data);
+      }
+
+      this.logger.debug('Email template loaded successfully', {
+        templatePath,
+        contentLength: htmlContent.length,
+        hasData: !!data,
+        hasBackgroundImage: htmlContent.includes('background-blue-1-dark.jpeg'),
+        fullPath,
+      });
+
+      return htmlContent;
+    } catch (error) {
+      this.logger.error(
+        `Failed to load email template: ${templatePath}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Simple template variable replacement
+   */
+  private replaceTemplateVariables(
+    content: string,
+    data: Record<string, any>,
+  ): string {
+    let result = content;
+
+    Object.entries(data).forEach(([key, value]) => {
+      const placeholder = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      result = result.replace(placeholder, String(value));
+    });
+
+    return result;
+  }
+
+  /**
+   * Convert HTML to plain text (basic conversion)
+   */
+  private htmlToPlainText(html: string): string {
+    return html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
+      .replace(/<[^>]+>/g, ' ') // Remove HTML tags
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp;
+      .replace(/&amp;/g, '&') // Replace &amp;
+      .replace(/&lt;/g, '<') // Replace &lt;
+      .replace(/&gt;/g, '>') // Replace &gt;
+      .trim();
   }
   //#endregion public methods
 
@@ -765,10 +1158,28 @@ If you did not request this password reset, please contact support immediately.
 
     // Return formatted address: "Name <email>" or just "email"
     if (address.name && address.name.trim() !== '') {
-      return `${address.name} <${address.email}>`;
+      const displayName = this.formatDisplayName(address.name.trim());
+      return `${displayName} <${address.email}>`;
     }
 
     return address.email;
+  }
+
+  /**
+   * Format display name with proper quoting for special characters
+   */
+  private formatDisplayName(name: string): string {
+    // Check if the name contains special characters that require quoting
+    // RFC 5322 specifies these characters need quoting: (),:;<>@[\]"
+    const needsQuoting = /[(),:;<>@[\]"]/.test(name);
+
+    if (needsQuoting) {
+      // Escape any existing quotes and wrap in quotes
+      const escapedName = name.replace(/"/g, '\\"');
+      return `"${escapedName}"`;
+    }
+
+    return name;
   }
 
   /**
@@ -825,6 +1236,25 @@ If you did not request this password reset, please contact support immediately.
   }
 
   /**
+   * Fixed quoted-printable encoding that properly handles apostrophes and special chars
+   */
+  private encodeQuotedPrintableFixed(content: string): string {
+    // Simpler approach: only encode truly necessary characters
+    return content
+      .replace(/=/g, '=3D')
+      .replace(/[^\x20-\x7E\r\n]/g, (match) => {
+        const code = match.charCodeAt(0);
+        return `=${code.toString(16).toUpperCase().padStart(2, '0')}`;
+      })
+      .replace(/[ \t]+$/gm, (match) => {
+        return match.replace(/[ \t]/g, (char) => {
+          const code = char.charCodeAt(0);
+          return `=${code.toString(16).toUpperCase().padStart(2, '0')}`;
+        });
+      });
+  }
+
+  /**
    * Encode content as base64 with line breaks
    */
   private encodeBase64(content: Buffer): string {
@@ -874,6 +1304,49 @@ If you did not request this password reset, please contact support immediately.
 
     return mimeTypes[ext] || 'application/octet-stream';
   }
+
+  /**
+   * Download image for embedding as attachment (similar to .NET MimeKit approach)
+   */
+  private async downloadImageForEmbedding(
+    imageUrl: string,
+    cid: string,
+  ): Promise<string | null> {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        this.logger.warn(`Failed to download image for embedding: ${imageUrl}`);
+        return null;
+      }
+
+      const buffer = await response.arrayBuffer();
+      const tempDir = path.join(process.cwd(), 'temp');
+
+      // Create temp directory if it doesn't exist
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+
+      const tempFilePath = path.join(tempDir, `${cid}.jpg`);
+      fs.writeFileSync(tempFilePath, Buffer.from(buffer));
+
+      this.logger.debug(`Image downloaded for embedding`, {
+        url: imageUrl,
+        cid,
+        filePath: tempFilePath,
+        size: buffer.byteLength,
+      });
+
+      return tempFilePath;
+    } catch (error) {
+      this.logger.error(
+        `Failed to download image for embedding: ${imageUrl}`,
+        error,
+      );
+      return null;
+    }
+  }
+
   //#endregion mail composition methods
 
   //#endregion private methods
