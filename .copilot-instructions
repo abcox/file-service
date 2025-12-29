@@ -16,6 +16,13 @@
 - Use the established DTO patterns and validation approaches
 - Write maintainable code by keeping it simple, following coding principles like SOLID, so code in easily readable and therefore maintainable.
 
+## File Formatting & Project Conventions
+- **PRESERVE LINE ENDINGS**: This is a Windows project using CRLF line endings - NEVER change files to LF
+- **MAINTAIN EXISTING FORMATTING**: Preserve indentation, spacing, and code style already in use
+- **RESPECT ESLINT CONFIGURATION**: Follow the project's ESLint rules and formatting standards
+- **DOCUMENTATION PLACEMENT**: Place API documentation and module-specific docs next to the relevant code, not in global docs folder
+- **CONSISTENT FILE STRUCTURE**: Follow established patterns for organizing files within modules
+
 ## Configuration Management
 - All configuration should go through the AppConfigService and config.json files
 - DO NOT hardcode configuration values in main.ts or other files
@@ -43,6 +50,8 @@
 - Do not ignore existing architectural decisions
 - Do not create duplicate functionality that already exists
 - Do not modify files without understanding the full context
+- **DO NOT CHANGE LINE ENDINGS** from CRLF to LF - this breaks Windows project conventions
+- Do not place documentation in generic docs folder when it belongs with specific modules
 
 ## Debugging & Troubleshooting
 - When investigating issues, examine logs and error messages first

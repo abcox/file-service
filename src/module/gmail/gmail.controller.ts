@@ -1,14 +1,29 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBody,
   ApiProperty,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { GmailService } from './gmail.service';
 import { MimeMessageRequest, SendEmailResult } from './gmail.service';
 import { Auth } from '../auth';
+
+interface UploadedFile {
+  originalname: string;
+  buffer: Buffer;
+  size: number;
+  mimetype: string;
+}
 
 export class SendEmailFromTemplateDto {
   @ApiProperty({
@@ -188,6 +203,170 @@ export class GmailController {
     };
 
     return this.gmailService.sendEmail(request);
+  }
+  @Post('send/from-json-html')
+  @Auth({ public: true })
+  @ApiOperation({
+    summary: 'Send email using pre-rendered HTML',
+    description:
+      'Send email using HTML that was pre-rendered from email templates. Automatically handles HTML formatting for email delivery and JSON escaping.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        sender: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', example: 'Adam Cox (Vorba)' },
+            email: { type: 'string', example: 'adam.cox@vorba.com' },
+          },
+          required: ['email'],
+        },
+        recipients: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', example: 'Adam Cox' },
+              email: { type: 'string', example: 'adam@adamcox.net' },
+            },
+            required: ['email'],
+          },
+        },
+        subject: { type: 'string', example: 'Email from Template' },
+        html: {
+          type: 'string',
+          description:
+            'Pre-rendered HTML content from email template (JSON escaping will be automatically decoded)',
+        },
+      },
+      required: ['sender', 'recipients', 'subject', 'html'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        messageId: { type: 'string' },
+        success: { type: 'boolean' },
+      },
+    },
+  })
+  async sendFromTemplateHtml(
+    @Body()
+    emailData: {
+      sender: { name?: string; email: string };
+      recipients: Array<{ name?: string; email: string }>;
+      subject: string;
+      html: string;
+    },
+  ): Promise<SendEmailResult> {
+    const request: MimeMessageRequest = {
+      sender: emailData.sender,
+      recipients: emailData.recipients,
+      subject: emailData.subject,
+      bodyHtml: emailData.html,
+      // Don't include bodyPlainText for HTML-only emails
+    };
+
+    return await this.gmailService.sendEmailFromPreRenderedHtml(request);
+  }
+
+  @Post('send/from-html-file')
+  @Auth({ public: true })
+  @UseInterceptors(FileInterceptor('htmlFile'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Send email using HTML file upload',
+    description:
+      'Send email by uploading an HTML file. Eliminates JSON escaping issues with complex HTML content.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        htmlFile: {
+          type: 'string',
+          format: 'binary',
+          description: 'HTML file containing email content',
+        },
+        sender: {
+          type: 'string',
+          description:
+            'JSON string with sender info: {"name":"...", "email":"..."}',
+          example: '{"name":"Adam Cox (Vorba)","email":"adam.cox@vorba.com"}',
+        },
+        recipients: {
+          type: 'string',
+          description:
+            'JSON string with recipients array: [{"name":"...", "email":"..."}]',
+          example: '[{"name":"Adam Cox","email":"adam@adamcox.net"}]',
+        },
+        subject: {
+          type: 'string',
+          description: 'Email subject line',
+          example: 'Email from HTML File',
+        },
+      },
+      required: ['htmlFile', 'sender', 'recipients', 'subject'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        messageId: { type: 'string' },
+        success: { type: 'boolean' },
+      },
+    },
+  })
+  async sendHtmlFile(
+    @UploadedFile() htmlFile: UploadedFile,
+    @Body()
+    formData: {
+      sender: string;
+      recipients: string;
+      subject: string;
+    },
+  ): Promise<SendEmailResult> {
+    if (!htmlFile) {
+      throw new Error('HTML file is required');
+    }
+
+    // Parse JSON strings from form data with proper typing
+    let sender: { name?: string; email: string };
+    let recipients: Array<{
+      name?: string;
+      email: string;
+    }>;
+
+    try {
+      sender = JSON.parse(formData.sender) as { name?: string; email: string };
+      recipients = JSON.parse(formData.recipients) as Array<{
+        name?: string;
+        email: string;
+      }>;
+    } catch {
+      throw new Error('Invalid JSON format in sender or recipients data');
+    }
+
+    // Read HTML content from uploaded file
+    const htmlContent = htmlFile.buffer.toString('utf-8');
+
+    const request: MimeMessageRequest = {
+      sender,
+      recipients,
+      subject: formData.subject,
+      bodyHtml: htmlContent,
+      // Don't include bodyPlainText for HTML-only emails
+    };
+
+    return this.gmailService.sendEmailFromHtmlFile(request);
   }
 
   @Post('send-template')

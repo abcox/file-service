@@ -18,6 +18,8 @@ import { PdfModule } from '../pdf/pdf.module';
 import { ContactModule } from '../contact/contact.module';
 import { AssetModule } from '../asset/asset.module';
 import { GmailModule } from '../gmail/gmail.module';
+import { EmailTemplateModule } from '../email-template/email-template.module';
+import { EmailCampaignModule } from '../email-campaign/email-campaign.module';
 
 @Module({
   imports: [
@@ -37,6 +39,8 @@ import { GmailModule } from '../gmail/gmail.module';
     ContactModule,
     AssetModule,
     GmailModule,
+    EmailTemplateModule,
+    EmailCampaignModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

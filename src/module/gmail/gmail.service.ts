@@ -258,6 +258,117 @@ If you did not request this password reset, please contact support immediately.
   }
 
   /**
+   * Send email using uploaded HTML file (handles HTML entity decoding)
+   */
+  async sendEmailFromHtmlFile(
+    request: MimeMessageRequest,
+  ): Promise<SendEmailResult> {
+    // Create the exact same request structure as sendEmailFromTemplate
+    const mimeRequest: MimeMessageRequest = {
+      sender: request.sender,
+      recipients: request.recipients,
+      subject: request.subject,
+      bodyHtml: request.bodyHtml
+        ? this.decodeHtmlEntities(request.bodyHtml)
+        : '',
+      // bodyPlainText: '', // Don't include plain text for template emails
+    };
+
+    return await this.sendEmail(mimeRequest);
+  }
+
+  /**
+   * Decode HTML entities to proper characters
+   */
+  private decodeHtmlEntities(html: string): string {
+    const decoded = html
+      .replace(/&#x3D;/g, '=') // &#x3D; -> =
+      .replace(/&amp;/g, '&') // &amp; -> &
+      .replace(/&gt;/g, '>') // &gt; -> >
+      .replace(/&lt;/g, '<') // &lt; -> <
+      .replace(/&quot;/g, '"') // &quot; -> "
+      .replace(/&#39;/g, "'") // &#39; -> '
+      .replace(/&#x27;/g, "'") // &#x27; -> '
+      .replace(/&nbsp;/g, ' ') // &nbsp; -> space
+      .replace(/&#(\d+);/g, (match, dec) =>
+        String.fromCharCode(parseInt(dec, 10)),
+      ) // &#123; -> char
+      .replace(/&#x([0-9A-Fa-f]+);/g, (match, hex) =>
+        String.fromCharCode(parseInt(hex, 16)),
+      ); // &#xFF; -> char
+
+    this.logger.log(
+      `HTML entity decoding: ${html.length} -> ${decoded.length} chars`,
+    );
+    if (html !== decoded) {
+      this.logger.log('Sample changes:', {
+        before: html.substring(0, 100),
+        after: decoded.substring(0, 100),
+      });
+    }
+
+    return decoded;
+  }
+
+  /**
+   * Add a newline after every HTML tag (opening or closing).
+   * This version adds a newline after any substring that starts with '<' and ends with '>'.
+   * Useful for debugging or for email encoding scenarios where every tag should be on its own line.
+   */
+  private addLineBreaksToHtml(html: string): string {
+    return html.replace(/(<[^>]+>)/g, '$1\r\n');
+  }
+
+  /**
+   * Send email using pre-rendered HTML (handles JSON escaping and HTML entities)
+   */
+  async sendEmailFromPreRenderedHtml(
+    request: MimeMessageRequest,
+  ): Promise<SendEmailResult> {
+    // JSON parser handles JSON escaping, but we still need to decode HTML entities
+    // that come from Handlebars template rendering
+
+    let processedHtml = request.bodyHtml || '';
+    if (processedHtml) {
+      this.logger.log('Original HTML length:', processedHtml.length);
+      this.logger.log('HTML preview:', processedHtml.substring(0, 200) + '...');
+
+      // First decode HTML entities
+      //processedHtml = this.decodeHtmlEntities(processedHtml);
+
+      // Add line breaks to minified HTML to help with email encoding
+      processedHtml = this.addLineBreaksToHtml(processedHtml);
+
+      this.logger.log('Processed HTML length:', processedHtml.length);
+      this.logger.log('Processed html:', processedHtml);
+    }
+
+    const mimeRequest: MimeMessageRequest = {
+      sender: request.sender,
+      recipients: request.recipients,
+      subject: request.subject,
+      bodyHtml: processedHtml,
+      // Don't include plain text for template emails
+    };
+
+    return await this.sendEmail(mimeRequest);
+  }
+
+  /**
+   * Decode JSON-escaped HTML content back to proper HTML
+   * Handles common JSON escaping issues when pasting HTML into JSON
+   */
+  decodeJsonEscapedHtml(escapedHtml: string): string {
+    return escapedHtml
+      .replace(/\\"/g, '"') // \" -> "
+      .replace(/\\'/g, "'") // \' -> '
+      .replace(/\\n/g, '\n') // \n -> actual newline
+      .replace(/\\r/g, '\r') // \r -> actual carriage return
+      .replace(/\\t/g, '\t') // \t -> actual tab
+      .replace(/\\\\/g, '\\'); // \\ -> \
+  }
+
+  /**
    * Send test email to verify service is working
    */
   async sendTestEmail(to: string): Promise<SendEmailResult> {
@@ -323,7 +434,7 @@ If you did not request this password reset, please contact support immediately.
         alternativeBoundary,
       );
 
-      const mimeMessage = headers + '\r\n' + body;
+      const mimeMessage = headers + '\n\n' + body;
 
       return mimeMessage;
     } catch (error) {
@@ -806,6 +917,14 @@ If you did not request this password reset, please contact support immediately.
         return `=${code.toString(16).toUpperCase().padStart(2, '0')}`;
       });
     });
+  }
+
+  /**
+   * Normalize HTML content for email sending (handles line endings and formatting)
+   */
+  private normalizeHtmlForEmail(html: string): string {
+    // Convert Windows CRLF to Unix LF (same as email template service)
+    return html.replace(/\r\n/g, '\n');
   }
 
   /**
