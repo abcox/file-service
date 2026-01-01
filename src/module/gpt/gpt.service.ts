@@ -9,8 +9,6 @@ import {
   //ChatCompletionContentPart,
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
-import { RequestOptions } from 'openai/internal/request-options';
-
 import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
 import { FileContent } from '../workflow/file-workflow.service';
@@ -318,7 +316,7 @@ Ensure the response is valid JSON and includes all required fields.`;
         max_tokens: options?.maxTokens || this.config.defaults.maxTokens,
         temperature: options?.temperature || this.config.defaults.temperature,
       };
-      const requestOptions: RequestOptions = {
+      const requestOptions = {
         timeout: 60000, // Increased to 60 seconds for HTML analysis
       };
 
