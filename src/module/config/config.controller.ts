@@ -26,6 +26,7 @@ import { Auth } from '../auth/auth.guard';
 import { LoggerService } from '../logger/logger.service';
 import { KeyVaultService } from './keyvault.service';
 import { AppConfigService } from './config.service';
+import { TimeZoneConfig } from './config.service';
 
 @Controller()
 export class ConfigController {
@@ -60,6 +61,21 @@ export class ConfigController {
   })
   getConfig() {
     const config = this.configService.getConfig();
+    return {
+      config,
+    };
+  }
+
+  @Get('config/timezone')
+  @Auth({ public: true })
+  @ApiOperation({ summary: 'Get time zone config' })
+  @ApiResponse({
+    type: TimeZoneConfig,
+    status: 200,
+    description: 'Get the application config file json',
+  })
+  getTimeZoneConfig() {
+    const config = this.configService.getTimeZoneConfig();
     return {
       config,
     };

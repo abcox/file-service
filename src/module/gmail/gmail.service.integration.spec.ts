@@ -15,7 +15,7 @@ describe('Gmail Integration Tests (Real Email)', () => {
           provide: AppConfigService,
           useValue: {
             getConfig: jest.fn().mockReturnValue({
-              gmailApis: {
+              googleApis: {
                 email: {
                   serviceAccountJsonKeyFilePathname:
                     'src/assets/gmail/auth/constantcontact2-1034-d1a0ae8c30a2.json',

@@ -6,6 +6,13 @@ import { KeyVaultService } from './keyvault.service';
 import { LoggerService } from '../logger/logger.service';
 import { AppConfig } from './config.interface';
 
+export class TimeZoneConfig {
+  effective: string;
+  configured: string | undefined;
+  system: string | undefined;
+  default: string;
+}
+
 @Injectable()
 export class AppConfigService {
   private config: AppConfig;
@@ -186,5 +193,18 @@ export class AppConfigService {
 
   getConfig(): AppConfig {
     return this.config;
+  }
+
+  getTimeZoneConfig(): TimeZoneConfig {
+    const defaultTimeZone = 'UTC';
+    const { timeZone: configured } = this.config.api || defaultTimeZone;
+    const system = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const effective = configured || system || defaultTimeZone;
+    return {
+      effective,
+      configured,
+      system,
+      default: defaultTimeZone,
+    };
   }
 }

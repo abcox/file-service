@@ -20,6 +20,7 @@ import { AssetModule } from '../asset/asset.module';
 import { GmailModule } from '../gmail/gmail.module';
 import { EmailTemplateModule } from '../email-template/email-template.module';
 import { EmailCampaignModule } from '../email-campaign/email-campaign.module';
+import { PeopleModule } from '../google/people';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { EmailCampaignModule } from '../email-campaign/email-campaign.module';
     GmailModule,
     EmailTemplateModule,
     EmailCampaignModule,
+    PeopleModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

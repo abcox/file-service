@@ -4,6 +4,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { AppConfigService } from '../config/config.service';
 
+export interface GoogleApisEmailServiceOptions {
+  scopes?: string[];
+  serviceAccountJsonKeyFilePathname?: string;
+  userEmail?: string; // For domain-wide delegation
+  senderName?: string; // Display name for email sender
+}
+
 export interface ServiceAccountCredentials {
   type: string;
   project_id: string;
@@ -50,17 +57,6 @@ export interface SendEmailResult {
   error?: string;
 }
 
-export interface GmailApisEmailOptions {
-  scopes?: string[];
-  serviceAccountJsonKeyFilePathname?: string;
-  userEmail?: string; // For domain-wide delegation
-  senderName?: string; // Display name for email sender
-}
-
-export interface GmailApis {
-  email?: GmailApisEmailOptions;
-}
-
 export interface SendEmailFromTemplateRequestDto {
   sender: MailboxAddress;
   recipients: MailboxAddress[];
@@ -72,15 +68,15 @@ export interface SendEmailFromTemplateRequestDto {
 @Injectable()
 export class GmailService {
   private readonly logger = new Logger(GmailService.name);
-  private config: GmailApisEmailOptions | undefined;
+  private config: GoogleApisEmailServiceOptions | undefined;
 
   constructor(private appConfigService: AppConfigService) {
-    const { email: emailOptions } =
-      this.appConfigService.getConfig().gmailApis || {};
-    if (!emailOptions) {
+    const { emailServiceOptions: config } =
+      this.appConfigService.getConfig().googleApis || {};
+    if (!config) {
       throw new Error('Gmail API email options are not configured');
     }
-    this.config = emailOptions;
+    this.config = config;
   }
 
   //#region public methods

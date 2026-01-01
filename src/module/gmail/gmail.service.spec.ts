@@ -93,7 +93,7 @@ describe('GmailService', () => {
     // Mock config service with Gmail configuration
     const mockAppConfigService = {
       getConfig: jest.fn().mockReturnValue({
-        gmailApis: {
+        googleApis: {
           email: {
             serviceAccountJsonKeyFilePathname:
               './test/mock-service-account.json',
