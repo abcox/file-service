@@ -84,6 +84,11 @@
         "https://www.googleapis.com/auth/contacts"
       ]
     },
+    "calendarServiceOptions": {
+      "scopes": [
+        "https://www.googleapis.com/auth/calendar"
+      ]
+    },
     "serviceAccountJsonKeyFilePathname":
       "./src/assets/gmail/auth/constantcontact2-1034-d1a0ae8c30a2.json",
     "userEmail": "adam.cox@vorba.com"

@@ -21,6 +21,7 @@ import { GmailModule } from '../gmail/gmail.module';
 import { EmailTemplateModule } from '../email-template/email-template.module';
 import { EmailCampaignModule } from '../email-campaign/email-campaign.module';
 import { PeopleModule } from '../google/people';
+import { CalendarModule } from '../google/calendar/calendar.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PeopleModule } from '../google/people';
     EmailTemplateModule,
     EmailCampaignModule,
     PeopleModule,
+    CalendarModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],
