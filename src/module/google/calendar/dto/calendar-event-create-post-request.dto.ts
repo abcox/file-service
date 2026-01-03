@@ -14,4 +14,11 @@ export class CalendarEventCreatePostRequestDto {
     example: false,
   })
   sendUpdates?: boolean;
+
+  @ApiProperty({
+    description:
+      'Whether to create conference data for the event. Default is false.',
+    example: false,
+  })
+  createConference?: boolean;
 }

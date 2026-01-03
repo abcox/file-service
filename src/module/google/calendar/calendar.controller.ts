@@ -4,18 +4,24 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
+  //Put,
   Query,
 } from '@nestjs/common';
 import { CalendarService } from './calendar.service';
 import { calendar_v3 } from 'googleapis';
 import { Auth } from '../../auth';
-import { ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { GetGoogleCalendarListDto } from './dto/get-calendar-event-list.dto';
 import { CalendarEventDeleteBatchPostRequestDto } from './dto/calendar-event-delete-batch-post-request.dto';
 import { CalendarEventDeleteBatchPostResponseDto } from './dto/calendar-event-delete-batch-post-response.dto';
 import { CalendarEventCreatePostResponseDto } from './dto/calendar-event-create-post-response.dto';
 import { CalendarEventCreatePostRequestDto } from './dto/calendar-event-create-post-request.dto';
+//import { GoogleCalendarEventDto } from './dto/google-calendar-event.dto';
+import { CalendarEventPatchDetailRequestDto } from './dto/calendar-event-patch-detail-request.dto';
+import { CalendarEventPatchConferenceRequestDto } from './dto/calendar-event-patch-conference-request.dto';
+import { CalendarEventPatchRequestDto } from './dto/calendar-event-patch-request.dto';
 
 @Controller('calendar')
 export class CalendarController {
@@ -135,6 +141,89 @@ export class CalendarController {
       calendarId: id,
       event,
       sendUpdates: request.sendUpdates,
+      createConference: request.createConference,
     });
   }
+
+  @Patch(':calendarId/event/:eventId/detail')
+  @ApiOperation({
+    summary: 'Patch Calendar Event Details',
+    description:
+      'Patches event details (fields) in the specified calendar. Only include the fields to be updated in the request body.',
+  })
+  @Auth({ public: true })
+  async patchCalendarEventDetail(
+    @Param('calendarId') calendarId: string,
+    @Param('eventId') eventId: string,
+    @Body() request: CalendarEventPatchDetailRequestDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    const { event, sendUpdates } = request;
+    return this.calendarService.patchCalendarEventDetail(
+      eventId,
+      calendarId,
+      event,
+      sendUpdates || 'none',
+    );
+  }
+
+  @Patch(':calendarId/event/:eventId/conference')
+  @ApiOperation({
+    summary: 'Patch Calendar Event Conference',
+    description:
+      'Adds or removes a Google Meet link for the event. Use addConference=true to add, false to remove.',
+  })
+  @Auth({ public: true })
+  @ApiBody({ type: CalendarEventPatchConferenceRequestDto })
+  async patchCalendarEventConference(
+    @Param('calendarId') calendarId: string,
+    @Param('eventId') eventId: string,
+    @Body()
+    request: CalendarEventPatchConferenceRequestDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    const { createConference, sendUpdates } = request;
+    return this.calendarService.patchCalendarEventConference(
+      eventId,
+      calendarId,
+      createConference,
+      sendUpdates || 'none',
+    );
+  }
+
+  @Patch(':calendarId/event/:eventId')
+  @ApiOperation({
+    summary: 'Patch Calendar Event',
+    description:
+      'Patches calendar event details and/or adds conference. Only include the fields to be updated in the request body. Must include either at least 1 event detail property or createConference flag.',
+  })
+  @Auth({ public: true })
+  @ApiBody({ type: CalendarEventPatchRequestDto })
+  async patchCalendarEvent(
+    @Param('calendarId') calendarId: string,
+    @Param('eventId') eventId: string,
+    @Body()
+    request: CalendarEventPatchRequestDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    const { createConference, event, sendUpdates } = request;
+    return this.calendarService.patchCalendarEvent(
+      eventId,
+      calendarId,
+      event,
+      createConference,
+      sendUpdates || 'none',
+    );
+  }
+
+  /* @Put(':calendarId/event/:eventId')
+  @ApiOperation({
+    summary: 'Update Calendar Event',
+    description: 'Updates an existing event in the specified calendar.',
+  })
+  @Auth({ public: true })
+  async updateCalendarEvent(
+    @Param('calendarId') calendarId: string,
+    @Param('eventId') eventId: string,
+    @Body() event: GoogleCalendarEventDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    return this.calendarService.updateCalendarEvent(eventId, calendarId, event);
+  } */
 }

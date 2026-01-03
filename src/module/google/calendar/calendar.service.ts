@@ -196,12 +196,13 @@ export class CalendarService {
     return result;
   }
 
-  async createCalendarEvent(request: {
+  async createCalendarEvent(requestDto: {
     calendarId: string;
     event: GoogleCalendarEventDto;
     sendUpdates?: boolean;
+    createConference?: boolean;
   }): Promise<CalendarEventCreatePostResponseDto> {
-    const { calendarId, event, sendUpdates } = request;
+    const { calendarId, event, sendUpdates, createConference } = requestDto;
     try {
       const requestBody = {
         summary: event.summary,
@@ -211,11 +212,35 @@ export class CalendarService {
         location: event.location,
         attendees: event.attendees,
       } as calendar_v3.Schema$Event;
-      const response = await this.service.events.insert({
+      const request = {
         calendarId,
-        requestBody: requestBody,
+        requestBody,
         sendUpdates: sendUpdates ? 'all' : 'none',
-      });
+      } as calendar_v3.Params$Resource$Events$Insert;
+      if (createConference) {
+        // Add conference data to the created event
+        const conferenceRequestBody = {
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${Date.now()}`,
+            },
+          },
+        } as calendar_v3.Schema$Event;
+
+        // NOTE: The following commented code is an alternative approach to add conference data after event creation
+        /* await this.service.events.patch({
+          calendarId,
+          eventId: response.data.id!,
+          requestBody: conferenceRequestBody,
+        }); */
+
+        request.requestBody = {
+          ...requestBody,
+          ...conferenceRequestBody,
+        };
+        request.conferenceDataVersion = 1;
+      }
+      const response = await this.service.events.insert(request);
       return {
         event: response.data,
         meta: { message: 'Event created successfully', success: true },
@@ -228,4 +253,181 @@ export class CalendarService {
       throw error;
     }
   }
+
+  /**
+   * Partially updates a calendar event using events.patch (only fields provided in eventDto are updated).
+   */
+
+  /**
+   * Patch event details (fields) only. Does not modify conference data.
+   */
+  async patchCalendarEventDetail(
+    eventId: string,
+    calendarId: string,
+    eventDto: Partial<GoogleCalendarEventDto>,
+    sendUpdates: 'all' | 'externalOnly' | 'none' = 'none',
+  ): Promise<calendar_v3.Schema$Event> {
+    if (!eventDto || Object.keys(eventDto).length === 0) {
+      throw new Error(
+        'At least one field must be provided to update the event.',
+      );
+    }
+    try {
+      const response = await this.service.events.patch({
+        calendarId,
+        eventId,
+        requestBody: eventDto,
+        sendUpdates,
+      });
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to patch event details for event ID: ${eventId} in calendar ID: ${calendarId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Patch only the conference data (add or remove Google Meet link).
+   * If addConference is true, adds a Meet link; if false, removes conference data.
+   */
+  async patchCalendarEventConference(
+    eventId: string,
+    calendarId: string,
+    createConference: boolean,
+    sendUpdates: 'all' | 'externalOnly' | 'none' = 'none',
+  ): Promise<calendar_v3.Schema$Event> {
+    try {
+      let requestBody: Partial<calendar_v3.Schema$Event>;
+      let conferenceDataVersion: number | undefined = undefined;
+      if (createConference) {
+        requestBody = {
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${Date.now()}`,
+            },
+          },
+        };
+        conferenceDataVersion = 1;
+      } else {
+        requestBody = { conferenceData: undefined };
+      }
+      const response = await this.service.events.patch({
+        calendarId,
+        eventId,
+        requestBody,
+        sendUpdates,
+        ...(conferenceDataVersion ? { conferenceDataVersion } : {}),
+      });
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to patch conference for event ID: ${eventId} in calendar ID: ${calendarId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Patch only the conference data (add or remove Google Meet link).
+   * If addConference is true, adds a Meet link; if false, removes conference data.
+   */
+  async patchCalendarEvent(
+    eventId: string,
+    calendarId: string,
+    event?: Partial<GoogleCalendarEventDto>,
+    createConference?: boolean,
+    sendUpdates: 'all' | 'externalOnly' | 'none' = 'none',
+  ): Promise<calendar_v3.Schema$Event> {
+    try {
+      const request = {
+        eventId,
+        calendarId,
+        sendUpdates,
+      } as calendar_v3.Params$Resource$Events$Patch;
+      // A bug disallows null assignment to conferenceData, so we build the object implicitly
+      let requestBody = {}; // as Partial<calendar_v3.Schema$Event>;
+      if (event && Object.keys(event).length > 0) {
+        requestBody = { ...event };
+      }
+      let conferenceDataResult = 'No changes to';
+      if (createConference === true) {
+        // A bug in the api does not allow nulls, so we need to avoid typing with
+        /* requestBody.conferenceData = {
+          createRequest: {
+            requestId: `meet-${Date.now()}`,
+          },
+        }; */
+        requestBody = {
+          ...requestBody,
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${Date.now()}`,
+            },
+          },
+        };
+        request.conferenceDataVersion = 1;
+        conferenceDataResult = 'Added';
+      } else if (createConference === false) {
+        requestBody = { ...requestBody, conferenceData: null };
+        request.conferenceDataVersion = 1;
+        conferenceDataResult = 'Removed';
+      }
+      this.logger.log(
+        `${conferenceDataResult} conference data for event ID: ${eventId} in calendar ID: ${calendarId}`,
+      );
+      request.requestBody = requestBody;
+      this.logger.log(
+        `Patching event ID: ${eventId} in calendar ID: ${calendarId} with request: ${JSON.stringify(request)}`,
+      );
+      const response = await this.service.events.patch(request);
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to patch with event ID: ${eventId} and calendar ID: ${calendarId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /* async updateCalendarEvent(
+    eventId: string,
+    calendarId: string,
+    event: GoogleCalendarEventDto,
+  ): Promise<calendar_v3.Schema$Event> {
+    try {
+      const existing = await this.getCalendarEvent(eventId, calendarId);
+      if (!existing) {
+        throw new Error(
+          `Event ID: ${eventId} not found in calendar ID: ${calendarId}`,
+        );
+      }
+      const requestBody = {
+        ...existing,
+        summary: event.summary,
+        description: event.description,
+        start: event.start,
+        end: event.end,
+        location: event.location,
+        attendees: event.attendees,
+      } as calendar_v3.Schema$Event;
+      const request = {
+        calendarId,
+        eventId,
+        requestBody,
+      } as calendar_v3.Params$Resource$Events$Update;
+      const response = await this.service.events.update(request);
+      return response.data;
+    } catch (error) {
+      this.logger.error(
+        `Failed to update event ID: ${eventId} for calendar ID: ${calendarId}`,
+        error,
+      );
+      throw error;
+    }
+  } */
 }
