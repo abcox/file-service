@@ -7,6 +7,7 @@ import { AppConfigService } from '../../config/config.service';
 import { GetContactDefinedFieldResponse } from './dto/get-contact-defined-field-response.dto';
 import { fromZonedTime, toZonedTime, format as formatTz } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
+import { ServiceAccountCredentials } from '../google.config';
 
 export interface GoogleApisPeopleServiceOptions {
   scopes?: string[];
@@ -35,7 +36,7 @@ export class PeopleService {
       throw new Error('Google API people scopes are not configured');
     }
     const { scopes } = config;
-    this.service = this.createPeopleServiceFromKeyFile(
+    this.service = this.createPeopleServiceFromKeyFilePathOrContent(
       keyFilePath,
       keyFileJsonContent,
       userEmail,
@@ -55,9 +56,9 @@ export class PeopleService {
    * Create Google People API service from service account key file
    * Mirrors createGmailServiceFromKeyFile in GmailService
    */
-  createPeopleServiceFromKeyFile(
+  createPeopleServiceFromKeyFilePathOrContent(
     keyFilePath?: string,
-    KeyFileJsonContent?: string,
+    keyFileJsonContent?: string,
     userEmail?: string,
     scopes?: string[],
   ): people_v1.People {
@@ -80,9 +81,16 @@ export class PeopleService {
           scopes,
           subject: userEmail, // Domain user to impersonate
         });
-      } else if (KeyFileJsonContent) {
+      } else if (keyFileJsonContent) {
+        // Parse the JSON content to ensure it's valid
+        const credentials = JSON.parse(
+          keyFileJsonContent,
+        ) as ServiceAccountCredentials;
+        // Handle escaped newlines in the private key
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
         jwtClient = new google.auth.JWT({
-          key: KeyFileJsonContent,
+          email: credentials.client_email,
+          key: credentials.private_key,
           scopes,
           subject: userEmail, // Domain user to impersonate
         });
