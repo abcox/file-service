@@ -6,6 +6,7 @@ export interface GoogleApis {
   calendarServiceOptions?: GoogleApisCalendarServiceOptions;
   emailServiceOptions?: GoogleApisEmailServiceOptions;
   peopleServiceOptions?: GoogleApisPeopleServiceOptions;
+  serviceAccountJsonContent?: string;
   serviceAccountJsonKeyFilePathname?: string;
   userEmail?: string; // For domain-wide delegation
 }

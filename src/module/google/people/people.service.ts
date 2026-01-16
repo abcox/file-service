@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ContactGroupsListDto } from './dto/contact-groups-list.dto';
-import { google, people_v1 } from 'googleapis';
+import { google, people_v1, Auth } from 'googleapis';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AppConfigService } from '../../config/config.service';
@@ -24,6 +24,7 @@ export class PeopleService {
   constructor(private appConfigService: AppConfigService) {
     const {
       peopleServiceOptions: config,
+      serviceAccountJsonContent: keyFileJsonContent,
       serviceAccountJsonKeyFilePathname: keyFilePath,
       userEmail,
     } = this.appConfigService.getConfig().googleApis || {};
@@ -36,6 +37,7 @@ export class PeopleService {
     const { scopes } = config;
     this.service = this.createPeopleServiceFromKeyFile(
       keyFilePath,
+      keyFileJsonContent,
       userEmail,
       scopes,
     );
@@ -55,24 +57,40 @@ export class PeopleService {
    */
   createPeopleServiceFromKeyFile(
     keyFilePath?: string,
+    KeyFileJsonContent?: string,
     userEmail?: string,
     scopes?: string[],
   ): people_v1.People {
     try {
       const keyFile = path.resolve(keyFilePath || '');
-      if (!fs.existsSync(keyFile)) {
-        throw new Error(`Service account key file not found: ${keyFile}`);
-      }
+      /* if (!fs.existsSync(keyFile) && !KeyFileJsonContent) {
+        throw new Error(
+          `Service account key file not found: ${keyFile}, and no JSON content provided (via keyvault)`,
+        );
+      } */
       if (!userEmail) {
         throw new Error(
           'User email for domain-wide delegation is not configured',
         );
       }
-      const jwtClient = new google.auth.JWT({
-        keyFile: keyFile,
-        scopes,
-        subject: userEmail, // Domain user to impersonate
-      });
+      let jwtClient: Auth.JWT | undefined = undefined;
+      if (fs.existsSync(keyFile)) {
+        jwtClient = new google.auth.JWT({
+          keyFile: keyFile,
+          scopes,
+          subject: userEmail, // Domain user to impersonate
+        });
+      } else if (KeyFileJsonContent) {
+        jwtClient = new google.auth.JWT({
+          key: KeyFileJsonContent,
+          scopes,
+          subject: userEmail, // Domain user to impersonate
+        });
+      } else {
+        throw new Error(
+          `Service account key file not found: ${keyFile}, and no JSON content provided (via keyvault)`,
+        );
+      }
       return google.people({
         version: 'v1',
         auth: jwtClient,
