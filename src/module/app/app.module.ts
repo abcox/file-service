@@ -19,7 +19,6 @@ import { ContactModule } from '../contact/contact.module';
 import { AssetModule } from '../asset/asset.module';
 import { GmailModule } from '../gmail/gmail.module';
 import { EmailTemplateModule } from '../email-template/email-template.module';
-import { EmailCampaignModule } from '../email-campaign/email-campaign.module';
 import { PeopleModule } from '../google/people';
 import { CalendarModule } from '../google/calendar/calendar.module';
 
@@ -42,7 +41,6 @@ import { CalendarModule } from '../google/calendar/calendar.module';
     AssetModule,
     GmailModule,
     EmailTemplateModule,
-    EmailCampaignModule,
     PeopleModule,
     CalendarModule,
   ],
