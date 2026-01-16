@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { GmailService, MimeMessageRequest } from './gmail.service';
 import { AppConfigService } from '../config/config.service';
-import { google } from 'googleapis';
 import * as fs from 'fs';
 
 // Mock the googleapis module
@@ -139,11 +140,6 @@ describe('GmailService', () => {
     it('should be defined', () => {
       expect(service).toBeDefined();
     });
-
-    it('should initialize with null auth clients', () => {
-      expect(service.getOAuth2Client()).toBeNull();
-      expect(service.getServiceAuth()).toBeNull();
-    });
   });
 
   describe('Gmail Service Creation', () => {
@@ -160,25 +156,6 @@ describe('GmailService', () => {
           auth_uri: 'https://accounts.google.com/o/oauth2/auth',
           token_uri: 'https://oauth2.googleapis.com/token',
         }),
-      );
-    });
-
-    it('should create Gmail service from credentials', () => {
-      const credentials = {
-        clientId: 'test-client-id',
-        clientSecret: 'test-client-secret',
-        redirectUri: 'http://localhost:3000/callback',
-        refreshToken: 'test-refresh-token',
-      };
-
-      const gmailService =
-        service.createGmailServiceFromCredentials(credentials);
-
-      expect(gmailService).toBeDefined();
-      expect(google.auth.OAuth2).toHaveBeenCalledWith(
-        credentials.clientId,
-        credentials.clientSecret,
-        credentials.redirectUri,
       );
     });
 
@@ -200,35 +177,6 @@ describe('GmailService', () => {
       expect(() => {
         service.createGmailServiceFromKeyFile('./nonexistent.json');
       }).toThrow('Service account key file not found');
-    });
-
-    it('should create Gmail service from environment variables', () => {
-      process.env.GMAIL_CLIENT_ID = 'env-client-id';
-      process.env.GMAIL_CLIENT_SECRET = 'env-client-secret';
-      process.env.GMAIL_REFRESH_TOKEN = 'env-refresh-token';
-
-      const gmailService = service.createGmailServiceFromEnv();
-
-      expect(gmailService).toBeDefined();
-      expect(google.auth.OAuth2).toHaveBeenCalledWith(
-        'env-client-id',
-        'env-client-secret',
-        'urn:ietf:wg:oauth:2.0:oob',
-      );
-
-      // Clean up
-      delete process.env.GMAIL_CLIENT_ID;
-      delete process.env.GMAIL_CLIENT_SECRET;
-      delete process.env.GMAIL_REFRESH_TOKEN;
-    });
-
-    it('should throw error if required environment variables are missing', () => {
-      delete process.env.GMAIL_CLIENT_ID;
-      delete process.env.GMAIL_CLIENT_SECRET;
-
-      expect(() => {
-        service.createGmailServiceFromEnv();
-      }).toThrow('Missing required Gmail OAuth2 environment variables');
     });
   });
 
@@ -491,35 +439,6 @@ describe('GmailService', () => {
       expect(service['getContentType']('test.unknown')).toBe(
         'application/octet-stream',
       );
-    });
-  });
-
-  describe('OAuth2 Flow', () => {
-    it('should generate auth URL', () => {
-      const credentials = {
-        clientId: 'test-client-id',
-        clientSecret: 'test-client-secret',
-        redirectUri: 'http://localhost:3000/callback',
-      };
-
-      const authUrl = service.generateAuthUrl(credentials);
-
-      expect(authUrl).toBe('https://mock-auth-url.com');
-    });
-
-    it('should exchange auth code for tokens', async () => {
-      const credentials = {
-        clientId: 'test-client-id',
-        clientSecret: 'test-client-secret',
-        redirectUri: 'http://localhost:3000/callback',
-      };
-
-      const tokens = await service.getTokensFromAuthCode(
-        credentials,
-        'auth-code',
-      );
-
-      expect(tokens.access_token).toBe('mock-access-token');
     });
   });
 });

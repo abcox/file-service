@@ -38,4 +38,4 @@ export class UserBaseDto {
     type: [String],
   })
   roles: string[];
-} 
+}
