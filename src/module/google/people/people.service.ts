@@ -115,7 +115,7 @@ export class PeopleService {
   /**
    * Fetches the user's contact groups using the Google People API.
    */
-  async getContactGroups(): Promise<ContactGroupsListDto> {
+  async getContactGroupList(): Promise<ContactGroupsListDto> {
     try {
       const response = await this.service.contactGroups.list();
       return new ContactGroupsListDto(response.data);

@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { defaultPersonFields, PeopleService } from './people.service';
 import { ContactGroupsListDto } from './dto/contact-groups-list.dto';
 import { Auth } from '../../auth';
-import { ApiBody, ApiProperty, ApiQuery } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiProperty, ApiQuery } from '@nestjs/swagger';
 
 export class UpsertUserDefinedFieldRequest {
   @ApiProperty({
@@ -26,10 +26,11 @@ export class PeopleController {
     return this.peopleService.getProfile(userId);
   } */
 
-  @Get('contact-groups')
-  @Auth({ public: true })
+  @Get('contact/group/list')
+  @Auth({ roles: ['admin', 'user', 'guest'] })
+  @ApiOperation({ summary: 'Get list of contact groups' })
   async getContactGroups(): Promise<ContactGroupsListDto> {
-    return await this.peopleService.getContactGroups();
+    return await this.peopleService.getContactGroupList();
   }
 
   /**
