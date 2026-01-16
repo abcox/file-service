@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { google, calendar_v3 } from 'googleapis';
+import { google, calendar_v3, Auth } from 'googleapis';
 //import { GaxiosResponseWithHTTP2 } from 'googleapis-common';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -21,6 +21,7 @@ export class CalendarService {
   constructor(private appConfigService: AppConfigService) {
     const {
       calendarServiceOptions: config,
+      serviceAccountJsonContent: keyFileContent,
       serviceAccountJsonKeyFilePathname: keyFilePath,
       userEmail,
     } = this.appConfigService.getConfig().googleApis || {};
@@ -31,8 +32,9 @@ export class CalendarService {
       throw new Error('Google API calendar scopes are not configured');
     }
     const { scopes } = config;
-    this.service = this.createCalendarServiceFromKeyFile(
+    this.service = this.createCalendarServiceFromKeyFilePathOrContent(
       keyFilePath,
+      keyFileContent,
       userEmail,
       scopes,
     );
@@ -41,26 +43,40 @@ export class CalendarService {
   /**
    * Create Google Calendar API service from service account key file
    */
-  createCalendarServiceFromKeyFile(
+  createCalendarServiceFromKeyFilePathOrContent(
     keyFilePath?: string,
+    keyFileContent?: string,
     userEmail?: string,
     scopes?: string[],
   ): calendar_v3.Calendar {
     try {
       const keyFile = path.resolve(keyFilePath || '');
-      if (!fs.existsSync(keyFile)) {
+      /* if (!fs.existsSync(keyFile)) {
         throw new Error(`Service account key file not found: ${keyFile}`);
-      }
+      } */
       if (!userEmail) {
         throw new Error(
           'User email for domain-wide delegation is not configured',
         );
       }
-      const jwtClient = new google.auth.JWT({
-        keyFile: keyFile,
-        scopes,
-        subject: userEmail, // Domain user to impersonate
-      });
+      let jwtClient: Auth.JWT | undefined = undefined;
+      if (fs.existsSync(keyFile)) {
+        jwtClient = new google.auth.JWT({
+          keyFile: keyFile,
+          scopes,
+          subject: userEmail, // Domain user to impersonate
+        });
+      } else if (keyFileContent) {
+        jwtClient = new google.auth.JWT({
+          key: keyFileContent,
+          scopes,
+          subject: userEmail, // Domain user to impersonate
+        });
+      } else {
+        throw new Error(
+          `Service account key file not found: ${keyFile}, and no JSON content provided (via keyvault)`,
+        );
+      }
       return google.calendar({
         version: 'v3',
         auth: jwtClient,
