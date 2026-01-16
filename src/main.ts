@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './module/app/app.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { LoggerService } from './module/logger/logger.service';
@@ -96,6 +97,14 @@ async function bootstrap() {
     // Set global prefix
     app.setGlobalPrefix('api');
     logger.info('Global prefix set to: api');
+
+    // Enable validation with transformation
+    app.useGlobalPipes(
+      new ValidationPipe({
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
+    );
 
     // TODO: review this middleware:
     // 1. At minimum, we should organize this somewhere else? (it clutters the main file)

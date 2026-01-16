@@ -1,9 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository, UpdateResult } from 'typeorm';
+import {
+  FindOptionsOrder,
+  FindOptionsWhere,
+  //Like,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
 import { LoggerService } from '../../module/logger/logger.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
+import { UserSearchRequest } from '../../module/auth/dto/user/user-search-request.dto';
 
 export interface UpdatePasswordResetDataDto {
   passwordResetToken: string | null;
@@ -96,10 +103,44 @@ export class UserDbService {
     });
   }
 
+  async searchUsers(request: UserSearchRequest): Promise<UserEntity[]> {
+    const where: FindOptionsWhere<UserEntity> = {};
+    if (request?.username) {
+      where.username = request.username;
+    }
+    if (request?.email) {
+      where.email = request.email;
+    }
+    if (request?.isActive !== undefined) {
+      where.isActive = request.isActive;
+    }
+    //if (roles && roles.length > 0) {
+    //  if (roles.includes('admin')) {
+    //    // For admin role, check the isAdmin boolean property
+    //    where.isAdmin = true;
+    //  } else {
+    //    // simple-array is stored as comma-separated string, use Like for matching
+    //    where.roles = Like(`%${request.roles[0]}%`);
+    //  }
+    //}
+    if (request?.isAdmin !== undefined) {
+      where.isAdmin = request.isAdmin;
+    }
+    this.logger.log('Search users with where:', where);
+    let order: FindOptionsOrder<UserEntity> = { createdAt: 'DESC' };
+    if (request?.sortBy) {
+      request.sortBy.forEach((field) => {
+        order = { ...order, [field]: 'ASC' };
+      });
+    }
+    return this.userRepository.find({ where, order });
+  }
+
   async updateLastLogin(userId: string): Promise<Date | undefined> {
     const lastLoginDate = new Date();
     const result = await this.userRepository.update(userId, {
       lastLoginAt: lastLoginDate,
+      passwordFailedAttempts: 0,
     });
     return (result?.affected ?? 0) > 0 ? lastLoginDate : undefined;
   }

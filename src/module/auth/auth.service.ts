@@ -16,6 +16,7 @@ import {
 import { UnauthorizedException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { GmailService } from '../gmail/gmail.service';
+import { UserSearchRequest } from './dto/user/user-search-request.dto';
 
 interface JwtPayload {
   sub: string;
@@ -154,6 +155,14 @@ export class AuthService {
         lastLoginAt: lastLoginDate ?? user.lastLoginAt,
       },
     } as UserLoginResponse;
+  }
+
+  async getUserList(): Promise<UserEntity[]> {
+    return await this.userDb.getAllUsers();
+  }
+
+  async searchUsers(request: UserSearchRequest): Promise<UserEntity[]> {
+    return await this.userDb.searchUsers(request);
   }
 
   getUserWithUpdatedRoles(user: UserEntity): UserEntity {

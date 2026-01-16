@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import {
   ApiBody,
   ApiExcludeEndpoint,
@@ -15,6 +15,8 @@ import {
   RefreshTokenRequestDto,
   RefreshTokenResponseDto,
 } from './dto/refresh-token.dto';
+import { UserEntity } from '../../database/entities/user.entity';
+import { UserSearchRequest } from './dto/user/user-search-request.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -90,5 +92,22 @@ export class AuthController {
         accessToken: '',
       };
     }
+  }
+
+  @Get('user/list')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Get list of users' })
+  async getUserList(): Promise<UserEntity[]> {
+    return await this.authService.getUserList();
+  }
+
+  @Post('user/search')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Search users' })
+  @ApiBody({ type: UserSearchRequest })
+  async getUserSearch(
+    @Body() request: UserSearchRequest,
+  ): Promise<UserEntity[]> {
+    return await this.authService.searchUsers(request);
   }
 }
