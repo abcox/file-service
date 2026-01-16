@@ -69,17 +69,11 @@ export class CalendarService {
         });
       } else if (keyFileContent) {
         // Parse the JSON content to ensure it's valid
-        console.log(
-          'Using service account JSON content from config',
-          keyFileContent,
-        );
         const credentials = JSON.parse(
           keyFileContent,
         ) as ServiceAccountCredentials;
-        console.log('Parsed service account credentials:', credentials);
         // Handle escaped newlines in the private key
         credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
-        console.log('Processed private key:', credentials.private_key);
         jwtClient = new google.auth.JWT({
           email: credentials.client_email,
           key: credentials.private_key,
