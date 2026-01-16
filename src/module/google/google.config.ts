@@ -10,3 +10,10 @@ export interface GoogleApis {
   serviceAccountJsonKeyFilePathname?: string;
   userEmail?: string; // For domain-wide delegation
 }
+
+export interface ServiceAccountCredentials {
+  client_email: string;
+  private_key: string;
+  project_id?: string;
+  // add other fields if needed
+}

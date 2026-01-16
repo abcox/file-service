@@ -8,6 +8,7 @@ import { GetGoogleCalendarListDto } from './dto/get-calendar-event-list.dto';
 import { CalendarEventDeleteBatchPostResponseDto } from './dto/calendar-event-delete-batch-post-response.dto';
 import { CalendarEventCreatePostResponseDto } from './dto/calendar-event-create-post-response.dto';
 import { GoogleCalendarEventDto } from './dto/google-calendar-event.dto';
+import { ServiceAccountCredentials } from '../google.config';
 
 export interface GoogleApisCalendarServiceOptions {
   scopes?: string[];
@@ -67,8 +68,21 @@ export class CalendarService {
           subject: userEmail, // Domain user to impersonate
         });
       } else if (keyFileContent) {
+        // Parse the JSON content to ensure it's valid
+        console.log(
+          'Using service account JSON content from config',
+          keyFileContent,
+        );
+        const credentials = JSON.parse(
+          keyFileContent,
+        ) as ServiceAccountCredentials;
+        console.log('Parsed service account credentials:', credentials);
+        // Handle escaped newlines in the private key
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+        console.log('Processed private key:', credentials.private_key);
         jwtClient = new google.auth.JWT({
-          key: keyFileContent,
+          email: credentials.client_email,
+          key: credentials.private_key,
           scopes,
           subject: userEmail, // Domain user to impersonate
         });
