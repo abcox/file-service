@@ -37,12 +37,12 @@ export class PeopleController {
    * GET /google/people/contact-groups/:resourceName/members
    * Returns the member resource names for a contact group.
    */
-  @Get('contact-groups/:resourceName/members')
+  @Get('contact/group/:resourceId/member/list')
   @Auth({ public: true })
   async getContactGroupMembers(
-    @Param('resourceName') resourceName: string,
+    @Param('resourceId') resourceId: string,
   ): Promise<any[]> {
-    return await this.peopleService.getContactGroupMembers(resourceName);
+    return await this.peopleService.getContactGroupMemberList(resourceId);
   }
 
   /**

@@ -131,11 +131,12 @@ export class PeopleService {
    * @param groupResourceName The resource name of the contact group (e.g., 'contactGroups/family')
    * @param maxMembers Maximum number of members to fetch (optional)
    */
-  async getContactGroupMembers(
-    groupResourceName: string,
+  async getContactGroupMemberList(
+    groupResourceNameId: string,
     maxMembers: number = 100,
   ): Promise<people_v1.Schema$Person[]> {
     try {
+      const groupResourceName = `contactGroups/${groupResourceNameId}`;
       this.logger.log(`Fetching members for group: ${groupResourceName}`);
       const response = await this.service.contactGroups.get({
         resourceName: groupResourceName,
