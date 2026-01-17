@@ -32,13 +32,13 @@ export class CalendarController {
     summary: 'Get Calendar List',
     description: 'Fetches the list of calendars for the configured user.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async getCalendars(): Promise<calendar_v3.Schema$CalendarList | null> {
     return this.calendarService.getCalendarList();
   }
 
   @Get(':id')
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiOperation({
     summary: 'Get Calendar by ID',
     description: 'Given a Calendar ID, fetches the calendar details.',
@@ -54,7 +54,7 @@ export class CalendarController {
     summary: 'Get Calendar Event List',
     description: 'Given a Calendar ID, fetches its list of events.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async getCalendarEventList(
     @Param('id') id: string,
   ): Promise<GetGoogleCalendarListDto> {
@@ -67,7 +67,7 @@ export class CalendarController {
     description:
       'Given a Calendar ID and a query string, fetches its list of events matching the query.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiQuery({
     name: 'query',
     required: true,
@@ -86,7 +86,7 @@ export class CalendarController {
     summary: 'Get Calendar Event',
     description: 'Given a Calendar ID and Event ID, fetches the event details.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async getCalendarEvent(
     @Param('calendarId') calendarId: string,
     @Param('eventId') eventId: string,
@@ -99,7 +99,7 @@ export class CalendarController {
     summary: 'Delete Calendar Event',
     description: 'Given a Calendar ID and Event ID, deletes the event.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async deleteCalendarEvent(
     @Param('calendarId') calendarId: string,
     @Param('eventId') eventId: string,
@@ -113,7 +113,7 @@ export class CalendarController {
     description:
       'Given a Calendar ID and a list of Event IDs, deletes the events in batch.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async deleteCalendarEventBatch(
     @Param('id') id: string,
     @Body() deleteRequestDto: CalendarEventDeleteBatchPostRequestDto,
@@ -130,7 +130,7 @@ export class CalendarController {
     summary: 'Create Calendar Event',
     description: 'Creates a new event in the specified calendar.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async createCalendarEvent(
     @Param('id') id: string,
     @Body()
@@ -151,7 +151,7 @@ export class CalendarController {
     description:
       'Patches event details (fields) in the specified calendar. Only include the fields to be updated in the request body.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async patchCalendarEventDetail(
     @Param('calendarId') calendarId: string,
     @Param('eventId') eventId: string,
@@ -172,7 +172,7 @@ export class CalendarController {
     description:
       'Adds or removes a Google Meet link for the event. Use addConference=true to add, false to remove.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiBody({ type: CalendarEventPatchConferenceRequestDto })
   async patchCalendarEventConference(
     @Param('calendarId') calendarId: string,
@@ -195,7 +195,7 @@ export class CalendarController {
     description:
       'Patches calendar event details and/or adds conference. Only include the fields to be updated in the request body. Must include either at least 1 event detail property or createConference flag.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiBody({ type: CalendarEventPatchRequestDto })
   async patchCalendarEvent(
     @Param('calendarId') calendarId: string,
@@ -218,7 +218,7 @@ export class CalendarController {
     summary: 'Update Calendar Event',
     description: 'Updates an existing event in the specified calendar.',
   })
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   async updateCalendarEvent(
     @Param('calendarId') calendarId: string,
     @Param('eventId') eventId: string,
