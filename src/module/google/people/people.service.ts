@@ -176,13 +176,14 @@ export class PeopleService {
 
   /* Upsert user defined field key-value pair */
   async upsertUserDefinedField(
-    personResourceName: string,
+    personResourceNameId: string,
     userDefinedField: Record<string, string>,
     timeZone?: string,
   ): Promise<people_v1.Schema$Person | null> {
     try {
+      const resourceName = `people/${personResourceNameId}`;
       console.log(
-        `PeopleService.upsertUserDefinedField called for personResourceName=${personResourceName}; userDefinedField=${JSON.stringify(userDefinedField)}; timeZone=${timeZone}`,
+        `PeopleService.upsertUserDefinedField called for resourceName=${resourceName}; userDefinedField=${JSON.stringify(userDefinedField)}; timeZone=${timeZone}`,
       );
       const tz = timeZone || this.timeZone || 'UTC';
       // validate the userDefinedField has exactly one key-value pair
@@ -220,12 +221,9 @@ export class PeopleService {
       }
 
       // First, fetch the existing person data
-      const person = await this.getPersonDetail(
-        personResourceName,
-        'userDefined',
-      );
+      const person = await this.getPersonDetail(resourceName, 'userDefined');
       if (!person) {
-        throw new Error(`Person not found: ${personResourceName}`);
+        throw new Error(`Person not found: ${personResourceNameId}`);
       }
       // Prepare the userDefined fields
       const userDefinedFields = person.userDefined || [];
@@ -245,7 +243,7 @@ export class PeopleService {
       }
       // Update the person with the new userDefined fields
       const response = await this.service.people.updateContact({
-        resourceName: personResourceName,
+        resourceName: resourceName,
         updatePersonFields: 'userDefined',
         requestBody: {
           etag: person.etag,
@@ -261,22 +259,20 @@ export class PeopleService {
 
   // get user defined field
   async getContactDefinedField(
-    personResourceName: string,
+    resourceNameId: string,
     fieldKey: string,
     timeZone?: string,
   ): Promise<GetContactDefinedFieldResponse> {
     try {
+      const resourceName = `people/${resourceNameId}`;
       this.logger.log(
-        `Fetching user defined field '${fieldKey}' for person: ${personResourceName}`,
+        `Fetching user defined field '${fieldKey}' for person: ${resourceName}`,
       );
 
       const tz = timeZone || this.timeZone || 'UTC';
-      const person = await this.getPersonDetail(
-        personResourceName,
-        'userDefined',
-      );
+      const person = await this.getPersonDetail(resourceName, 'userDefined');
       if (!person || !person.userDefined) {
-        throw new Error(`Person not found: ${personResourceName}`);
+        throw new Error(`Person not found: ${resourceName}`);
       }
       const field = person.userDefined.find((f) => f.key === fieldKey);
 

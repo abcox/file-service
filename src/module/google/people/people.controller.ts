@@ -85,19 +85,20 @@ export class PeopleController {
   }
 
   /* POST /google/people/user-defined-field */
-  @Post('person/:resourceName/user-defined-field')
+  @Post('person/:resourceNameId/user-defined-field')
   @Auth({ roles: ['admin'] })
   @ApiBody({
     description: 'User defined field data to upsert',
     type: UpsertUserDefinedFieldRequest,
   })
   async upsertUserDefinedField(
-    @Param('resourceName') resourceName: string,
+    @Param('resourceNameId') resourceNameId: string,
     @Body() request: UpsertUserDefinedFieldRequest,
   ): Promise<any> {
+    /* 
     console.log(
-      `PeopleController.upsertUserDefinedField called for resourceName=${resourceName}; userDefinedField=${JSON.stringify(request.userDefinedField)}`,
-    );
+      `PeopleController.upsertUserDefinedField called for resourceNameId=${resourceNameId}; userDefinedField=${JSON.stringify(request.userDefinedField)}`,
+    ); */
     const { key, value } = request.userDefinedField;
     console.log(`key=${key}, value=${value}`);
     const userDefinedField: Record<string, string> = { [key]: value };
@@ -108,23 +109,23 @@ export class PeopleController {
       `User defined field to upsert: ${JSON.stringify(userDefinedField)}`,
     );
     return await this.peopleService.upsertUserDefinedField(
-      resourceName,
+      resourceNameId,
       userDefinedField,
       request.timeZone,
     );
   }
 
   // GET /google/people/:resourceName/user-defined-field
-  @Get('person/:resourceName/user-defined-field')
+  @Get('person/:resourceNameId/user-defined-field')
   @Auth({ roles: ['admin'] })
   @ApiQuery({ name: 'timeZone', required: false, type: String })
   async getUserDefinedField(
-    @Param('resourceName') resourceName: string,
+    @Param('resourceNameId') resourceNameId: string,
     @Query('key') key: string,
     @Query('timeZone') timeZone?: string,
   ): Promise<any> {
     const result = await this.peopleService.getContactDefinedField(
-      resourceName,
+      resourceNameId,
       key,
       timeZone,
     );
