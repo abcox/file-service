@@ -2,7 +2,13 @@ import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { defaultPersonFields, PeopleService } from './people.service';
 import { ContactGroupsListDto } from './dto/contact-groups-list.dto';
 import { Auth } from '../../auth';
-import { ApiBody, ApiOperation, ApiProperty, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiProperty,
+  ApiQuery,
+} from '@nestjs/swagger';
 
 export class UpsertUserDefinedFieldRequest {
   @ApiProperty({
@@ -37,30 +43,50 @@ export class PeopleController {
    * GET /google/people/contact-groups/:resourceName/members
    * Returns the member resource names for a contact group.
    */
-  @Get('contact/group/:resourceId/member/list')
-  @Auth({ public: true })
+  @Get('contact/group/:resourceNameId/member/list')
+  @Auth({ roles: ['admin'] })
   async getContactGroupMembers(
-    @Param('resourceId') resourceId: string,
+    @Param('resourceNameId') resourceNameId: string,
   ): Promise<any[]> {
-    return await this.peopleService.getContactGroupMemberList(resourceId);
+    return await this.peopleService.getContactGroupMemberList(resourceNameId);
   }
 
   /**
    * GET /google/people/person/:resourceName
    * Returns a person's details from the People API.
    */
-  @Get('person/:resourceName')
-  @Auth({ public: true })
-  async getPerson(
-    @Param('resourceName') resourceName: string,
-    @Query('fields') fields: string = defaultPersonFields,
+  @Get('person/:resourceNameId/detail')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({
+    summary: 'Get person details by resource name ID (admin only)',
+  })
+  @ApiParam({
+    name: 'resourceNameId',
+    description:
+      'The resource name ID of the person (e.g., c8354119414991994057)',
+    example: 'c8354119414991994057',
+  })
+  @ApiQuery({
+    name: 'fieldNameList',
+    required: false,
+    example:
+      'names,emailAddresses,phoneNumbers (default: names,emailAddresses)',
+    description:
+      'Comma-separated list of fields to include in the response (default: names,emailAddresses)',
+  })
+  async getPersonDetail(
+    @Param('resourceNameId') resourceNameId: string,
+    @Query('fieldNameList') fieldNameList: string = defaultPersonFields,
   ) {
-    return await this.peopleService.getPerson(resourceName, fields);
+    return await this.peopleService.getPersonDetail(
+      resourceNameId,
+      fieldNameList,
+    );
   }
 
   /* POST /google/people/user-defined-field */
   @Post('person/:resourceName/user-defined-field')
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiBody({
     description: 'User defined field data to upsert',
     type: UpsertUserDefinedFieldRequest,
@@ -90,7 +116,7 @@ export class PeopleController {
 
   // GET /google/people/:resourceName/user-defined-field
   @Get('person/:resourceName/user-defined-field')
-  @Auth({ public: true })
+  @Auth({ roles: ['admin'] })
   @ApiQuery({ name: 'timeZone', required: false, type: String })
   async getUserDefinedField(
     @Param('resourceName') resourceName: string,

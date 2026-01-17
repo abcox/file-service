@@ -153,18 +153,19 @@ export class PeopleService {
 
   /**
    * Fetches a person's details using the Google People API.
-   * @param personResourceName The resource name of the person (e.g., 'people/c8354119414991994057')
-   * @param personFields Optional: comma-separated fields to include (default: 'names,emailAddresses')
+   * @param resourceNameId The resource name of the person (e.g., if resourceName = 'people/c8354119414991994057', then resourceNameId = 'c8354119414991994057')
+   * @param fieldNameList Optional: comma-separated fields to include (default: 'names,emailAddresses')
    */
-  async getPerson(
-    personResourceName: string,
-    personFields: string = 'names,emailAddresses',
+  async getPersonDetail(
+    resourceNameId: string,
+    fieldNameList: string = 'names,emailAddresses',
   ): Promise<people_v1.Schema$Person | null> {
     try {
-      this.logger.log(`Fetching person: ${personResourceName}`);
+      const resourceName = `people/${resourceNameId}`;
+      this.logger.log(`Fetching person: ${resourceNameId}`);
       const response = await this.service.people.get({
-        resourceName: personResourceName,
-        personFields,
+        resourceName: resourceName,
+        personFields: fieldNameList,
       });
       return response.data || null;
     } catch (error) {
@@ -219,7 +220,10 @@ export class PeopleService {
       }
 
       // First, fetch the existing person data
-      const person = await this.getPerson(personResourceName, 'userDefined');
+      const person = await this.getPersonDetail(
+        personResourceName,
+        'userDefined',
+      );
       if (!person) {
         throw new Error(`Person not found: ${personResourceName}`);
       }
@@ -267,7 +271,10 @@ export class PeopleService {
       );
 
       const tz = timeZone || this.timeZone || 'UTC';
-      const person = await this.getPerson(personResourceName, 'userDefined');
+      const person = await this.getPersonDetail(
+        personResourceName,
+        'userDefined',
+      );
       if (!person || !person.userDefined) {
         throw new Error(`Person not found: ${personResourceName}`);
       }
