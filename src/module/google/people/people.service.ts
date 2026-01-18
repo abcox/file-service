@@ -134,17 +134,49 @@ export class PeopleService {
   async getContactGroupMemberList(
     groupResourceNameId: string,
     maxMembers: number = 100,
+    includeDetails: boolean = true,
   ): Promise<people_v1.Schema$Person[]> {
     try {
       const groupResourceName = `contactGroups/${groupResourceNameId}`;
       this.logger.log(`Fetching members for group: ${groupResourceName}`);
-      const response = await this.service.contactGroups.get({
+      const params: people_v1.Params$Resource$Contactgroups$Get = {
         resourceName: groupResourceName,
         maxMembers,
-      });
-      return (response.data.memberResourceNames ||
-        []) as people_v1.Schema$Person[];
-      // To fetch full person details, you would need to call peopleService.people.get for each memberResourceName
+        groupFields: 'name',
+      };
+      const response = await this.service.contactGroups.get(params);
+      this.logger.log(`Fetched response`, response);
+
+      const memberResourceNames = response.data.memberResourceNames || [];
+
+      if (!includeDetails || memberResourceNames.length === 0) {
+        // Return just the resource names as minimal person objects
+        return memberResourceNames.map((rn) => ({ resourceName: rn }));
+      }
+
+      // Fetch full person details using getBatchGet (max 50 per request)
+      const persons: people_v1.Schema$Person[] = [];
+      const batchSize = 50;
+
+      for (let i = 0; i < memberResourceNames.length; i += batchSize) {
+        const batch = memberResourceNames.slice(i, i + batchSize);
+        const batchResponse = await this.service.people.getBatchGet({
+          resourceNames: batch,
+          personFields: 'names,emailAddresses',
+        });
+        if (batchResponse.data.responses) {
+          for (const personResponse of batchResponse.data.responses) {
+            if (personResponse.person) {
+              persons.push(personResponse.person);
+            }
+          }
+        }
+      }
+      this.logger.log(
+        `Fetched ${persons.length} members for group: ${groupResourceName}`,
+        persons,
+      );
+      return persons;
     } catch (error) {
       this.logger.error('Failed to fetch contact group members', error);
       throw error;
