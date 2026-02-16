@@ -21,6 +21,7 @@ import { GmailModule } from '../gmail/gmail.module';
 import { EmailTemplateModule } from '../email-template/email-template.module';
 import { PeopleModule } from '../google/people';
 import { CalendarModule } from '../google/calendar/calendar.module';
+import { PaymentModule } from '../payment/payment.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { CalendarModule } from '../google/calendar/calendar.module';
     EmailTemplateModule,
     PeopleModule,
     CalendarModule,
+    PaymentModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

@@ -96,6 +96,13 @@
       "./src/assets/gmail/auth/constantcontact2-1034-d1a0ae8c30a2.json",
     "userEmail": "adam.cox@vorba.com"
   },
+  "payment": {
+    "stripe": {
+      "key": "",
+      "secret": "",
+      "version": "2025-12-25.core"
+    }
+  },
   "storage": {
     "type": "emulator",
     "local": {

@@ -1,5 +1,6 @@
 import { GoogleApis } from '../google/google.config';
 import { GptConfig } from '../gpt/gpt.service';
+import { StripeOptions } from '../payment/stripe/stripe.service';
 
 export interface AppConfig {
   azure: {
@@ -71,6 +72,9 @@ export interface AppConfig {
   keyVault?: { vaultUrl: string };
   gptConfig?: GptConfig;
   googleApis?: GoogleApis;
+  payment?: {
+    stripe: StripeOptions;
+  };
   storage: {
     type: 'local' | 'azure' | 'emulator';
     local: { subfolderPath: string };

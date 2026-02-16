@@ -27,11 +27,29 @@ export class AppConfigService {
 
     // 1. Load base configuration from JSON files
     const environment = process.env.NODE_ENV || 'development';
-    const configPath = path.join(
-      process.cwd(),
-      environment === 'development' ? 'src/config' : 'dist',
-      `config.json`,
-    );
+    const configDir = environment === 'development' ? 'src/config' : 'dist';
+
+    // In development, try config.local-dev.json first (gitignored, contains secrets)
+    // Falls back to config.json (committed template)
+    let configPath: string;
+    if (environment === 'development') {
+      const localDevConfigPath = path.join(
+        process.cwd(),
+        configDir,
+        'config.local-dev.json',
+      );
+      if (fs.existsSync(localDevConfigPath)) {
+        configPath = localDevConfigPath;
+        logger.info('📁 Using local-dev config (config.local-dev.json)');
+      } else {
+        configPath = path.join(process.cwd(), configDir, 'config.json');
+        logger.warn(
+          '⚠️ config.local-dev.json not found, falling back to config.json',
+        );
+      }
+    } else {
+      configPath = path.join(process.cwd(), configDir, 'config.json');
+    }
 
     logger.info('📁 Config file path resolution', {
       environment,

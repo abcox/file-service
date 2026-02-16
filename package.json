@@ -26,6 +26,7 @@
     "test:pdf-single": "npx jest src/module/pdf/pdf.service.spec.ts -t \"should generate different PDF types for comparison\"",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:stripe": "jest --testPathPattern=stripe.service.spec.ts",
     "------------ TEST / GMAIL -------": "--------------------------------------",
     "gmail:setup-oauth": "node scripts/auth/gmail-apis/gmail-oauth-setup.js",
     "gmail:debug-auth": "node scripts/debug/gmail-apis/debug-gmail-auth.js",
@@ -98,6 +99,7 @@
     "playwright": "^1.55.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "stripe": "^20.1.0",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.25"
   },
