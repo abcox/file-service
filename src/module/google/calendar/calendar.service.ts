@@ -133,7 +133,13 @@ export class CalendarService {
     calendarId: string,
   ): Promise<GetGoogleCalendarListDto> {
     try {
-      const response = await this.service.events.list({ calendarId });
+      const params = {
+        calendarId,
+        maxResults: 2500,
+        singleEvents: true,
+        orderBy: 'startTime',
+      } as calendar_v3.Params$Resource$Events$List;
+      const response = await this.service.events.list(params);
       return {
         items: response.data.items || [],
         length: response.data.items?.length || 0,
