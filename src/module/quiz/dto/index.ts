@@ -4,4 +4,4 @@ export * from './quiz.dto';
 export * from './quiz-response.dto';
 export * from './quiz-summary.dto';
 export * from './quiz-search-response.dto';
-export * from './create-quiz.dto'; 
+export * from './create-quiz.dto';

@@ -62,4 +62,4 @@ export class BaseSearchRequestDto {
   @IsOptional()
   @IsObject()
   filters?: Record<string, any>;
-} 
+}

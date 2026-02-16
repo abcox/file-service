@@ -12,7 +12,6 @@ import {
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 export class QuizAnswerDto {
   @ApiProperty({ description: 'Question ID', example: 1 })
   @IsNumber()

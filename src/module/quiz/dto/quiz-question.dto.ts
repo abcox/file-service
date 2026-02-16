@@ -3,8 +3,6 @@ import { IsString, IsNumber, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { QuizQuestionOptionDto } from './quiz-question-option.dto';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * DTO for quiz question
  */
@@ -45,4 +43,4 @@ export class QuizQuestionDto {
   @ValidateNested({ each: true })
   @Type(() => QuizQuestionOptionDto)
   options: QuizQuestionOptionDto[];
-} 
+}

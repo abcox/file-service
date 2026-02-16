@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsString, IsOptional, IsArray } from 'class-validator';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * Base response DTO for single object responses
  */

@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNumber } from 'class-validator';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * DTO for quiz question option
  */

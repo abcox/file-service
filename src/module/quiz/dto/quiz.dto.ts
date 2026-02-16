@@ -7,8 +7,6 @@ import { IsString, IsArray, IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { QuizQuestionDto } from './quiz-question.dto';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * DTO for quiz data
  */

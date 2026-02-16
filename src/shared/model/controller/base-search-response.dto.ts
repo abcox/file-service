@@ -2,8 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsBoolean } from 'class-validator';
 import { BaseResponseDto } from './base-response.dto';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * Base search response DTO for collection operations with pagination
  */

@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsNumber, IsOptional } from 'class-validator';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * DTO for quiz summary data (used in list responses)
  */

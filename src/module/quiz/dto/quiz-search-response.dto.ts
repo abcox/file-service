@@ -2,8 +2,6 @@ import { ApiPropertyOptional, ApiExtraModels } from '@nestjs/swagger';
 import { BaseSearchResponseDto } from '../../../shared/model/controller';
 import { QuizSummaryDto } from './quiz-summary.dto';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-
 /**
  * DTO for quiz search/list response data
  */
@@ -13,8 +11,8 @@ export class QuizSearchResponseDto extends BaseSearchResponseDto<QuizSummaryDto>
     description: 'Array of quiz summary data',
     type: 'array',
     items: {
-      $ref: '#/components/schemas/QuizSummaryDto'
-    }
+      $ref: '#/components/schemas/QuizSummaryDto',
+    },
   })
   declare data?: QuizSummaryDto[];
-} 
+}
