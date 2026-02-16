@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { defaultPersonFields, PeopleService } from './people.service';
 import { ContactGroupsListDto } from './dto/contact-groups-list.dto';
+import { ContactGroupMemberDto } from './dto/contact-group-member.dto';
 import { Auth } from '../../auth';
 import {
   ApiBody,
@@ -8,6 +9,7 @@ import {
   ApiParam,
   ApiProperty,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 
 export class UpsertUserDefinedFieldRequest {
@@ -34,7 +36,13 @@ export class PeopleController {
 
   @Get('contact/group/list')
   @Auth({ roles: ['admin', 'user', 'guest'] })
+  //@Auth({ public: true })
   @ApiOperation({ summary: 'Get list of contact groups' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of contact groups returned successfully',
+    type: ContactGroupsListDto,
+  })
   async getContactGroups(): Promise<ContactGroupsListDto> {
     return await this.peopleService.getContactGroupList();
   }
@@ -45,9 +53,29 @@ export class PeopleController {
    */
   @Get('contact/group/:resourceNameId/member/list')
   @Auth({ roles: ['admin'] })
+  //@Auth({ public: true })
+  @ApiOperation({
+    operationId: 'getContactGroupMembers',
+    summary: 'Get contact group members by group resource name ID',
+    description:
+      'Fetches all members of a contact group with their names and email addresses.',
+  })
+  @ApiParam({
+    name: 'resourceNameId',
+    description:
+      'The resource name ID of the contact group (e.g., 6d88e59889afe55)',
+    example: '6d88e59889afe55',
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of contact group members returned successfully',
+    type: [ContactGroupMemberDto],
+  })
+  @ApiResponse({ status: 404, description: 'Contact group not found' })
   async getContactGroupMembers(
     @Param('resourceNameId') resourceNameId: string,
-  ): Promise<any[]> {
+  ): Promise<ContactGroupMemberDto[]> {
     return await this.peopleService.getContactGroupMemberList(resourceNameId);
   }
 
