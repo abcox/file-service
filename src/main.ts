@@ -80,8 +80,8 @@ async function bootstrap() {
       } else {
         console.warn('CORS is disabled');
       }
-      app.setGlobalPrefix(apiCfg.path);
-      console.log(`Global prefix set to: ${apiCfg.path}`);
+      // Note: Global prefix is set below after logger is available
+      console.log(`API path configured as: ${apiCfg.path}`);
     }
 
     // Get the logger service from the app
@@ -94,9 +94,14 @@ async function bootstrap() {
       await debugService.runStartupDiagnostics();
     }
 
-    // Set global prefix
-    app.setGlobalPrefix('api');
-    logger.info('Global prefix set to: api');
+    // Set global prefix with exclusion for root-level health check (used by infra/load balancers)
+    const globalPrefix = apiCfg?.path || 'api';
+    app.setGlobalPrefix(globalPrefix, {
+      exclude: ['health'],
+    });
+    logger.info(
+      `Global prefix set to: ${globalPrefix} (excluding /health for infra checks)`,
+    );
 
     // Enable validation with transformation
     app.useGlobalPipes(
