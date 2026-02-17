@@ -17,63 +17,85 @@ export interface StripeOptions {
 
 @Injectable()
 export class StripeService {
-  private stripe: Stripe;
+  private _stripe: Stripe | null = null;
   private readonly logger = new Logger(StripeService.name);
 
-  constructor(private appConfigService: AppConfigService) {
+  constructor(private appConfigService: AppConfigService) {}
+
+  private get client(): Stripe | null {
+    if (this._stripe) {
+      return this._stripe;
+    }
     const { key, secret, version } =
       this.appConfigService.getConfig()?.payment?.stripe || {};
     if (!key || !secret || !version) {
-      throw new Error('Stripe configuration is missing');
+      this.logger.warn(
+        'Stripe configuration is missing - payment features will be unavailable',
+      );
+      return null;
     }
-    this.stripe = new Stripe(secret, {
+
+    // initialize Stripe client
+    this._stripe = new Stripe(secret, {
       //key: key,
       apiVersion: '2025-12-15.clover',
     } as Stripe.StripeConfig);
+    this.logger.log('Stripe service initialized successfully');
+
+    return this._stripe;
   }
 
-  async getAccount(): Promise<Stripe.Account> {
-    const account = await this.stripe.accounts.retrieve();
+  async getAccount(): Promise<Stripe.Account | undefined> {
+    const account = await this.client?.accounts.retrieve();
     return account;
   }
 
   async getBalance(): Promise<Stripe.Balance> {
-    const balance = await this.stripe.balance.retrieve();
+    const balance = await this.client?.balance.retrieve();
+    if (!balance) {
+      throw new Error('Failed to retrieve balance');
+    }
     return balance;
   }
 
   async getBalanceTransactionList(
     params?: Stripe.BalanceTransactionListParams,
   ): Promise<Stripe.BalanceTransaction[]> {
-    const balanceTransactions = await this.stripe.balanceTransactions.list(
+    const balanceTransactions = await this.client?.balanceTransactions.list(
       params || {},
     );
-    return balanceTransactions.data;
+    return balanceTransactions?.data || [];
   }
 
   async getChargeList(
     params?: Stripe.ChargeListParams,
   ): Promise<Stripe.Charge[]> {
-    const charges = await this.stripe.charges.list(params || {});
-    return charges.data;
+    const charges = await this.client?.charges.list(params || {});
+    return charges?.data || [];
   }
 
   async getCharge(id: string): Promise<Stripe.Charge> {
-    const charge = await this.stripe.charges.retrieve(id);
+    const charge = await this.client?.charges.retrieve(id);
+    if (!charge) {
+      throw new Error('Failed to retrieve charge details');
+    }
     return charge;
   }
 
   //#region Customer
 
   async getCustomerList(): Promise<Stripe.Customer[]> {
-    const customers = await this.stripe.customers.list();
-    return customers.data;
+    const customers = await this.client?.customers.list();
+    if (!customers) {
+      throw new Error('Failed to retrieve customer list');
+    }
+    return customers?.data || [];
   }
 
   async getCustomerDetail(
     id: string,
   ): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
-    const customer = await this.stripe.customers.retrieve(id);
+    const customer = await this.client?.customers.retrieve(id);
     if (!customer) {
       throw new Error('Customer not found');
     }
@@ -83,18 +105,24 @@ export class StripeService {
   async getCustomerByEmail(
     email: string,
   ): Promise<Stripe.Customer | undefined> {
-    const customers = await this.stripe.customers.list({ email: email });
-    return customers.data.length > 0 ? customers.data[0] : undefined;
+    const customers = await this.client?.customers.list({ email: email });
+    if (!customers || customers.data.length === 0) {
+      return undefined;
+    }
+    return customers.data[0];
   }
 
   async deleteCustomer(id: string): Promise<void> {
-    await this.stripe.customers.del(id);
+    await this.client?.customers.del(id);
   }
 
   async createCustomer(
     params: Stripe.CustomerCreateParams,
   ): Promise<Stripe.Customer> {
-    const customer = await this.stripe.customers.create(params);
+    const customer = await this.client?.customers.create(params);
+    if (!customer) {
+      throw new Error('Failed to create customer');
+    }
     return customer;
   }
 
@@ -112,7 +140,7 @@ export class StripeService {
     //const { return_url } = request;
     let customer = await this.getCustomerByEmail(request.receipt_email);
     if (!customer) {
-      customer = await this.stripe.customers.create({
+      customer = await this.client?.customers.create({
         email: request.receipt_email,
       });
       if (!customer || !customer.id) {
@@ -140,7 +168,10 @@ export class StripeService {
         | 'manual'
         | undefined;
     } */
-    const paymentIntent = await this.stripe.paymentIntents.create(params);
+    const paymentIntent = await this.client?.paymentIntents.create(params);
+    if (!paymentIntent) {
+      throw new Error('Failed to create payment intent');
+    }
     console.log('Created payment intent:', paymentIntent);
     return paymentIntent;
   }
@@ -157,40 +188,58 @@ export class StripeService {
       delete params.customer;
     }
     console.log('Getting payment methods with params:', params);
-    const paymentMethods = await this.stripe.paymentMethods.list(params);
-    return paymentMethods.data;
+    const paymentMethods = await this.client?.paymentMethods.list(params);
+    return paymentMethods?.data || [];
   }
 
   async getPaymentMethod(id: string): Promise<Stripe.PaymentMethod> {
-    const paymentMethod = await this.stripe.paymentMethods.retrieve(id);
+    const paymentMethod = await this.client?.paymentMethods.retrieve(id);
+    if (!paymentMethod) {
+      throw new Error('Payment method not found');
+    }
     return paymentMethod;
   }
 
   // Retrieve a payment intent // i.e pi_3SmFiHLm8WjfqU8o076ZKdtu
   async getPaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
-    const paymentIntent = await this.stripe.paymentIntents.retrieve(id);
+    const paymentIntent = await this.client?.paymentIntents.retrieve(id);
+    if (!paymentIntent) {
+      throw new Error('Payment intent not found');
+    }
     return paymentIntent;
   }
 
   async cancelPaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
-    const paymentIntent = await this.stripe.paymentIntents.cancel(id);
+    const paymentIntent = await this.client?.paymentIntents.cancel(id);
+    if (!paymentIntent) {
+      throw new Error('Failed to cancel payment intent');
+    }
     return paymentIntent;
   }
 
   async confirmPaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
-    const paymentIntent = await this.stripe.paymentIntents.confirm(id);
+    const paymentIntent = await this.client?.paymentIntents.confirm(id);
+    if (!paymentIntent) {
+      throw new Error('Failed to confirm payment intent');
+    }
     return paymentIntent;
   }
 
   async capturePaymentIntent(id: string): Promise<Stripe.PaymentIntent> {
-    const paymentIntent = await this.stripe.paymentIntents.capture(id);
+    const paymentIntent = await this.client?.paymentIntents.capture(id);
+    if (!paymentIntent) {
+      throw new Error('Failed to capture payment intent');
+    }
     return paymentIntent;
   }
 
   async refundPaymentIntent(id: string): Promise<Stripe.Refund> {
-    const refund = await this.stripe.refunds.create({
+    const refund = await this.client?.refunds.create({
       payment_intent: id,
     });
+    if (!refund) {
+      throw new Error('Failed to create refund');
+    }
     return refund;
   }
 
@@ -199,10 +248,13 @@ export class StripeService {
     options?: Stripe.PaymentIntentSearchParams,
   ): Promise<Stripe.PaymentIntent[]> {
     console.log(`Searching payment intents with query`, query, options);
-    const paymentIntents = await this.stripe.paymentIntents.search({
+    const paymentIntents = await this.client?.paymentIntents.search({
       query: query,
       ...options,
     });
+    if (!paymentIntents) {
+      throw new Error('Failed to search payment intents');
+    }
     return paymentIntents.data;
   }
 
@@ -210,7 +262,10 @@ export class StripeService {
     id: string,
     params: Stripe.PaymentIntentUpdateParams,
   ): Promise<Stripe.PaymentIntent> {
-    const paymentIntent = await this.stripe.paymentIntents.update(id, params);
+    const paymentIntent = await this.client?.paymentIntents.update(id, params);
+    if (!paymentIntent) {
+      throw new Error('Failed to update payment intent');
+    }
     return paymentIntent;
   }
 
@@ -218,7 +273,10 @@ export class StripeService {
   async getPaymentIntentList(
     params?: Stripe.PaymentIntentListParams,
   ): Promise<PaymentIntentListResponseDto> {
-    const paymentIntents = await this.stripe.paymentIntents.list(params || {});
+    const paymentIntents = await this.client?.paymentIntents.list(params || {});
+    if (!paymentIntents) {
+      throw new Error('Failed to list payment intents');
+    }
     return {
       list: paymentIntents.data.map((pi) => new StripePaymentIntentDto(pi)),
       total: paymentIntents.data.length,
@@ -230,7 +288,10 @@ export class StripeService {
   //#region Product
 
   async getProductList(): Promise<Stripe.Product[]> {
-    const products = await this.stripe.products.list();
+    const products = await this.client?.products.list();
+    if (!products) {
+      throw new Error('Failed to list products');
+    }
     return products.data;
   }
 
@@ -245,7 +306,7 @@ export class StripeService {
       includePriceList,
     );
     const result: ProductDetailDto = { product: undefined };
-    const product = await this.stripe.products.retrieve(id);
+    const product = await this.client?.products.retrieve(id);
     if (!product) {
       throw new Error('Product not found');
     }
@@ -260,7 +321,10 @@ export class StripeService {
       return result;
     } */
     console.log('Including price list for product:', id);
-    const prices = await this.stripe.prices.list({ product: id });
+    const prices = await this.client?.prices.list({ product: id });
+    if (!prices) {
+      throw new Error('Failed to list prices for product');
+    }
     console.log('Found prices:', prices.data);
     result.priceList = prices.data;
 
@@ -268,7 +332,7 @@ export class StripeService {
   }
 
   async createProduct(dto: ProductCreateDto): Promise<ProductDto> {
-    const productResponse = await this.stripe.products.create(
+    const productResponse = await this.client?.products.create(
       dto.toStripeProductCreateParams(),
     );
     if (!productResponse || !productResponse.id) {
@@ -281,7 +345,7 @@ export class StripeService {
       id: productResponse.id,
     });
     const priceDto = dto.toStripePriceCreateParams(productDto.id);
-    const priceResponse = await this.stripe.prices.create(priceDto);
+    const priceResponse = await this.client?.prices.create(priceDto);
     if (!priceResponse || !priceResponse.id) {
       throw new Error('Failed to create price for product');
     }
@@ -289,7 +353,10 @@ export class StripeService {
   }
 
   async deleteProduct(id: string): Promise<void> {
-    await this.stripe.products.del(id);
+    const deleted = await this.client?.products.del(id);
+    if (!deleted) {
+      throw new Error('Failed to delete product');
+    }
   }
 
   //#endregion Product
@@ -297,7 +364,10 @@ export class StripeService {
   //#region Price
 
   async getPriceList(options?: { product?: string }): Promise<Stripe.Price[]> {
-    const prices = await this.stripe.prices.list(options || {});
+    const prices = await this.client?.prices.list(options || {});
+    if (!prices) {
+      throw new Error('Failed to list prices');
+    }
     return prices.data;
   }
 
