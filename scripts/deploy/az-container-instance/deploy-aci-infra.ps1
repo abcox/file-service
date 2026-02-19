@@ -366,12 +366,50 @@ try {
         }
     }
     
+    # Check/Create User-Assigned Managed Identity for ACI
+    Write-Host "`n[STEP] Checking user-assigned managed identity..." -ForegroundColor Blue
+    $managedIdentityName = "vorba-file-service-identity"
+    try {
+        $identityExists = az identity show --name $managedIdentityName --resource-group $ResourceGroupName --output json 2>$null | ConvertFrom-Json
+        if ($identityExists) {
+            Write-Host "[OK] Managed Identity '$managedIdentityName' already exists" -ForegroundColor Green
+            Write-Host "  Client ID: $($identityExists.clientId)" -ForegroundColor Cyan
+            Write-Host "  Principal ID: $($identityExists.principalId)" -ForegroundColor Cyan
+        }
+        else {
+            if (-not $DryRun) {
+                Write-Host "Creating user-assigned managed identity: $managedIdentityName" -ForegroundColor Yellow
+                $identity = az identity create --name $managedIdentityName --resource-group $ResourceGroupName --output json | ConvertFrom-Json
+                Write-Host "[OK] Managed Identity created" -ForegroundColor Green
+                Write-Host "  Client ID: $($identity.clientId)" -ForegroundColor Cyan
+                Write-Host "  Principal ID: $($identity.principalId)" -ForegroundColor Cyan
+                
+                # Grant Key Vault access
+                Write-Host "Granting Key Vault Secrets User role..." -ForegroundColor Yellow
+                az role assignment create --assignee $identity.principalId --role "Key Vault Secrets User" --scope "/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/$ResourceGroupName/providers/Microsoft.KeyVault/vaults/$KeyVaultName" --output none 2>$null
+                Write-Host "[OK] Key Vault access granted (may take 10-15 minutes to propagate)" -ForegroundColor Green
+            }
+            else {
+                Write-Host "[DRY RUN] Would create managed identity: $managedIdentityName" -ForegroundColor Cyan
+            }
+        }
+    }
+    catch {
+        Write-Host "[INFO] Managed Identity '$managedIdentityName' not found, will create..." -ForegroundColor Yellow
+    }
+
     Write-Host "`n[STEP] Infrastructure setup complete!" -ForegroundColor Green
     Write-Host "`n[INFO] Next steps:" -ForegroundColor Cyan
     Write-Host "  1. Build and push Docker image to ACR" -ForegroundColor Gray
     Write-Host "  2. Deploy to ACI using azure-deploy-aci.yml" -ForegroundColor Gray
-    Write-Host "  3. Configure environment variables in ACI" -ForegroundColor Gray
+    Write-Host "  3. The workflow will automatically use the user-assigned managed identity" -ForegroundColor Gray
     Write-Host "  4. Test PDF generation with Playwright" -ForegroundColor Gray
+    
+    Write-Host "`n[INFO] Managed Identity Configuration:" -ForegroundColor Cyan
+    Write-Host "  - Identity Name: vorba-file-service-identity" -ForegroundColor Gray
+    Write-Host "  - Client ID: 48c008c1-dd2a-4786-8ff0-26b96c48744f" -ForegroundColor Gray  
+    Write-Host "  - This identity has Key Vault access pre-configured" -ForegroundColor Gray
+    Write-Host "  - ACI uses AZURE_CLIENT_ID env var to select this identity" -ForegroundColor Gray
     
     Write-Host "`n[INFO] Important notes:" -ForegroundColor Yellow
     Write-Host "  - ACI has no free tier - you pay per second of runtime" -ForegroundColor Gray

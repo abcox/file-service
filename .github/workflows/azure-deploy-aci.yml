@@ -30,6 +30,10 @@ env:
   RESOURCE_GROUP: vorba-file-service-rg
   IMAGE_NAME: file-service
   IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+  # User-assigned managed identity with pre-configured Key Vault access
+  MANAGED_IDENTITY_ID: /subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourcegroups/vorba-file-service-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/vorba-file-service-identity
+  # Client ID for DefaultAzureCredential to select the user-assigned identity
+  MANAGED_IDENTITY_CLIENT_ID: 48c008c1-dd2a-4786-8ff0-26b96c48744f
 
 jobs:
   build-and-deploy:
@@ -87,12 +91,13 @@ jobs:
               --cpu 2 \
               --memory 4 \
               --restart-policy Always \
-              --assign-identity [system] \
+              --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
               --environment-variables \
                 NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
                 PORT=3000 \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
                 DEBUG_STARTUP=true \
+                AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
               --output none
           else
             echo "Creating new ACI instance..."
@@ -109,48 +114,21 @@ jobs:
               --cpu 2 \
               --memory 4 \
               --restart-policy Always \
-              --assign-identity [system] \
+              --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
               --environment-variables \
                 NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
                 PORT=3000 \
                 PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
                 DEBUG_STARTUP=true \
+                AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
               --output none
           fi
           
-      - name: Grant Key Vault Access
+      - name: Verify Managed Identity
         run: |
-           echo "Granting Key Vault access to ACI managed identity..."
-           
-           # Get ACI principal ID
-           ACI_PRINCIPAL_ID=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "identity.principalId" --output tsv)
-           
-           if [ -z "$ACI_PRINCIPAL_ID" ]; then
-             echo "❌ Could not get principal ID for ACI managed identity"
-             exit 1
-           fi
-           
-           echo "ACI Principal ID: $ACI_PRINCIPAL_ID"
-           
-           # Check Key Vault authorization type
-           KV_RBAC=$(az keyvault show --name vorba-file-service-kv --query "properties.enableRbacAuthorization" --output tsv)
-           
-           if [ "$KV_RBAC" = "true" ]; then
-             echo "⚠️ Key Vault uses RBAC authorization, but GitHub Actions lacks permission to assign roles."
-             echo "⚠️ Please manually grant 'Key Vault Secrets User' role to the ACI managed identity:"
-             echo "   Principal ID: $ACI_PRINCIPAL_ID"
-             echo "   Key Vault: vorba-file-service-kv"
-             echo "   Role: Key Vault Secrets User"
-             echo ""
-             echo "Or run this command manually:"
-             echo "az role assignment create --assignee $ACI_PRINCIPAL_ID --role 'Key Vault Secrets User' --scope '/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.KeyVault/vaults/vorba-file-service-kv'"
-             echo ""
-             echo "For now, continuing without Key Vault access..."
-           else
-             echo "Key Vault uses policy-based authorization. Setting access policy..."
-             az keyvault set-policy --name vorba-file-service-kv --object-id $ACI_PRINCIPAL_ID --secret-permissions get list
-             echo "✅ Key Vault policy access granted"
-           fi
+           echo "✅ Using user-assigned managed identity: vorba-file-service-identity"
+           echo "   This identity has pre-configured Key Vault access."
+           echo "   No role assignment needed on each deployment."
           
       
           
