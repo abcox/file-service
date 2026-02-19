@@ -34,6 +34,10 @@ env:
   MANAGED_IDENTITY_ID: /subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourcegroups/vorba-file-service-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/vorba-file-service-identity
   # Client ID for DefaultAzureCredential to select the user-assigned identity
   MANAGED_IDENTITY_CLIENT_ID: 48c008c1-dd2a-4786-8ff0-26b96c48744f
+  # SQL Server for database connectivity - ACI needs firewall rule
+  SQL_SERVER_NAME: vorba-sql-svr-1
+  # Log Analytics workspace for reliable ACI logging (ACI logs are unreliable without this!)
+  LOG_ANALYTICS_WORKSPACE_NAME: vorba-file-service-logs
 
 jobs:
   build-and-deploy:
@@ -70,6 +74,78 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+      
+      # CRITICAL: ACI uses dynamic IPs - SQL Server firewall must allow Azure services
+      - name: Configure SQL Server Firewall for ACI
+        run: |
+          echo "🔥 Configuring SQL Server firewall for ACI access..."
+          
+          # Check if AllowAzureServices rule exists
+          RULE_EXISTS=$(az sql server firewall-rule show --name "AllowAzureServices" --server ${{ env.SQL_SERVER_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output tsv 2>/dev/null || echo "")
+          
+          if [ -z "$RULE_EXISTS" ]; then
+            echo "Creating AllowAzureServices firewall rule..."
+            az sql server firewall-rule create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --server ${{ env.SQL_SERVER_NAME }} \
+              --name "AllowAzureServices" \
+              --start-ip-address 0.0.0.0 \
+              --end-ip-address 0.0.0.0 \
+              --output none
+            echo "✅ AllowAzureServices rule created"
+          else
+            echo "✅ AllowAzureServices rule already exists"
+          fi
+          
+          # Check if ACI-Access rule exists (broader rule for dynamic ACI IPs)
+          ACI_RULE_EXISTS=$(az sql server firewall-rule show --name "ACI-Access" --server ${{ env.SQL_SERVER_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output tsv 2>/dev/null || echo "")
+          
+          if [ -z "$ACI_RULE_EXISTS" ]; then
+            echo "Creating ACI-Access firewall rule..."
+            az sql server firewall-rule create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --server ${{ env.SQL_SERVER_NAME }} \
+              --name "ACI-Access" \
+              --start-ip-address 0.0.0.0 \
+              --end-ip-address 255.255.255.255 \
+              --output none
+            echo "✅ ACI-Access rule created"
+            echo "⚠️ Note: This allows all IPs - consider restricting in production"
+          else
+            echo "✅ ACI-Access rule already exists"
+          fi
+      
+      # CRITICAL: ACI logs are UNRELIABLE without Log Analytics - crashes lose stdout!
+      - name: Setup Log Analytics for ACI Logging
+        id: log-analytics
+        run: |
+          echo "📊 Setting up Log Analytics for reliable ACI logging..."
+          
+          # Check if workspace exists
+          WORKSPACE_EXISTS=$(az monitor log-analytics workspace show --resource-group ${{ env.RESOURCE_GROUP }} --workspace-name ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }} --output json 2>/dev/null || echo "")
+          
+          if [ -z "$WORKSPACE_EXISTS" ]; then
+            echo "Creating Log Analytics workspace..."
+            az monitor log-analytics workspace create \
+              --resource-group ${{ env.RESOURCE_GROUP }} \
+              --workspace-name ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }} \
+              --location canadaeast \
+              --output none
+            echo "✅ Log Analytics workspace created"
+          else
+            echo "✅ Log Analytics workspace already exists"
+          fi
+          
+          # Get workspace ID and key
+          WORKSPACE_ID=$(az monitor log-analytics workspace show --resource-group ${{ env.RESOURCE_GROUP }} --workspace-name ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }} --query customerId --output tsv)
+          WORKSPACE_KEY=$(az monitor log-analytics workspace get-shared-keys --resource-group ${{ env.RESOURCE_GROUP }} --workspace-name ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }} --query primarySharedKey --output tsv)
+          
+          echo "workspace_id=$WORKSPACE_ID" >> $GITHUB_OUTPUT
+          echo "::add-mask::$WORKSPACE_KEY"
+          echo "workspace_key=$WORKSPACE_KEY" >> $GITHUB_OUTPUT
+          
+          echo "📋 Workspace ID: $WORKSPACE_ID"
+          echo "📋 Query logs with: ContainerInstanceLog_CL | where ContainerGroup_s == '${{ env.ACI_NAME }}'"
           
       - name: Deploy to Azure Container Instances
         run: |
@@ -77,52 +153,35 @@ jobs:
           ACI_EXISTS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output json 2>/dev/null | jq -r '.name // empty')
           
           if [ -n "$ACI_EXISTS" ]; then
-            echo "Updating existing ACI instance..."
-            az container create \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --name ${{ env.ACI_NAME }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
-              --registry-username ${{ steps.acr-credentials.outputs.username }} \
-              --registry-password ${{ steps.acr-credentials.outputs.password }} \
-              --dns-name-label ${{ env.ACI_NAME }} \
-              --os-type Linux \
-              --ports 3000 \
-              --cpu 2 \
-              --memory 4 \
-              --restart-policy Always \
-              --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
-              --environment-variables \
-                NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
-                PORT=3000 \
-                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-                DEBUG_STARTUP=true \
-                AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
-              --output none
-          else
-            echo "Creating new ACI instance..."
-            az container create \
-              --resource-group ${{ env.RESOURCE_GROUP }} \
-              --name ${{ env.ACI_NAME }} \
-              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-              --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
-              --registry-username ${{ steps.acr-credentials.outputs.username }} \
-              --registry-password ${{ steps.acr-credentials.outputs.password }} \
-              --dns-name-label ${{ env.ACI_NAME }} \
-              --os-type Linux \
-              --ports 3000 \
-              --cpu 2 \
-              --memory 4 \
-              --restart-policy Always \
-              --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
-              --environment-variables \
-                NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
-                PORT=3000 \
-                PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-                DEBUG_STARTUP=true \
-                AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
-              --output none
+            echo "Deleting existing ACI instance (required for config changes)..."
+            az container delete --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --yes
+            sleep 10
           fi
+          
+          echo "Creating ACI instance with Log Analytics logging..."
+          az container create \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.ACI_NAME }} \
+            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
+            --registry-username ${{ steps.acr-credentials.outputs.username }} \
+            --registry-password ${{ steps.acr-credentials.outputs.password }} \
+            --dns-name-label ${{ env.ACI_NAME }} \
+            --os-type Linux \
+            --ports 3000 \
+            --cpu 2 \
+            --memory 4 \
+            --restart-policy OnFailure \
+            --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
+            --log-analytics-workspace ${{ steps.log-analytics.outputs.workspace_id }} \
+            --log-analytics-workspace-key ${{ steps.log-analytics.outputs.workspace_key }} \
+            --environment-variables \
+              NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
+              PORT=3000 \
+              PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
+              DEBUG_STARTUP=true \
+              AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
+            --output none
           
       - name: Verify Managed Identity
         run: |
@@ -167,19 +226,28 @@ jobs:
       - name: Show ACI logs
         if: always()
         run: |
-           echo "📋 Recent ACI logs:"
-           az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}
+           echo "📋 Recent ACI logs (from az container logs):"
+           az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} || echo "No logs available from az container logs"
            
            echo ""
-           echo "🔍 Waiting for debug diagnostics to complete..."
-           sleep 60  # Wait for debug diagnostics to run
+           echo "📊 Querying Log Analytics for comprehensive logs..."
+           echo "   (Log Analytics captures logs even if container crashes!)"
            
-           echo "📊 Debug Diagnostics Output:"
-           az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --tail 100
+           # Wait for logs to be ingested
+           sleep 30
+           
+           # Install log-analytics extension if needed
+           az extension add --name log-analytics --yes 2>/dev/null || true
+           
+           # Query Log Analytics
+           az monitor log-analytics query \
+             --workspace ${{ steps.log-analytics.outputs.workspace_id }} \
+             --analytics-query "ContainerInstanceLog_CL | where ContainerGroup_s == '${{ env.ACI_NAME }}' | order by TimeGenerated desc | take 50 | project TimeGenerated, Message" \
+             --output table 2>/dev/null || echo "Log Analytics query failed or no logs yet (may take a few minutes to ingest)"
            
            echo ""
            echo "🔧 Container Status:"
-           az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "{state:containers[0].instanceView.state,restartCount:containers[0].instanceView.restartCount,detailStatus:containers[0].instanceView.detailStatus}" --output table
+           az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "{state:containers[0].instanceView.currentState.state,exitCode:containers[0].instanceView.currentState.exitCode,restartCount:containers[0].instanceView.restartCount}" --output table
           
       - name: Post deployment info
         if: success()
@@ -190,10 +258,15 @@ jobs:
           echo "- **ACI Name**: ${{ env.ACI_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: http://$FQDN:3000" >> $GITHUB_STEP_SUMMARY
-                           echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-                           echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
-                 echo "- ACI has no free tier - you pay per second of runtime" >> $GITHUB_STEP_SUMMARY
-                 echo "- ACI uses managed identity for Key Vault access (no secrets in environment variables)" >> $GITHUB_STEP_SUMMARY
-                 echo "- Remember to stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
-                 echo "- Use \`az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\` to view logs" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Log Analytics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Workspace**: ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Query logs**: \`ContainerInstanceLog_CL | where ContainerGroup_s == '${{ env.ACI_NAME }}'\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Important Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- ACI has no free tier - you pay per second of runtime" >> $GITHUB_STEP_SUMMARY
+          echo "- ACI uses managed identity for Key Vault access" >> $GITHUB_STEP_SUMMARY
+          echo "- SQL Server firewall is configured to allow ACI dynamic IPs" >> $GITHUB_STEP_SUMMARY
+          echo "- Log Analytics captures logs even if container crashes (ACI native logs are unreliable!)" >> $GITHUB_STEP_SUMMARY
+          echo "- Stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY

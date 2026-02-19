@@ -57,6 +57,8 @@ param(
     [string]$KeyVaultName = "vorba-file-service-kv",
     [string]$StorageAccountName = "ccastore01",
     [string]$ContainerName = "file-service-uploads",
+    [string]$SqlServerName = "vorba-sql-svr-1",
+    [string]$LogAnalyticsWorkspaceName = "vorba-file-service-logs",
     [switch]$SkipResourceCreation,
     [switch]$DryRun
 )
@@ -261,6 +263,113 @@ function New-LogAnalyticsWorkspace {
     }
 }
 
+# Function to configure SQL Server firewall for ACI
+# CRITICAL: ACI uses dynamic IPs, so we need to allow Azure services
+function Set-SqlServerFirewall {
+    param([string]$ServerName, [string]$ResourceGroup)
+    
+    Write-Host "Configuring SQL Server firewall for ACI access..." -ForegroundColor Yellow
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would configure SQL Server firewall for: $ServerName" -ForegroundColor Cyan
+        return
+    }
+    
+    try {
+        # Check if SQL Server exists
+        $sqlServer = az sql server show --name $ServerName --resource-group $ResourceGroup --output json 2>$null | ConvertFrom-Json
+        if (-not $sqlServer) {
+            Write-Host "[WARNING] SQL Server '$ServerName' not found in resource group '$ResourceGroup'" -ForegroundColor Yellow
+            return
+        }
+        
+        # Allow Azure services (ACI IPs are dynamic, so we need this)
+        $existingRule = az sql server firewall-rule show --name "AllowAzureServices" --server $ServerName --resource-group $ResourceGroup --output json 2>$null | ConvertFrom-Json
+        if ($existingRule) {
+            Write-Host "[OK] SQL Server firewall rule 'AllowAzureServices' already exists" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Creating firewall rule to allow Azure services..." -ForegroundColor Yellow
+            az sql server firewall-rule create `
+                --resource-group $ResourceGroup `
+                --server $ServerName `
+                --name "AllowAzureServices" `
+                --start-ip-address 0.0.0.0 `
+                --end-ip-address 0.0.0.0 `
+                --output none
+            Write-Host "[OK] SQL Server firewall rule created - Azure services can now access the database" -ForegroundColor Green
+        }
+        
+        # Also add a broad rule for ACI (which uses various Azure IPs)
+        $aciRule = az sql server firewall-rule show --name "ACI-Access" --server $ServerName --resource-group $ResourceGroup --output json 2>$null | ConvertFrom-Json
+        if ($aciRule) {
+            Write-Host "[OK] SQL Server firewall rule 'ACI-Access' already exists" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Creating firewall rule for ACI dynamic IPs..." -ForegroundColor Yellow
+            az sql server firewall-rule create `
+                --resource-group $ResourceGroup `
+                --server $ServerName `
+                --name "ACI-Access" `
+                --start-ip-address 0.0.0.0 `
+                --end-ip-address 255.255.255.255 `
+                --output none
+            Write-Host "[OK] SQL Server firewall rule 'ACI-Access' created" -ForegroundColor Green
+            Write-Host "[WARNING] This rule allows all IPs - consider restricting in production" -ForegroundColor Yellow
+        }
+    }
+    catch {
+        Write-Host "[ERROR] Failed to configure SQL Server firewall: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}
+
+# Function to create or get Log Analytics Workspace for ACI logging
+# CRITICAL: ACI logs are unreliable without Log Analytics - container crashes lose stdout
+function Get-OrCreateLogAnalyticsWorkspace {
+    param([string]$Name, [string]$ResourceGroup, [string]$Location)
+    
+    Write-Host "Ensuring Log Analytics Workspace exists for ACI logging..." -ForegroundColor Yellow
+    
+    if ($DryRun) {
+        Write-Host "[DRY RUN] Would ensure Log Analytics Workspace: $Name" -ForegroundColor Cyan
+        return @{ WorkspaceId = "dry-run-id"; WorkspaceKey = "dry-run-key" }
+    }
+    
+    try {
+        # Check if workspace exists
+        $workspace = az monitor log-analytics workspace show --resource-group $ResourceGroup --workspace-name $Name --output json 2>$null | ConvertFrom-Json
+        
+        if ($workspace) {
+            Write-Host "[OK] Log Analytics Workspace '$Name' already exists" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Creating Log Analytics Workspace: $Name" -ForegroundColor Yellow
+            $workspace = az monitor log-analytics workspace create `
+                --resource-group $ResourceGroup `
+                --workspace-name $Name `
+                --location $Location `
+                --output json | ConvertFrom-Json
+            Write-Host "[OK] Log Analytics Workspace created successfully" -ForegroundColor Green
+        }
+        
+        # Get workspace credentials
+        $workspaceId = $workspace.customerId
+        $workspaceKey = az monitor log-analytics workspace get-shared-keys `
+            --resource-group $ResourceGroup `
+            --workspace-name $Name `
+            --query primarySharedKey --output tsv
+        
+        Write-Host "[INFO] Log Analytics Workspace ID: $workspaceId" -ForegroundColor Cyan
+        Write-Host "[INFO] Logs will be available in ContainerInstanceLog_CL table" -ForegroundColor Cyan
+        
+        return @{ WorkspaceId = $workspaceId; WorkspaceKey = $workspaceKey }
+    }
+    catch {
+        Write-Host "[ERROR] Failed to setup Log Analytics Workspace: $($_.Exception.Message)" -ForegroundColor Red
+        return $null
+    }
+}
+
 # Function to create Application Insights
 function New-ApplicationInsights {
     param([string]$Name, [string]$ResourceGroup, [string]$Location, [string]$WorkspaceName)
@@ -366,6 +475,19 @@ try {
         }
     }
     
+    # Configure SQL Server firewall for ACI
+    Write-Host "`n[STEP] Configuring SQL Server firewall for ACI..." -ForegroundColor Blue
+    Set-SqlServerFirewall -ServerName $SqlServerName -ResourceGroup $ResourceGroupName
+    
+    # Ensure Log Analytics Workspace exists for ACI debugging
+    Write-Host "`n[STEP] Ensuring Log Analytics Workspace for ACI logging..." -ForegroundColor Blue
+    $logAnalytics = Get-OrCreateLogAnalyticsWorkspace -Name $LogAnalyticsWorkspaceName -ResourceGroup $ResourceGroupName -Location $Location
+    if ($logAnalytics) {
+        Write-Host "[INFO] Use these values when deploying ACI:" -ForegroundColor Cyan
+        Write-Host "  --log-analytics-workspace $($logAnalytics.WorkspaceId)" -ForegroundColor Gray
+        Write-Host "  --log-analytics-workspace-key <key>" -ForegroundColor Gray
+    }
+    
     # Check/Create User-Assigned Managed Identity for ACI
     Write-Host "`n[STEP] Checking user-assigned managed identity..." -ForegroundColor Blue
     $managedIdentityName = "vorba-file-service-identity"
@@ -410,6 +532,16 @@ try {
     Write-Host "  - Client ID: 48c008c1-dd2a-4786-8ff0-26b96c48744f" -ForegroundColor Gray  
     Write-Host "  - This identity has Key Vault access pre-configured" -ForegroundColor Gray
     Write-Host "  - ACI uses AZURE_CLIENT_ID env var to select this identity" -ForegroundColor Gray
+    
+    Write-Host "`n[INFO] SQL Server Configuration:" -ForegroundColor Cyan
+    Write-Host "  - SQL Server: $SqlServerName" -ForegroundColor Gray
+    Write-Host "  - Firewall rules configured for ACI access" -ForegroundColor Gray
+    Write-Host "  - ACI uses dynamic IPs, so broad firewall rules are needed" -ForegroundColor Gray
+    
+    Write-Host "`n[INFO] Log Analytics Configuration:" -ForegroundColor Cyan
+    Write-Host "  - Workspace: $LogAnalyticsWorkspaceName" -ForegroundColor Gray
+    Write-Host "  - Query logs: ContainerInstanceLog_CL | where ContainerGroup_s == '$AciName'" -ForegroundColor Gray
+    Write-Host "  - CRITICAL: Without Log Analytics, ACI crash logs are often lost!" -ForegroundColor Yellow
     
     Write-Host "`n[INFO] Important notes:" -ForegroundColor Yellow
     Write-Host "  - ACI has no free tier - you pay per second of runtime" -ForegroundColor Gray

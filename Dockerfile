@@ -93,4 +93,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the application with unbuffered output and early debug info
-CMD ["/bin/sh", "-c", "echo '=== Container starting ===' && echo \"Config file exists: $(test -f /app/dist/config.json && echo YES || echo NO)\" && cat /app/dist/config.json | head -5 && echo '=== Starting Node ===' && exec node --enable-source-maps dist/src/main.js"] 
+CMD ["/bin/sh", "-c", "echo '=== Container starting ===' && echo \"Config file exists: $(test -f /app/dist/config.json && echo YES || echo NO)\" && cat /app/dist/config.json | head -5 && echo '=== Starting Node ===' && exec node --enable-source-maps dist/src/main.js"]
