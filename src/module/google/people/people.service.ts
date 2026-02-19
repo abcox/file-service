@@ -19,7 +19,7 @@ export const defaultPersonFields =
 @Injectable()
 export class PeopleService {
   private readonly logger = new Logger(PeopleService.name);
-  private readonly service: people_v1.People;
+  private readonly _service: people_v1.People;
   private readonly timeZone: string;
 
   constructor(private appConfigService: AppConfigService) {
@@ -30,19 +30,34 @@ export class PeopleService {
       userEmail,
     } = this.appConfigService.getConfig().googleApis || {};
     if (!config) {
-      throw new Error('Google API people options are not configured');
+      //throw new Error('Google API people options are not configured');
+      this.logger.warn(
+        'Google API people options are not configured, using defaults with calendar scope',
+      );
+      return;
     }
     if (!config.scopes || config.scopes.length === 0) {
-      throw new Error('Google API people scopes are not configured');
+      //throw new Error('Google API people scopes are not configured');
+      this.logger.warn(
+        'Google API people scopes are not configured, using default scope for people',
+      );
+      return;
     }
     const { scopes } = config;
-    this.service = this.createPeopleServiceFromKeyFilePathOrContent(
+    this._service = this.createPeopleServiceFromKeyFilePathOrContent(
       keyFilePath,
       keyFileJsonContent,
       userEmail,
       scopes,
     );
     this.timeZone = this.appConfigService.getTimeZoneConfig().effective;
+  }
+
+  private get service(): people_v1.People {
+    if (!this._service) {
+      throw new Error('Google People API service is not initialized');
+    }
+    return this._service;
   }
 
   // Placeholder for Google People API integration

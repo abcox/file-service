@@ -17,7 +17,7 @@ export interface GoogleApisCalendarServiceOptions {
 @Injectable()
 export class CalendarService {
   private readonly logger = new Logger(CalendarService.name);
-  private readonly service: calendar_v3.Calendar;
+  private readonly _service: calendar_v3.Calendar;
 
   constructor(private appConfigService: AppConfigService) {
     const {
@@ -27,18 +27,33 @@ export class CalendarService {
       userEmail,
     } = this.appConfigService.getConfig().googleApis || {};
     if (!config) {
-      throw new Error('Google API calendar options are not configured');
+      //throw new Error('Google API calendar options are not configured');
+      this.logger.warn(
+        'Google API calendar options are not configured, using defaults',
+      );
+      return;
     }
     if (!config.scopes || config.scopes.length === 0) {
-      throw new Error('Google API calendar scopes are not configured');
+      //throw new Error('Google API calendar scopes are not configured');
+      this.logger.warn(
+        'Google API calendar scopes are not configured, using default scope for calendar',
+      );
+      return;
     }
     const { scopes } = config;
-    this.service = this.createCalendarServiceFromKeyFilePathOrContent(
+    this._service = this.createCalendarServiceFromKeyFilePathOrContent(
       keyFilePath,
       keyFileContent,
       userEmail,
       scopes,
     );
+  }
+
+  private get service(): calendar_v3.Calendar {
+    if (!this._service) {
+      throw new Error('Google Calendar API service is not initialized');
+    }
+    return this._service;
   }
 
   /**

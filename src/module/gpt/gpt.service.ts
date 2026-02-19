@@ -10,7 +10,7 @@ import {
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
 import { LoggerService } from '../logger/logger.service';
-import { AppConfigService } from '../config/config.service';
+//import { AppConfigService } from '../config/config.service';
 import { FileContent } from '../workflow/file-workflow.service';
 
 export class GptAnalysisRequest {
@@ -56,18 +56,19 @@ export interface GptDefaults {
 
 @Injectable()
 export class GptService {
-  private openai: OpenAI;
+  private _client: OpenAI;
   private config: GptConfig;
 
   constructor(
     private readonly logger: LoggerService,
-    private readonly configService: AppConfigService,
+    //private readonly configService: AppConfigService, // review why we are using this to init; rather we're calling the initConfigWithDefaults
   ) {
     // Initialize GPT service with environment variables if config is not available
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       this.logger.error('OpenAI API key not found in environment variables');
-      throw new Error('OpenAI API key not found');
+      //throw new Error('OpenAI API key not found');
+      return;
     }
 
     this.config = {
@@ -80,7 +81,7 @@ export class GptService {
       },
     };
 
-    this.openai = new OpenAI({
+    this._client = new OpenAI({
       apiKey: apiKey,
     });
 
@@ -89,6 +90,13 @@ export class GptService {
       maxTokens: this.config.defaults.maxTokens,
       temperature: this.config.defaults.temperature,
     });
+  }
+
+  private get client(): OpenAI {
+    if (!this._client) {
+      throw new Error('OpenAI client is not initialized');
+    }
+    return this._client;
   }
 
   private initConfigWithDefaults(config: GptConfig | undefined): GptConfig {
@@ -123,7 +131,7 @@ export class GptService {
     try {
       this.config = this.initConfigWithDefaults(config);
       const { apiKey } = this.config;
-      this.openai = new OpenAI({
+      this._client = new OpenAI({
         apiKey: apiKey,
       });
       const { defaults } = this.config;
@@ -162,7 +170,7 @@ export class GptService {
         purpose: 'assistants',
       };
 
-      const fileObj = await this.openai.files.create(fileCreateParams, {
+      const fileObj = await this.client.files.create(fileCreateParams, {
         timeout: 30000, // Increased to 30 seconds for file upload
       });
 
@@ -320,7 +328,7 @@ Ensure the response is valid JSON and includes all required fields.`;
         timeout: 60000, // Increased to 60 seconds for HTML analysis
       };
 
-      const completion = await this.openai.chat.completions.create(
+      const completion = await this.client.chat.completions.create(
         params,
         requestOptions,
       );
@@ -358,7 +366,7 @@ Ensure the response is valid JSON and includes all required fields.`;
 
   async deleteFile(fileId: string): Promise<boolean> {
     try {
-      await this.openai.files.delete(fileId);
+      await this.client.files.delete(fileId);
       this.logger.info('File deleted from OpenAI', { fileId });
       return true;
     } catch (error) {
@@ -381,7 +389,7 @@ Ensure the response is valid JSON and includes all required fields.`;
 
       const messages = this.buildMessages(request);
 
-      const completion = await this.openai.chat.completions.create({
+      const completion = await this.client.chat.completions.create({
         model: request.model || this.config.defaults.model,
         messages,
         max_tokens: request.maxTokens || this.config.defaults.maxTokens,
@@ -456,7 +464,7 @@ Ensure the response is valid JSON and includes all required fields.`;
   async healthCheck(): Promise<boolean> {
     try {
       // Simple test call to verify API key and connectivity
-      const testResponse = await this.openai.chat.completions.create({
+      const testResponse = await this.client.chat.completions.create({
         model: 'gpt-3.5-turbo',
         messages: [{ role: 'user', content: 'Hello' }],
         max_tokens: 10,

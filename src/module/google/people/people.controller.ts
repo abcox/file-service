@@ -35,8 +35,8 @@ export class PeopleController {
   } */
 
   @Get('contact/group/list')
-  @Auth({ roles: ['admin', 'user', 'guest'] })
-  //@Auth({ public: true })
+  //@Auth({ roles: ['admin', 'user', 'guest'] })
+  @Auth({ public: true })
   @ApiOperation({ summary: 'Get list of contact groups' })
   @ApiResponse({
     status: 200,
@@ -52,8 +52,8 @@ export class PeopleController {
    * Returns the member resource names for a contact group.
    */
   @Get('contact/group/:resourceNameId/member/list')
-  @Auth({ roles: ['admin'] })
-  //@Auth({ public: true })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   @ApiOperation({
     operationId: 'getContactGroupMembers',
     summary: 'Get contact group members by group resource name ID',

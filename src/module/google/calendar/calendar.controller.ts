@@ -32,13 +32,15 @@ export class CalendarController {
     summary: 'Get Calendar List',
     description: 'Fetches the list of calendars for the configured user.',
   })
-  @Auth({ roles: ['admin'] })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   async getCalendars(): Promise<calendar_v3.Schema$CalendarList | null> {
     return this.calendarService.getCalendarList();
   }
 
   @Get(':id')
-  @Auth({ roles: ['admin'] })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   @ApiOperation({
     summary: 'Get Calendar by ID',
     description: 'Given a Calendar ID, fetches the calendar details.',
@@ -54,7 +56,8 @@ export class CalendarController {
     summary: 'Get Calendar Event List',
     description: 'Given a Calendar ID, fetches its list of events.',
   })
-  @Auth({ roles: ['admin'] })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   async getCalendarEventList(
     @Param('id') id: string,
   ): Promise<GetGoogleCalendarListDto> {
