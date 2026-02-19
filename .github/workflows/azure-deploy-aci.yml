@@ -168,7 +168,7 @@ jobs:
             --registry-password ${{ steps.acr-credentials.outputs.password }} \
             --dns-name-label ${{ env.ACI_NAME }} \
             --os-type Linux \
-            --ports 3000 \
+            --ports 8080 \
             --cpu 2 \
             --memory 4 \
             --restart-policy OnFailure \
@@ -177,7 +177,7 @@ jobs:
             --log-analytics-workspace-key ${{ steps.log-analytics.outputs.workspace_key }} \
             --environment-variables \
               NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
-              PORT=3000 \
+              PORT=8080 \
               PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
               DEBUG_STARTUP=true \
               AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
@@ -206,13 +206,13 @@ jobs:
             
             # Get the FQDN
             FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
-            echo "🌐 ACI URL: http://$FQDN:3000"
+            echo "🌐 ACI URL: http://$FQDN:8080"
             
             # Test health endpoint
             echo "🏥 Testing health endpoint..."
             sleep 30  # Wait for container to fully start
             
-            HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:3000/health" || echo "000")
+            HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:8080/health" || echo "000")
             if [ "$HEALTH_RESPONSE" = "200" ]; then
               echo "✅ Health check passed!"
             else
@@ -257,7 +257,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **ACI Name**: ${{ env.ACI_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: http://$FQDN:3000" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: http://$FQDN:8080" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Log Analytics" >> $GITHUB_STEP_SUMMARY

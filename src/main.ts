@@ -127,7 +127,8 @@ async function bootstrap() {
     // Setup Swagger after all modules are initialized
     app.get(SwaggerConfigService).setupSwagger(app);
 
-    const port = process.env.PORT || 3000;
+    // Port priority: ENV > config > fallback
+    const port = process.env.PORT || config.api?.port || 3000;
     await app.listen(port);
 
     logger.info(`Application available at http://localhost:${port}`);

@@ -2,7 +2,7 @@
   "environment": "production",
   "api": {
     "path": "api",
-    "port": 3000,
+    "port": 8080,
     "cors": {
       "enabled": true,
       "origin": "*",
