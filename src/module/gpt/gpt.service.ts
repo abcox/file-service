@@ -10,7 +10,7 @@ import {
   ChatCompletionCreateParamsNonStreaming,
 } from 'openai/resources/chat/completions';
 import { LoggerService } from '../logger/logger.service';
-//import { AppConfigService } from '../config/config.service';
+import { AppConfigService } from '../config/config.service';
 import { FileContent } from '../workflow/file-workflow.service';
 
 export class GptAnalysisRequest {
@@ -61,7 +61,7 @@ export class GptService {
 
   constructor(
     private readonly logger: LoggerService,
-    //private readonly configService: AppConfigService, // review why we are using this to init; rather we're calling the initConfigWithDefaults
+    private readonly configService: AppConfigService, // review why we are using this to init; rather we're calling the initConfigWithDefaults
   ) {
     // Initialize GPT service with environment variables if config is not available
     const apiKey = process.env.OPENAI_API_KEY;
