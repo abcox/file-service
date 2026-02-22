@@ -2,6 +2,25 @@
 
 This guide explains the different deployment approaches available for your NestJS file service and helps you choose the best option.
 
+## 🔗 **Quick Reference: Live URLs**
+
+| Deployment | Health Check URL | Notes |
+|------------|------------------|-------|
+| **Web App** | https://vorba-file-service-3.azurewebsites.net/health | No port needed (Azure handles 443→8080) |
+| **ACI** | http://vorba-file-service-4.canadaeast.azurecontainer.io:8080/health | **Port required** - ACI exposes directly |
+| **Local Dev** | http://localhost:3000/health | Uses config.json port (3000) |
+
+### Port Configuration
+
+| Environment | Port | Why |
+|-------------|------|-----|
+| Production (Web App/ACI) | 8080 | Azure default, set in `config.production.json` |
+| Local Development | 3000 | Node.js convention, set in `config.json` |
+
+> **Note**: `process.env.PORT` always takes priority over config if set.
+
+---
+
 ## 🎯 **Deployment Options Overview**
 
 | Option | Complexity | Performance | Cost | Modern | Recommended |
