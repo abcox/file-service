@@ -118,11 +118,13 @@ export class JwtAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<Request>();
     const handler = context.getHandler();
+    const controller = context.getClass();
 
     //console.log('🔐 JwtAuthGuard: request:', request);
 
-    // Get auth options from decorator
-    const AuthGuardOptions = Reflect.getMetadata(AUTH_GUARD_KEY, handler) as
+    // Get auth options from decorator (method-level takes precedence over controller-level)
+    const AuthGuardOptions = (Reflect.getMetadata(AUTH_GUARD_KEY, handler) ??
+      Reflect.getMetadata(AUTH_GUARD_KEY, controller)) as
       | AuthGuardOptions
       | undefined;
 
