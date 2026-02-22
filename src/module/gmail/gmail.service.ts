@@ -3,6 +3,9 @@ import { google, gmail_v1 } from 'googleapis';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AppConfigService } from '../config/config.service';
+import { DiagnosticProvider } from '../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../diagnostic/dto/service-status.dto';
 
 export interface GoogleApisEmailServiceOptions {
   scopes?: string[];
@@ -66,17 +69,71 @@ export interface SendEmailFromTemplateRequestDto {
 }
 
 @Injectable()
-export class GmailService {
+export class GmailService implements DiagnosticProvider {
   private readonly logger = new Logger(GmailService.name);
   private config: GoogleApisEmailServiceOptions | undefined;
 
-  constructor(private appConfigService: AppConfigService) {
+  constructor(
+    private appConfigService: AppConfigService,
+    private diagnosticService: DiagnosticService,
+  ) {
+    // Register with diagnostic service
+    this.diagnosticService.registerProvider('gmail', this);
+
     const { emailServiceOptions: config } =
       this.appConfigService.getConfig().googleApis || {};
     if (!config) {
-      throw new Error('Gmail API email options are not configured');
+      this.logger.warn('Gmail API email options are not configured');
+      return;
     }
     this.config = config;
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    if (!this.config) {
+      return {
+        name: 'gmail',
+        status: 'unavailable',
+        reason: 'Missing googleApis.emailServiceOptions config',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    const { serviceAccountJsonKeyFilePathname, userEmail, scopes } = this.config;
+
+    if (!serviceAccountJsonKeyFilePathname) {
+      return {
+        name: 'gmail',
+        status: 'unavailable',
+        reason: 'Missing service account key file path',
+        details: { hasUserEmail: !!userEmail, hasScopes: !!scopes?.length },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!userEmail) {
+      return {
+        name: 'gmail',
+        status: 'degraded',
+        reason: 'Missing userEmail for domain-wide delegation',
+        details: { hasKeyFile: true, hasScopes: !!scopes?.length },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'gmail',
+      status: 'ready',
+      details: {
+        hasKeyFile: true,
+        hasUserEmail: true,
+        scopeCount: scopes?.length ?? 0,
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   //#region public methods

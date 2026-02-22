@@ -8,6 +8,9 @@ import { PaymentIntentCreateRequestDto } from '../dto/payment-intent-create-requ
 import { PaymentMethodListRequestDto } from '../dto/payment-method-list-request.dto';
 import { PaymentIntentListResponseDto } from '../dto/payment-intent-list-response.dto';
 import { StripePaymentIntentDto } from '../dto/stripe-payment-intent.dto';
+import { DiagnosticProvider } from '../../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../../diagnostic/dto/service-status.dto';
 
 export interface StripeOptions {
   key: string;
@@ -16,11 +19,61 @@ export interface StripeOptions {
 }
 
 @Injectable()
-export class StripeService {
+export class StripeService implements DiagnosticProvider {
   private _stripe: Stripe | null = null;
   private readonly logger = new Logger(StripeService.name);
 
-  constructor(private appConfigService: AppConfigService) {}
+  constructor(
+    private appConfigService: AppConfigService,
+    private diagnosticService: DiagnosticService,
+  ) {
+    // Register with diagnostic service
+    this.diagnosticService.registerProvider('stripe', this);
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    const stripeConfig = this.appConfigService.getConfig()?.payment?.stripe;
+    const { key, secret, version } = stripeConfig || {};
+
+    if (!stripeConfig) {
+      return {
+        name: 'stripe',
+        status: 'unavailable',
+        reason: 'Missing payment.stripe config section',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!key || !secret) {
+      return {
+        name: 'stripe',
+        status: 'unavailable',
+        reason: 'Missing Stripe API key or secret',
+        details: { hasKey: !!key, hasSecret: !!secret, hasVersion: !!version },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!version) {
+      return {
+        name: 'stripe',
+        status: 'degraded',
+        reason: 'Stripe API version not specified',
+        details: { hasKey: true, hasSecret: true, hasVersion: false },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'stripe',
+      status: 'ready',
+      details: { hasKey: true, hasSecret: true, hasVersion: true },
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   private get client(): Stripe | null {
     if (this._stripe) {

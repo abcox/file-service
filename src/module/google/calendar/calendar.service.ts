@@ -9,17 +9,35 @@ import { CalendarEventDeleteBatchPostResponseDto } from './dto/calendar-event-de
 import { CalendarEventCreatePostResponseDto } from './dto/calendar-event-create-post-response.dto';
 import { GoogleCalendarEventDto } from './dto/google-calendar-event.dto';
 import { ServiceAccountCredentials } from '../google.config';
+import { DiagnosticProvider } from '../../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../../diagnostic/dto/service-status.dto';
 
 export interface GoogleApisCalendarServiceOptions {
   scopes?: string[];
 }
 
 @Injectable()
-export class CalendarService {
+export class CalendarService implements DiagnosticProvider {
   private readonly logger = new Logger(CalendarService.name);
   private readonly _service: calendar_v3.Calendar;
+  private configStatus: {
+    hasConfig: boolean;
+    hasScopes: boolean;
+    isInitialized: boolean;
+  } = {
+    hasConfig: false,
+    hasScopes: false,
+    isInitialized: false,
+  };
 
-  constructor(private appConfigService: AppConfigService) {
+  constructor(
+    private appConfigService: AppConfigService,
+    private diagnosticService: DiagnosticService,
+  ) {
+    // Register with diagnostic service
+    this.diagnosticService.registerProvider('google-calendar', this);
+
     const {
       calendarServiceOptions: config,
       serviceAccountJsonContent: keyFileContent,
@@ -33,6 +51,7 @@ export class CalendarService {
       );
       return;
     }
+    this.configStatus.hasConfig = true;
     if (!config.scopes || config.scopes.length === 0) {
       //throw new Error('Google API calendar scopes are not configured');
       this.logger.warn(
@@ -40,6 +59,7 @@ export class CalendarService {
       );
       return;
     }
+    this.configStatus.hasScopes = true;
     const { scopes } = config;
     this._service = this.createCalendarServiceFromKeyFilePathOrContent(
       keyFilePath,
@@ -47,6 +67,51 @@ export class CalendarService {
       userEmail,
       scopes,
     );
+    this.configStatus.isInitialized = true;
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    const { hasConfig, hasScopes, isInitialized } = this.configStatus;
+
+    if (!hasConfig) {
+      return {
+        name: 'google-calendar',
+        status: 'unavailable',
+        reason: 'Missing googleApis.calendarServiceOptions config',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!hasScopes) {
+      return {
+        name: 'google-calendar',
+        status: 'degraded',
+        reason: 'No scopes configured for Calendar API',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!isInitialized) {
+      return {
+        name: 'google-calendar',
+        status: 'degraded',
+        reason: 'Service not fully initialized',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'google-calendar',
+      status: 'ready',
+      details: { hasConfig, hasScopes, isInitialized },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   private get service(): calendar_v3.Calendar {

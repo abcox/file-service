@@ -4,6 +4,9 @@ import { LoggerService } from '../logger/logger.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import { BlobServiceClient, ContainerClient } from '@azure/storage-blob';
+import { DiagnosticProvider } from '../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../diagnostic/dto/service-status.dto';
 
 export interface StorageConfig {
   type: 'local' | 'azure' | 'emulator';
@@ -61,7 +64,7 @@ interface StorageClient {
 }
 
 @Injectable()
-export class StorageService implements StorageClient {
+export class StorageService implements StorageClient, DiagnosticProvider {
   private config: BaseStorageConfig | undefined;
   //private azureContainerClient?: ContainerClient;
   private storageOptions: StorageOptions;
@@ -69,11 +72,51 @@ export class StorageService implements StorageClient {
   constructor(
     private appConfigService: AppConfigService,
     private logger: LoggerService,
+    private diagnosticService: DiagnosticService,
   ) {
+    // Register with diagnostic service
+    this.diagnosticService.registerProvider('storage', this);
+
     // Lazy initialization - will be called when first needed
     this.storageOptions = { safeMode: false }; // Will be updated on first access
     const config = this.appConfigService.getConfig().storage;
     this.init(config);
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    const rawConfig = this.appConfigService.getConfig().storage;
+
+    if (!rawConfig?.type) {
+      return {
+        name: 'storage',
+        status: 'unavailable',
+        reason: 'Storage type not configured',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!this.config) {
+      return {
+        name: 'storage',
+        status: 'unavailable',
+        reason: `Storage type '${rawConfig.type}' configured but initialization failed`,
+        details: { configuredType: rawConfig.type },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'storage',
+      status: 'ready',
+      details: {
+        type: this.config.type,
+        safeMode: this.config.options?.safeMode ?? false,
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   private init(config: StorageConfig) {

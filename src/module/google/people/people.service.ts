@@ -8,6 +8,9 @@ import { GetContactDefinedFieldResponse } from './dto/get-contact-defined-field-
 import { fromZonedTime, toZonedTime, format as formatTz } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
 import { ServiceAccountCredentials } from '../google.config';
+import { DiagnosticProvider } from '../../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../../diagnostic/dto/service-status.dto';
 
 export interface GoogleApisPeopleServiceOptions {
   scopes?: string[];
@@ -17,12 +20,29 @@ export const defaultPersonFields =
   'names,emailAddresses,memberships,userDefined';
 
 @Injectable()
-export class PeopleService {
+export class PeopleService implements DiagnosticProvider {
   private readonly logger = new Logger(PeopleService.name);
   private readonly _service: people_v1.People;
   private readonly timeZone: string;
+  private readonly diagnosticMessage: string;
 
-  constructor(private appConfigService: AppConfigService) {
+  // initialize default config status as degraded until we verify the configuration and initialization in the constructor
+  private configStatus: {
+    hasConfig: boolean;
+    hasScopes: boolean;
+    isInitialized: boolean;
+  } = {
+    hasConfig: false,
+    hasScopes: false,
+    isInitialized: false,
+  };
+
+  constructor(
+    private appConfigService: AppConfigService,
+    private diagnosticService: DiagnosticService,
+  ) {
+    // Register with diagnostic service
+    this.diagnosticService.registerProvider('google-people', this);
     const {
       peopleServiceOptions: config,
       serviceAccountJsonContent: keyFileJsonContent,
@@ -36,21 +56,67 @@ export class PeopleService {
       );
       return;
     }
+    this.configStatus.hasConfig = true;
     if (!config.scopes || config.scopes.length === 0) {
       //throw new Error('Google API people scopes are not configured');
-      this.logger.warn(
-        'Google API people scopes are not configured, using default scope for people',
-      );
+      this.diagnosticMessage =
+        'Google API people scopes are not configured, using default scope for people';
+      this.logger.warn(this.diagnosticMessage);
       return;
     }
-    const { scopes } = config;
+    this.configStatus.hasScopes = true;
     this._service = this.createPeopleServiceFromKeyFilePathOrContent(
       keyFilePath,
       keyFileJsonContent,
       userEmail,
-      scopes,
+      config.scopes,
     );
+    this.configStatus.isInitialized = true;
     this.timeZone = this.appConfigService.getTimeZoneConfig().effective;
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    const { hasConfig, hasScopes, isInitialized } = this.configStatus;
+
+    if (!hasConfig) {
+      return {
+        name: 'google-people',
+        status: 'unavailable',
+        reason: 'Missing googleApis.peopleServiceOptions config',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!hasScopes) {
+      return {
+        name: 'google-people',
+        status: 'degraded',
+        reason: 'No scopes configured for People API',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!isInitialized) {
+      return {
+        name: 'google-people',
+        status: 'degraded',
+        reason: 'Service not fully initialized',
+        details: { hasConfig, hasScopes, isInitialized },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'google-people',
+      status: 'ready',
+      details: { hasConfig, hasScopes, isInitialized },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   private get service(): people_v1.People {

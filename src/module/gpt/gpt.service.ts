@@ -12,6 +12,9 @@ import {
 import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
 import { FileContent } from '../workflow/file-workflow.service';
+import { DiagnosticProvider } from '../diagnostic/diagnostic-provider.interface';
+import { DiagnosticService } from '../diagnostic/diagnostic.service';
+import { ServiceStatusDto } from '../diagnostic/dto/service-status.dto';
 
 export class GptAnalysisRequest {
   content: string;
@@ -55,13 +58,15 @@ export interface GptDefaults {
 }
 
 @Injectable()
-export class GptService {
+export class GptService implements DiagnosticProvider {
   private _client: OpenAI;
   private config: GptConfig;
+  private diagnosticService: DiagnosticService | null = null;
+  private isInitialized = false;
 
   constructor(
     private readonly logger: LoggerService,
-    private readonly configService: AppConfigService, // review why we are using this to init; rather we're calling the initConfigWithDefaults
+    private readonly configService: AppConfigService,
   ) {
     // Initialize GPT service with environment variables if config is not available
     const apiKey = process.env.OPENAI_API_KEY;
@@ -85,11 +90,54 @@ export class GptService {
       apiKey: apiKey,
     });
 
+    this.isInitialized = true;
     this.logger.info('GPT service initialized successfully', {
       model: this.config.defaults.model,
       maxTokens: this.config.defaults.maxTokens,
       temperature: this.config.defaults.temperature,
     });
+  }
+
+  /**
+   * Set diagnostic service (called from factory since we can't inject directly)
+   */
+  setDiagnosticService(diagnosticService: DiagnosticService): void {
+    this.diagnosticService = diagnosticService;
+    this.diagnosticService.registerProvider('gpt', this);
+  }
+
+  /**
+   * DiagnosticProvider implementation
+   */
+  getDiagnosticStatus(): ServiceStatusDto {
+    if (!this.config?.apiKey && !process.env.OPENAI_API_KEY) {
+      return {
+        name: 'gpt',
+        status: 'unavailable',
+        reason: 'Missing OpenAI API key (config or OPENAI_API_KEY env)',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    if (!this.isInitialized || !this._client) {
+      return {
+        name: 'gpt',
+        status: 'degraded',
+        reason: 'OpenAI client not initialized',
+        details: { hasApiKey: true, isInitialized: false },
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    return {
+      name: 'gpt',
+      status: 'ready',
+      details: {
+        model: this.config?.defaults?.model,
+        isInitialized: true,
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   private get client(): OpenAI {
@@ -134,6 +182,7 @@ export class GptService {
       this._client = new OpenAI({
         apiKey: apiKey,
       });
+      this.isInitialized = true;
       const { defaults } = this.config;
       this.logger.info('GPT service initialized successfully', {
         model: defaults.model,

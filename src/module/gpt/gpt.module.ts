@@ -5,15 +5,23 @@ import { ConfigModule } from '../config/config.module';
 import { AppConfigService } from '../config/config.service';
 import { LoggingModule } from '../logger/logging.module';
 import { LoggerService } from '../logger/logger.service';
+import { DiagnosticModule } from '../diagnostic/diagnostic.module';
+import { DiagnosticService } from '../diagnostic/diagnostic.service';
 
 @Module({
-  imports: [LoggingModule, ConfigModule],
+  imports: [LoggingModule, ConfigModule, DiagnosticModule],
   controllers: [GptController],
   providers: [
     {
       provide: GptService,
-      useFactory: (configService: AppConfigService, logger: LoggerService) => {
+      useFactory: (
+        configService: AppConfigService,
+        logger: LoggerService,
+        diagnosticService: DiagnosticService,
+      ) => {
         const gptService = new GptService(logger, configService);
+        // Register with diagnostic service
+        gptService.setDiagnosticService(diagnosticService);
         try {
           const { gptConfig } = configService.getConfig();
           if (!gptConfig) {
@@ -32,7 +40,7 @@ import { LoggerService } from '../logger/logger.service';
         }
         return gptService;
       },
-      inject: [AppConfigService, LoggerService],
+      inject: [AppConfigService, LoggerService, DiagnosticService],
     },
   ],
   exports: [GptService],

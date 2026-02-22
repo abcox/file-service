@@ -22,6 +22,7 @@ import { EmailTemplateModule } from '../email-template/email-template.module';
 import { PeopleModule } from '../google/people';
 import { CalendarModule } from '../google/calendar/calendar.module';
 import { PaymentModule } from '../payment/payment.module';
+import { DiagnosticModule } from '../diagnostic/diagnostic.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PaymentModule } from '../payment/payment.module';
     PeopleModule,
     CalendarModule,
     PaymentModule,
+    DiagnosticModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],
