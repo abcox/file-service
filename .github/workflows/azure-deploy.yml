@@ -247,11 +247,7 @@ jobs:
           HEALTH_RESPONSE=$(curl -s "$DEPLOY_URL/health")
           echo "Health: $HEALTH_RESPONSE"
           
-          # Test root endpoint
-          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/")
-          echo "Root endpoint: HTTP $ROOT_STATUS"
-          
-          # Test Swagger endpoint
+          # Test Swagger endpoint (main API entry point)
           SWAGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api")
           echo "Swagger endpoint: HTTP $SWAGGER_STATUS"
           
@@ -265,8 +261,8 @@ jobs:
             exit 1
           fi
           
-          if [ "$ROOT_STATUS" != "200" ]; then
-            echo "❌ Root endpoint failed"
+          if [ "$SWAGGER_STATUS" != "200" ]; then
+            echo "❌ Swagger endpoint failed"
             exit 1
           fi
           
