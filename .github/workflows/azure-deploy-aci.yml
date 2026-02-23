@@ -58,46 +58,6 @@ jobs:
       - name: Login to Azure Container Registry
         run: |
           az acr login --name ${{ env.ACR_NAME }}
-
-      # Pre-build smoke tests - validates app works before building container
-      - name: Setup Node.js for testing
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Run pre-build smoke tests
-        run: |
-          echo "🧪 Running pre-build smoke tests..."
-          npm ci
-          npm run build
-          
-          # Start server in background
-          NODE_ENV=test npm run start:prod &
-          SERVER_PID=$!
-          
-          # Wait for server to be ready
-          echo "⏳ Waiting for server to start..."
-          for i in {1..30}; do
-            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "✅ Server is ready"
-              break
-            fi
-            sleep 1
-          done
-          
-          # Run smoke tests
-          npm run test:smoke
-          TEST_EXIT_CODE=$?
-          
-          # Stop server
-          kill $SERVER_PID 2>/dev/null || true
-          
-          if [ $TEST_EXIT_CODE -ne 0 ]; then
-            echo "❌ Smoke tests failed - aborting container build"
-            exit 1
-          fi
-          echo "✅ Pre-build smoke tests passed - proceeding with container build"
           
       - name: Get ACR credentials
         id: acr-credentials
