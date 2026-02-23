@@ -184,4 +184,12 @@ Choose your path:
 # 4. Push to trigger Docker deployment
 ```
 
-Both approaches will work great! The Linux option is perfect for getting started, and you can always migrate to Docker later when you need the additional benefits. 
+Both approaches will work great! The Linux option is perfect for getting started, and you can always migrate to Docker later when you need the additional benefits.
+
+---
+
+## Related Documentation
+
+- [DEPLOYMENT.md](./DEPLOYMENT.md) - Step-by-step Azure deployment guide
+- [CICD_SETUP.md](./CICD_SETUP.md) - CI/CD pipeline configuration and automated testing
+- [TESTING.md](./TESTING.md) - Testing strategy and commands 

@@ -11,6 +11,7 @@
       }
     ]
   },
+  "testTimeout": 10000,
   "moduleNameMapper": {
     "^src/(.*)$": "<rootDir>/src/$1"
   }

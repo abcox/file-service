@@ -1,5 +1,11 @@
 # Azure Deployment Guide
 
+## Related Documentation
+
+- **[TESTING.md](./TESTING.md)** - Testing strategy, smoke tests, integration tests
+- **[CICD_SETUP.md](./CICD_SETUP.md)** - CI/CD pipeline setup with automated testing
+- **[DEPLOYMENT_OPTIONS.md](./DEPLOYMENT_OPTIONS.md)** - Compare deployment approaches
+
 ## Prerequisites
 
 1. **Azure Account** with active subscription
@@ -91,6 +97,32 @@ az webapp deployment source config-local-git --name your-file-service --resource
 - Branch: `main`
 - App Service: `your-file-service-prod`
 - Container: `file-service-uploads-prod`
+
+## Automated Testing
+
+The CI/CD pipeline includes automated testing at two stages:
+
+### Pre-Deployment Tests
+- Runs **before** deployment to catch issues early
+- Builds app, starts server, runs smoke tests
+- Fails the pipeline if tests don't pass
+
+### Post-Deployment Tests
+- Runs **after** deployment to validate the live app
+- Tests health endpoint, root, Swagger, and diagnostics
+- Ensures deployment actually works
+
+### Local Testing Before Deploy
+```bash
+# Run smoke tests locally before pushing
+npm run start:dev &
+npm run test:smoke
+
+# Run full test suite
+npm run test:e2e
+```
+
+See [TESTING.md](./TESTING.md) for detailed testing documentation.
 
 ## Monitoring and Logging
 

@@ -143,6 +143,78 @@ npm run kill-task-byid --pid=1234
 npm run kill-port-3000
 ```
 
+## Testing
+
+The project includes a comprehensive testing strategy with three test types.
+
+For detailed testing documentation, see [TESTING.md](./docs/TESTING.md).
+
+### Test Commands
+
+```bash
+# Run smoke tests (requires running server)
+npm run test:smoke
+
+# Run e2e tests (same as smoke - lightweight)
+npm run test:e2e
+
+# Run integration tests (requires databases)
+npm run test:integration
+
+# Run unit tests
+npm run test
+```
+
+### Test Types
+
+| Type | Command | Purpose | Requirements |
+|------|---------|---------|--------------|
+| **Smoke** | `npm run test:smoke` | HTTP endpoint validation | Running server |
+| **E2E** | `npm run test:e2e` | Same as smoke | Running server |
+| **Integration** | `npm run test:integration` | Full app with DB connections | Databases/emulators |
+| **Unit** | `npm run test` | Individual module tests | None |
+
+### Smoke Tests
+
+Smoke tests validate that the server is responding and routes are reachable:
+
+```bash
+# Start the server first
+npm run start:dev
+
+# In another terminal, run smoke tests
+npm run test:smoke
+```
+
+Tests the following endpoints:
+- `/health` - Health check
+- `/api` - Swagger UI
+- `/api/diagnostic/services` - Service diagnostics
+- `/api/file/list` - File listing
+- `/api/pdf` - PDF service
+- `/api/auth` - Authentication
+
+### Integration Tests
+
+Integration tests bootstrap the full NestJS application with database connections:
+
+```bash
+# Requires:
+# - Azure Key Vault access (for secrets)
+# - SQL Server access (Azure or local)
+# - CosmosDB Emulator (optional)
+
+npm run test:integration
+```
+
+### CI/CD Integration
+
+Tests are automatically run in the deployment pipeline:
+1. **Pre-build**: Smoke tests run before deployment (fail fast)
+2. **Post-deploy**: Smoke tests validate the deployed application
+
+See [CICD_SETUP.md](./docs/CICD_SETUP.md) for pipeline details.
+
 ## API Endpoints
 
 - `GET /` - Hello message

@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './module/app/app.module';
 import { SwaggerConfigService } from './config/swagger/swagger-config.service';
 import { LoggerService } from './module/logger/logger.service';
@@ -10,6 +9,7 @@ import { join } from 'path';
 import { ConfigDebugService } from './module/config/config-debug.service';
 import { AppConfigService } from './module/config/config.service';
 import { AppConfig } from './module/config/config.interface';
+import { configureApp } from './config/app-bootstrap';
 
 async function bootstrap() {
   console.log('Starting application...');
@@ -94,21 +94,10 @@ async function bootstrap() {
       await debugService.runStartupDiagnostics();
     }
 
-    // Set global prefix with exclusion for root-level health check (used by infra/load balancers)
-    const globalPrefix = apiCfg?.path || 'api';
-    app.setGlobalPrefix(globalPrefix, {
-      exclude: ['health'],
-    });
+    // Apply shared app configuration (global prefix, validation, etc.)
+    const { globalPrefix } = configureApp(app, { enableRequestLogging: true });
     logger.info(
       `Global prefix set to: ${globalPrefix} (excluding /health for infra checks)`,
-    );
-
-    // Enable validation with transformation
-    app.useGlobalPipes(
-      new ValidationPipe({
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
     );
 
     // TODO: review this middleware:

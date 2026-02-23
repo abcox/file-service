@@ -5,10 +5,49 @@ This guide will help you set up a complete CI/CD pipeline from your GitHub repos
 ## 🎯 Overview
 
 Your CI/CD pipeline will:
-1. **Build** your NestJS application
-2. **Test** the code quality and functionality
-3. **Deploy** to Azure App Service
-4. **Verify** the deployment with health checks
+1. **Lint** the code for quality issues
+2. **Test** with pre-build smoke tests (fail fast)
+3. **Build** your NestJS application
+4. **Deploy** to Azure App Service or Azure Container Instances
+5. **Verify** with post-deployment smoke tests
+
+## 🧪 Automated Testing in Pipeline
+
+The pipeline includes automated testing at two stages:
+
+### Pre-Build Smoke Tests
+Runs **before** deployment to catch issues early:
+- Builds the application
+- Starts server locally in CI environment
+- Runs `npm run test:smoke`
+- **Fails the pipeline** if tests don't pass (prevents bad deploys)
+
+### Post-Deployment Smoke Tests
+Runs **after** deployment to validate the live app:
+- Waits for deployment to be ready
+- Tests `/health`, `/`, `/api`, `/api/diagnostic/services`
+- Validates the deployment actually works
+
+### Pipeline Flow
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Lint      │ --> │ Pre-build   │ --> │   Build     │
+│             │     │ Smoke Tests │     │             │
+└─────────────┘     └─────────────┘     └─────────────┘
+                          │                    │
+                          │ fail early         │
+                          v                    v
+                    ┌───────────┐       ┌─────────────┐
+                    │   STOP    │       │   Deploy    │
+                    └───────────┘       └─────────────┘
+                                              │
+                                              v
+                                       ┌─────────────┐
+                                       │ Post-deploy │
+                                       │ Smoke Tests │
+                                       └─────────────┘
+```
 
 ## 📋 Prerequisites
 
@@ -97,6 +136,18 @@ You have two workflow options:
 - Verify environment variables are set correctly
 - Check Key Vault access permissions
 
+#### 4. Pre-build Smoke Test Failures
+- Tests run against a local server in the CI environment
+- Check if server started correctly (look for startup logs)
+- Verify test endpoints exist and are accessible
+- Run `npm run test:smoke` locally to reproduce
+
+#### 5. Post-deployment Smoke Test Failures
+- Deployment may still be starting up (increase wait time)
+- Check Azure App Service logs for startup errors
+- Verify DNS/URL is correct
+- Check for configuration differences between environments
+
 ### Debug Commands
 
 ```bash
@@ -138,12 +189,41 @@ Add security scanning to your workflow:
   run: npm audit --audit-level moderate
 ```
 
-### 7.3 Add Performance Testing
-Add performance testing after deployment:
+### 7.3 Customize Smoke Tests
+The smoke tests validate these endpoints by default:
+- `/health` - Must return HTTP 200
+- `/` - Root endpoint
+- `/api` - Swagger UI
+- `/api/diagnostic/services` - Service diagnostics
+
+To add custom endpoints, edit `test/smoke.e2e-spec.ts`:
+```typescript
+it('should test my custom endpoint', async () => {
+  const response = await fetch(`${BASE_URL}/api/my-endpoint`);
+  expect(response.status).toBe(200);
+});
+```
+
+### 7.4 Test Environment Variables
+The smoke tests use these environment variables:
+- `API_URL` - Override the target URL (default: `http://localhost:3000`)
+
+Example for testing against staging:
 ```yaml
-- name: Performance test
+- name: Run smoke tests against staging
+  env:
+    API_URL: https://vorba-file-service-staging.azurewebsites.net
+  run: npm run test:smoke
+```
+
+### 7.5 Skip Tests (Emergency)
+If you need to deploy without tests (not recommended):
+```yaml
+# Add condition to skip tests
+- name: Run pre-build smoke tests
+  if: github.event.inputs.skip_tests != 'true'
   run: |
-    curl -w "@curl-format.txt" -o /dev/null -s "https://vorba-file-service.azurewebsites.net/health"
+    # ... test commands
 ```
 
 ## 🎉 Success!
@@ -152,6 +232,9 @@ Your CI/CD pipeline is now set up! Every time you push to `main` or `develop`, y
 
 ### Quick Commands
 ```bash
+# Run tests locally before pushing
+npm run test:smoke
+
 # Test locally
 npm run start:dev
 
@@ -163,8 +246,29 @@ npm run build
 # Then push to trigger GitHub Actions
 ```
 
+### Test Commands
+```bash
+# Smoke tests (requires running server)
+npm run test:smoke
+
+# E2E tests (same as smoke)
+npm run test:e2e
+
+# Integration tests (requires databases)
+npm run test:integration
+```
+
 ### Useful URLs
-- **App Service**: https://vorba-file-service.azurewebsites.net
-- **Health Check**: https://vorba-file-service.azurewebsites.net/health
-- **Swagger Docs**: https://vorba-file-service.azurewebsites.net/api (if configured)
-- **Azure Portal**: https://portal.azure.com → App Services → vorba-file-service 
+
+**Web App (vorba-file-service-3)**:
+- App Service: https://vorba-file-service-3.azurewebsites.net
+- Health Check: https://vorba-file-service-3.azurewebsites.net/health
+- Swagger Docs: https://vorba-file-service-3.azurewebsites.net/api
+
+**ACI (vorba-file-service-4)**:
+- Container: http://vorba-file-service-4.canadaeast.azurecontainer.io:8080
+- Health Check: http://vorba-file-service-4.canadaeast.azurecontainer.io:8080/health
+
+**Azure Portal**:
+- Portal: https://portal.azure.com → App Services → vorba-file-service-3
+- Resource Group: vorba-file-service-rg 

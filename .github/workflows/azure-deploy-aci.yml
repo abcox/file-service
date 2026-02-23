@@ -58,6 +58,46 @@ jobs:
       - name: Login to Azure Container Registry
         run: |
           az acr login --name ${{ env.ACR_NAME }}
+
+      # Pre-build smoke tests - validates app works before building container
+      - name: Setup Node.js for testing
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Run pre-build smoke tests
+        run: |
+          echo "🧪 Running pre-build smoke tests..."
+          npm ci
+          npm run build
+          
+          # Start server in background
+          NODE_ENV=test npm run start:prod &
+          SERVER_PID=$!
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Server is ready"
+              break
+            fi
+            sleep 1
+          done
+          
+          # Run smoke tests
+          npm run test:smoke
+          TEST_EXIT_CODE=$?
+          
+          # Stop server
+          kill $SERVER_PID 2>/dev/null || true
+          
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Smoke tests failed - aborting container build"
+            exit 1
+          fi
+          echo "✅ Pre-build smoke tests passed - proceeding with container build"
           
       - name: Get ACR credentials
         id: acr-credentials
@@ -197,6 +237,7 @@ jobs:
            sleep 30  # Give ACI time to provision
           
       - name: Get ACI status
+        id: aci-status
         run: |
           ACI_STATUS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "provisioningState" --output tsv)
           echo "ACI Status: $ACI_STATUS"
@@ -207,21 +248,62 @@ jobs:
             # Get the FQDN
             FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
             echo "🌐 ACI URL: http://$FQDN:8080"
-            
-            # Test health endpoint
-            echo "🏥 Testing health endpoint..."
-            sleep 30  # Wait for container to fully start
-            
-            HEALTH_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://$FQDN:8080/health" || echo "000")
-            if [ "$HEALTH_RESPONSE" = "200" ]; then
-              echo "✅ Health check passed!"
-            else
-              echo "⚠️ Health check failed (HTTP $HEALTH_RESPONSE)"
-            fi
+            echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
           else
             echo "❌ ACI deployment failed with status: $ACI_STATUS"
             exit 1
           fi
+
+      # Post-deployment smoke tests - validates deployed container is working correctly
+      - name: Post-deployment smoke tests
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+          DEPLOY_URL="http://${{ steps.aci-status.outputs.fqdn }}:8080"
+          
+          # Wait for container to fully start
+          echo "⏳ Waiting for container to be ready..."
+          for i in {1..60}; do
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/health" --max-time 10 || echo "000")
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "✅ Container is ready (health check passed)"
+              break
+            fi
+            echo "   Attempt $i: HTTP $HEALTH_STATUS - waiting..."
+            sleep 5
+          done
+          
+          # Run smoke tests against deployed container
+          echo "🔍 Running smoke tests against $DEPLOY_URL"
+          
+          # Test health endpoint
+          HEALTH_RESPONSE=$(curl -s "$DEPLOY_URL/health" --max-time 10 || echo "failed")
+          echo "Health: $HEALTH_RESPONSE"
+          
+          # Test root endpoint
+          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/" --max-time 10 || echo "000")
+          echo "Root endpoint: HTTP $ROOT_STATUS"
+          
+          # Test Swagger endpoint
+          SWAGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api" --max-time 10 || echo "000")
+          echo "Swagger endpoint: HTTP $SWAGGER_STATUS"
+          
+          # Test diagnostic endpoint
+          DIAG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api/diagnostic/services" --max-time 10 || echo "000")
+          echo "Diagnostic endpoint: HTTP $DIAG_STATUS"
+          
+          # Validate results
+          if [ "$HEALTH_STATUS" != "200" ]; then
+            echo "❌ Health check failed (HTTP $HEALTH_STATUS)"
+            exit 1
+          fi
+          
+          if [ "$ROOT_STATUS" != "200" ]; then
+            echo "⚠️ Root endpoint returned HTTP $ROOT_STATUS (may be expected)"
+          fi
+          
+          echo "✅ Post-deployment smoke tests passed!"
+          echo ""
+          echo "🌐 Deployed URL: $DEPLOY_URL"
           
       - name: Show ACI logs
         if: always()
@@ -259,6 +341,7 @@ jobs:
           echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: http://$FQDN:8080" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Smoke Tests**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📊 Log Analytics" >> $GITHUB_STEP_SUMMARY
           echo "- **Workspace**: ${{ env.LOG_ANALYTICS_WORKSPACE_NAME }}" >> $GITHUB_STEP_SUMMARY

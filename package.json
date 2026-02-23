@@ -21,11 +21,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:smoke": "jest --config ./test/jest-smoke.json --no-cache",
+    "test:integration": "jest --config ./test/jest-integration.json --no-cache",
+    "test:e2e": "jest --config ./test/jest-e2e.json --no-cache",
     "test:workflow": "jest --testPathPattern=file-workflow.service.spec.ts",
     "test:pdf-all": "jest --testPathPattern=pdf.service.spec.ts",
     "test:pdf-single": "npx jest src/module/pdf/pdf.service.spec.ts -t \"should generate different PDF types for comparison\"",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:stripe": "jest --testPathPattern=stripe.service.spec.ts",
     "------------ TEST / GMAIL -------": "--------------------------------------",
     "gmail:setup-oauth": "node scripts/auth/gmail-apis/gmail-oauth-setup.js",
@@ -144,6 +146,9 @@
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

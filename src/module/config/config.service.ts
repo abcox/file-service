@@ -27,12 +27,13 @@ export class AppConfigService {
 
     // 1. Load base configuration from JSON files
     const environment = process.env.NODE_ENV || 'development';
-    const configDir = environment === 'development' ? 'src/config' : 'dist';
+    const isDevOrTest = ['development', 'test'].includes(environment);
+    const configDir = isDevOrTest ? 'src/config' : 'dist';
 
     // In development, try config.local-dev.json first (gitignored, contains secrets)
     // Falls back to config.json (committed template)
     let configPath: string;
-    if (environment === 'development') {
+    if (isDevOrTest) {
       const localDevConfigPath = path.join(
         process.cwd(),
         configDir,

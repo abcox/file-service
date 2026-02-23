@@ -35,9 +35,38 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      # TODO: review this step, and if is better to make it part of the build process
-      #- name: Run tests
-      #  run: npm test
+      # Pre-build smoke tests - validates app starts and routes work before deployment
+      - name: Run pre-build smoke tests
+        run: |
+          echo "🧪 Running pre-build smoke tests..."
+          npm run build
+          
+          # Start server in background
+          NODE_ENV=test npm run start:prod &
+          SERVER_PID=$!
+          
+          # Wait for server to be ready
+          echo "⏳ Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Server is ready"
+              break
+            fi
+            sleep 1
+          done
+          
+          # Run smoke tests
+          npm run test:smoke
+          TEST_EXIT_CODE=$?
+          
+          # Stop server
+          kill $SERVER_PID 2>/dev/null || true
+          
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo "❌ Smoke tests failed"
+            exit 1
+          fi
+          echo "✅ Pre-build smoke tests passed"
 
       - name: Build NestJS application
         run: |
@@ -225,3 +254,65 @@ jobs:
           #slot-name: 'production'
           publish-profile: ${{ secrets.AZ_WEBAPP_PUB_PRFL__FILE_SVC_3 }}
           package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
+
+      # Post-deployment smoke tests - validates deployed app is working correctly
+      - name: Post-deployment smoke tests
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+          DEPLOY_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          
+          # Wait for deployment to be ready
+          echo "⏳ Waiting for deployment to be ready..."
+          for i in {1..60}; do
+            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/health" || echo "000")
+            if [ "$HEALTH_STATUS" = "200" ]; then
+              echo "✅ Deployment is ready (health check passed)"
+              break
+            fi
+            echo "   Attempt $i: HTTP $HEALTH_STATUS - waiting..."
+            sleep 5
+          done
+          
+          # Run smoke tests against deployed app
+          echo "🔍 Running smoke tests against $DEPLOY_URL"
+          
+          # Test health endpoint
+          HEALTH_RESPONSE=$(curl -s "$DEPLOY_URL/health")
+          echo "Health: $HEALTH_RESPONSE"
+          
+          # Test root endpoint
+          ROOT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/")
+          echo "Root endpoint: HTTP $ROOT_STATUS"
+          
+          # Test Swagger endpoint
+          SWAGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api")
+          echo "Swagger endpoint: HTTP $SWAGGER_STATUS"
+          
+          # Test diagnostic endpoint
+          DIAG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api/diagnostic/services")
+          echo "Diagnostic endpoint: HTTP $DIAG_STATUS"
+          
+          # Validate results
+          if [ "$HEALTH_STATUS" != "200" ]; then
+            echo "❌ Health check failed"
+            exit 1
+          fi
+          
+          if [ "$ROOT_STATUS" != "200" ]; then
+            echo "❌ Root endpoint failed"
+            exit 1
+          fi
+          
+          echo "✅ Post-deployment smoke tests passed!"
+          echo ""
+          echo "🌐 Deployed URL: $DEPLOY_URL"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "## 🚀 Web App Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Name**: ${{ env.AZURE_WEBAPP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Smoke Tests**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
