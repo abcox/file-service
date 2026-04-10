@@ -213,6 +213,16 @@ jobs:
           echo ""
           echo "=== END INSPECTION ==="
 
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Start App Service (if stopped)
+        run: |
+          echo "🚀 Ensuring App Service is running..."
+          az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || true
+
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
@@ -279,3 +289,11 @@ jobs:
           echo "- **URL**: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ env.DEPLOY_ENV }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Smoke Tests**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
+
+      # Stop App Service after deployment to save costs (runs always, even on failure)
+      - name: Stop App Service (cost saving)
+        if: always()
+        run: |
+          echo "🛑 Stopping App Service to save costs..."
+          az webapp stop --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }}
+          echo "✅ App Service stopped. It will start automatically on next deployment."

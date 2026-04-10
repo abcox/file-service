@@ -70,6 +70,46 @@ export class ContactController {
     }
   }
 
+  @Post('upsert')
+  @Auth({ public: true })
+  @ApiOperation({
+    summary: 'Upsert a contact (create or update based on email)',
+  })
+  @ApiBody({ description: 'Contact data to upsert', type: CreateContactDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Contact upserted successfully',
+    type: ContactResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request - validation failed',
+  })
+  async upsertContact(
+    @Body() contactData: CreateContactDto,
+  ): Promise<ContactResponseDto> {
+    try {
+      const upsertedContact =
+        await this.contactService.upsertContact(contactData);
+      return {
+        success: true,
+        message: 'Contact upserted successfully',
+        data: upsertedContact || undefined,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new HttpException(
+        {
+          success: false,
+          message: errorMessage,
+          errors: [errorMessage],
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
   @Get(':id')
   @Auth({ roles: ['admin', 'user', 'guest'] })
   @ApiOperation({ summary: 'Get contact by ID' })

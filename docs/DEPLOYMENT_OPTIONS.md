@@ -14,10 +14,18 @@ This guide explains the different deployment approaches available for your NestJ
 
 | Environment | Port | Why |
 |-------------|------|-----|
-| Production (Web App/ACI) | 8080 | Azure default, set in `config.production.json` |
+| Production (Web App/ACI) | 8080 | Container runs as a non-root user, so using an unprivileged port avoids binding-to-port-80 issues |
 | Local Development | 3000 | Node.js convention, set in `config.json` |
 
 > **Note**: `process.env.PORT` always takes priority over config if set.
+
+### Why ACI Uses `:8080`
+
+- The `file-service` production container runs as a non-root Linux user for better container security.
+- Non-root processes normally cannot bind to privileged ports such as `80` without extra Linux capabilities.
+- Using `8080` avoids that problem and keeps the same container behavior across Azure Web App and Azure Container Instances.
+- Azure Web App can front the container on standard HTTPS, so no port appears in the public URL there.
+- Azure Container Instances exposes the container port directly, so the public URL must include `:8080`.
 
 ---
 

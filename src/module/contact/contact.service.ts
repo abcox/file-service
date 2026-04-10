@@ -103,6 +103,44 @@ export class ContactService {
     }
   }
 
+  async upsertContact(
+    contactData: Omit<IContact, '_id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<IContact | null> {
+    try {
+      this.logger.log(`Upserting contact with name: ${contactData.name}`);
+      const primaryEmail = contactData.emails.find((email) => email.isPrimary);
+      if (!primaryEmail) {
+        this.logger.warn('Primary email is required for upsert');
+        throw new Error('Primary email is required for upsert');
+      }
+      const existingContact = await this.contactModel
+        .findOne({ 'emails.address': primaryEmail.address })
+        .exec();
+      if (existingContact) {
+        this.logger.log(
+          `Existing contact found with email '${primaryEmail.address}', updating...`,
+        );
+        return await this.updateContact(
+          existingContact._id.toString(),
+          contactData,
+        );
+      } else {
+        this.logger.log(
+          `No existing contact found with email '${primaryEmail.address}', creating new contact...`,
+        );
+        return await this.createContact(contactData);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to upsert contact with name '${contactData.name}'`,
+        errorMessage,
+      );
+      throw new Error(`Failed to upsert contact: ${errorMessage}`);
+    }
+  }
+
   async getContactById(id: string): Promise<IContact | null> {
     try {
       this.logger.log(`Fetching contact with ID: ${id}`);
