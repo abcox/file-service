@@ -110,38 +110,84 @@ export class ContactController {
     }
   }
 
-  @Get(':id')
+  @Get('search')
   @Auth({ roles: ['admin', 'user', 'guest'] })
-  @ApiOperation({ summary: 'Get contact by ID' })
-  @ApiParam({ name: 'id', description: 'Contact ID' })
+  @ApiOperation({
+    summary:
+      'Search contacts (optional q). When q is omitted, returns filtered/sorted/paginated contacts.',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description:
+      'Optional free-text search term across name, firstName, lastName, company, and emails.address',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default: 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Items per page (default: 10)',
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by contact status',
+  })
+  @ApiQuery({
+    name: 'isActive',
+    required: false,
+    description:
+      'DEPRECATED: filter by active status (default: true). Prefer archive-aware filters in future endpoints.',
+    deprecated: true,
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description:
+      'Sort field. Allowed values: updatedAt, createdAt, nextFollowUpAt, lastContactedAt, name, company',
+  })
+  @ApiQuery({
+    name: 'sortDir',
+    required: false,
+    description: 'Sort direction (asc or desc, default: desc)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Contact found',
-    type: ContactResponseDto,
+    description: 'Search results retrieved successfully',
   })
-  @ApiResponse({ status: 404, description: 'Contact not found' })
-  async getContactById(@Param('id') id: string): Promise<ContactResponseDto> {
+  async searchContacts(
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('isActive') isActive?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDir') sortDir?: string,
+  ) {
     try {
-      const contact = await this.contactService.getContactById(id);
-      if (!contact) {
-        throw new HttpException(
-          {
-            success: false,
-            message: `Contact with ID '${id}' not found`,
-            errors: ['Contact not found'],
-          },
-          HttpStatus.NOT_FOUND,
-        );
-      }
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const isActiveFlag = isActive ? isActive.toLowerCase() === 'true' : true;
+
+      const result = await this.contactService.searchContacts({
+        searchTerm: q,
+        page: pageNum,
+        limit: limitNum,
+        status,
+        isActive: isActiveFlag,
+        sortBy: sortBy as never,
+        sortDir: sortDir as never,
+      });
       return {
         success: true,
-        message: 'Contact found',
-        data: contact,
+        message: `Found ${result.items.length} contacts matching search (${result.total} total)`,
+        data: result,
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new HttpException(
@@ -175,6 +221,51 @@ export class ContactController {
           {
             success: false,
             message: `Contact with email '${email}' not found`,
+            errors: ['Contact not found'],
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return {
+        success: true,
+        message: 'Contact found',
+        data: contact,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new HttpException(
+        {
+          success: false,
+          message: errorMessage,
+          errors: [errorMessage],
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get(':id')
+  @Auth({ roles: ['admin', 'user', 'guest'] })
+  @ApiOperation({ summary: 'Get contact by ID' })
+  @ApiParam({ name: 'id', description: 'Contact ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contact found',
+    type: ContactResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Contact not found' })
+  async getContactById(@Param('id') id: string): Promise<ContactResponseDto> {
+    try {
+      const contact = await this.contactService.getContactById(id);
+      if (!contact) {
+        throw new HttpException(
+          {
+            success: false,
+            message: `Contact with ID '${id}' not found`,
             errors: ['Contact not found'],
           },
           HttpStatus.NOT_FOUND,
@@ -331,7 +422,20 @@ export class ContactController {
   @ApiQuery({
     name: 'isActive',
     required: false,
-    description: 'Filter by active status (default: true)',
+    description:
+      'DEPRECATED: filter by active status (default: true). Prefer archive-aware filters in future endpoints.',
+    deprecated: true,
+  })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    description:
+      'Sort field. Allowed values: updatedAt, createdAt, nextFollowUpAt, lastContactedAt, name, company',
+  })
+  @ApiQuery({
+    name: 'sortDir',
+    required: false,
+    description: 'Sort direction (asc or desc, default: desc)',
   })
   @ApiResponse({
     status: 200,
@@ -343,6 +447,8 @@ export class ContactController {
     @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('isActive') isActive?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortDir') sortDir?: string,
   ): Promise<ContactListResponseDto> {
     try {
       const pageNum = page ? parseInt(page, 10) : 1;
@@ -354,61 +460,12 @@ export class ContactController {
         limit: limitNum,
         status,
         isActive: isActiveFlag,
+        sortBy: sortBy as never,
+        sortDir: sortDir as never,
       });
       return {
         success: true,
-        message: `Found ${result.data.length} contacts (${result.total} total)`,
-        data: result,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new HttpException(
-        {
-          success: false,
-          message: errorMessage,
-          errors: [errorMessage],
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Get('search/:searchTerm')
-  @Auth({ roles: ['admin', 'user', 'guest'] })
-  @ApiOperation({ summary: 'Search contacts by name, email, or company' })
-  @ApiParam({ name: 'searchTerm', description: 'Search term to find contacts' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number (default: 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Items per page (default: 10)',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Search results retrieved successfully',
-  })
-  async searchContacts(
-    @Param('searchTerm') searchTerm: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    try {
-      const pageNum = page ? parseInt(page, 10) : 1;
-      const limitNum = limit ? parseInt(limit, 10) : 10;
-
-      const result = await this.contactService.searchContacts({
-        searchTerm,
-        page: pageNum,
-        limit: limitNum,
-      });
-      return {
-        success: true,
-        message: `Found ${result.data.length} contacts matching search (${result.total} total)`,
+        message: `Found ${result.items.length} contacts (${result.total} total)`,
         data: result,
       };
     } catch (error) {

@@ -9,10 +9,22 @@ export interface GetContactListRequest {
   limit?: number;
   status?: string;
   isActive?: boolean;
+  sortBy?: ContactSortField;
+  sortDir?: SortDirection;
 }
 
+export type ContactSortField =
+  | 'updatedAt'
+  | 'createdAt'
+  | 'nextFollowUpAt'
+  | 'lastContactedAt'
+  | 'name'
+  | 'company';
+
+export type SortDirection = 'asc' | 'desc';
+
 export interface IListResponse<T> {
-  data: Array<T>;
+  items: Array<T>;
   total: number;
   page: number;
   limit: number;
@@ -25,6 +37,9 @@ export interface ContactListItem {
   emails: Array<{ address: string; type: string; isPrimary?: boolean }>;
   company?: string;
   status: string;
+  isActive: boolean;
+  archivedAt?: Date;
+  archivedBy?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,18 +47,28 @@ export interface ContactListItem {
 export type GetContactListResponse = IListResponse<ContactListItem>;
 
 export interface SearchContactsRequest {
-  searchTerm: string;
+  searchTerm?: string;
   page?: number;
   limit?: number;
+  status?: string;
+  isActive?: boolean;
+  sortBy?: ContactSortField;
+  sortDir?: SortDirection;
 }
 
-export interface SearchContactsResponse extends IListResponse<IContact> {
-  contacts: IContact[];
-}
+export type SearchContactsResponse = IListResponse<IContact>;
 
 @Injectable()
 export class ContactService {
   private readonly logger = new Logger(ContactService.name);
+  private readonly allowedSortFields: ReadonlySet<ContactSortField> = new Set([
+    'updatedAt',
+    'createdAt',
+    'nextFollowUpAt',
+    'lastContactedAt',
+    'name',
+    'company',
+  ]);
 
   constructor(
     @InjectModel(CONTACT_MODEL)
@@ -114,11 +139,12 @@ export class ContactService {
       const existingContact = await this.contactModel
         .findOne({ 'emails.address': primaryEmail.address })
         .exec();
+      let contact: IContact | null = null;
       if (existingContact) {
         this.logger.log(
           `Existing contact found with email '${primaryEmail.address}', updating...`,
         );
-        return await this.updateContact(
+        contact = await this.updateContact(
           existingContact._id.toString(),
           contactData,
         );
@@ -126,8 +152,10 @@ export class ContactService {
         this.logger.log(
           `No existing contact found with email '${primaryEmail.address}', creating new contact...`,
         );
-        return await this.createContact(contactData);
+        contact = await this.createContact(contactData);
       }
+      // todo: call gateway to update contact in CRM system
+      return contact;
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -260,7 +288,11 @@ export class ContactService {
   async softDeleteContact(id: string): Promise<IContact | null> {
     try {
       this.logger.log(`Soft deleting contact with ID: ${id}`);
-      return await this.updateContact(id, { isActive: false });
+      return await this.updateContact(id, {
+        isActive: false,
+        archivedAt: new Date(),
+        archivedBy: 'system',
+      });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
@@ -275,7 +307,14 @@ export class ContactService {
   async getContactList(
     request: GetContactListRequest,
   ): Promise<GetContactListResponse> {
-    const { page = 1, limit = 10, status, isActive = true } = request;
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      isActive = true,
+      sortBy,
+      sortDir,
+    } = request;
     try {
       this.logger.log(`Fetching contact list - page: ${page}, limit: ${limit}`);
 
@@ -283,6 +322,8 @@ export class ContactService {
       if (status) {
         query.status = status;
       }
+
+      const sort = this.buildSort(sortBy, sortDir);
 
       const skip = (page - 1) * limit;
       const total = await this.contactModel.countDocuments(query).exec();
@@ -293,30 +334,44 @@ export class ContactService {
           emails: 1,
           company: 1,
           status: 1,
+          isActive: 1,
+          archivedAt: 1,
+          archivedBy: 1,
           createdAt: 1,
           updatedAt: 1,
         })
-        .sort({ updatedAt: -1 }) // Most recent first
+        .sort(sort)
         .skip(skip)
         .limit(limit)
         .exec();
 
-      const contactList: ContactListItem[] = contacts.map((contact) => ({
-        _id: contact._id.toString(),
-        name: contact.name,
-        emails: contact.emails,
-        company: contact.company,
-        status: contact.status,
-        createdAt: contact.createdAt || new Date(),
-        updatedAt: contact.updatedAt || new Date(),
-      }));
+      const contactList: ContactListItem[] = contacts.map((contact) => {
+        const archivedAtValue = (contact as { archivedAt?: unknown })
+          .archivedAt;
+        const archivedByValue = (contact as { archivedBy?: unknown })
+          .archivedBy;
+
+        return {
+          _id: contact._id.toString(),
+          name: contact.name,
+          emails: contact.emails,
+          company: contact.company,
+          status: contact.status,
+          isActive: contact.isActive,
+          archivedAt:
+            archivedAtValue instanceof Date ? archivedAtValue : undefined,
+          archivedBy:
+            typeof archivedByValue === 'string' ? archivedByValue : undefined,
+          createdAt: contact.createdAt || new Date(),
+          updatedAt: contact.updatedAt || new Date(),
+        };
+      });
 
       const totalPages = Math.ceil(total / limit);
 
       this.logger.log(`Found ${contactList.length} contacts (${total} total)`);
       return {
-        // contacts: contactList,
-        data: contactList,
+        items: contactList,
         total,
         page,
         limit,
@@ -333,28 +388,42 @@ export class ContactService {
   async searchContacts(
     request: SearchContactsRequest,
   ): Promise<SearchContactsResponse> {
-    const { searchTerm, page = 1, limit = 10 } = request;
+    const {
+      searchTerm,
+      page = 1,
+      limit = 10,
+      status,
+      isActive = true,
+      sortBy,
+      sortDir,
+    } = request;
     try {
-      this.logger.log(`Searching contacts with term: ${searchTerm}`);
+      this.logger.log(`Searching contacts with term: ${searchTerm ?? '<all>'}`);
 
-      const searchRegex = new RegExp(searchTerm, 'i'); // Case-insensitive search
-      const query = {
-        isActive: true,
-        $or: [
+      const query: Record<string, unknown> = { isActive };
+      const trimmedSearchTerm = searchTerm?.trim();
+      if (trimmedSearchTerm) {
+        const searchRegex = new RegExp(trimmedSearchTerm, 'i'); // Case-insensitive search
+        query.$or = [
           { name: searchRegex },
           { firstName: searchRegex },
           { lastName: searchRegex },
           { company: searchRegex },
           { 'emails.address': searchRegex },
-        ],
-      };
+        ];
+      }
+      if (status) {
+        query.status = status;
+      }
+
+      const sort = this.buildSort(sortBy, sortDir);
 
       const skip = (page - 1) * limit;
       const total = await this.contactModel.countDocuments(query).exec();
 
       const contacts = await this.contactModel
         .find(query)
-        .sort({ updatedAt: -1 })
+        .sort(sort)
         .skip(skip)
         .limit(limit)
         .exec();
@@ -365,8 +434,7 @@ export class ContactService {
         `Found ${contacts.length} contacts matching search (${total} total)`,
       );
       return {
-        contacts,
-        data: contacts,
+        items: contacts,
         total,
         page,
         limit,
@@ -376,10 +444,21 @@ export class ContactService {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       this.logger.error(
-        `Failed to search contacts with term '${searchTerm}'`,
+        `Failed to search contacts with term '${searchTerm ?? '<all>'}'`,
         errorMessage,
       );
       throw new Error(`Failed to search contacts: ${errorMessage}`);
     }
+  }
+
+  private buildSort(
+    sortBy?: ContactSortField,
+    sortDir?: SortDirection,
+  ): Record<string, 1 | -1> {
+    const resolvedField =
+      sortBy && this.allowedSortFields.has(sortBy) ? sortBy : 'updatedAt';
+    const resolvedDirection = sortDir === 'asc' ? 1 : -1;
+
+    return { [resolvedField]: resolvedDirection };
   }
 }

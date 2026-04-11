@@ -164,9 +164,33 @@ export class CreateContactDto implements CreateContactData {
   @IsString()
   declare notes?: string;
 
-  @ApiProperty({ example: true, description: 'Active status flag' })
+  @ApiProperty({
+    example: true,
+    description:
+      'DEPRECATED: transitional active status flag. Prefer archivedAt/archivedBy.',
+    deprecated: true,
+  })
   @IsBoolean()
   declare isActive: boolean;
+
+  @ApiProperty({
+    required: false,
+    type: Date,
+    description:
+      'Archive timestamp. When set, the contact is considered archived.',
+  })
+  @IsOptional()
+  @IsDateString()
+  declare archivedAt?: Date;
+
+  @ApiProperty({
+    required: false,
+    example: 'user123',
+    description: 'User ID or system marker that archived the contact.',
+  })
+  @IsOptional()
+  @IsString()
+  declare archivedBy?: string;
 
   @ApiProperty({
     required: false,

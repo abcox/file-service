@@ -83,8 +83,12 @@ export interface IContact extends BaseEntity {
   // Additional context
   // Brief internal notes
   notes?: string;
-  // Soft delete flag
+  // DEPRECATED: transitional soft delete flag. Prefer archivedAt/archivedBy.
   isActive: boolean;
+  // Archive timestamp. When set, the contact is considered archived.
+  archivedAt?: Date;
+  // User ID or system marker that archived the contact.
+  archivedBy?: string;
 
   // Audit fields (inherited from BaseDocument)
   // User ID who created the contact

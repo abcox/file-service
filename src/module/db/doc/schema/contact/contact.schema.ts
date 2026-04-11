@@ -163,6 +163,13 @@ export class Contact extends Document {
   @Prop()
   notes?: string;
 
+  @Prop({ index: true })
+  archivedAt?: Date;
+
+  @Prop({ index: true })
+  archivedBy?: string;
+
+  // DEPRECATED: transitional compatibility flag. Prefer archivedAt/archivedBy.
   @Prop({ default: true, index: true })
   isActive: boolean;
 
@@ -177,6 +184,7 @@ export const ContactSchema = SchemaFactory.createForClass(Contact);
 ContactSchema.index({ name: 'text', company: 'text' }); // Text search
 ContactSchema.index({ 'emails.address': 1 }, { unique: true }); // Unique email
 ContactSchema.index({ status: 1, isActive: 1 }); // Common filters
+ContactSchema.index({ archivedAt: 1, status: 1 }); // Archive-aware queries
 ContactSchema.index({ assignedTo: 1, status: 1 }); // Assignment queries
 ContactSchema.index({ lastContactedAt: -1 }); // Recent activity
 ContactSchema.index({ createdAt: -1 }); // Chronological queries
