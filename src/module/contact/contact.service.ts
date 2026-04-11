@@ -29,9 +29,7 @@ export interface ContactListItem {
   updatedAt: Date;
 }
 
-export interface GetContactListResponse extends IListResponse<ContactListItem> {
-  contacts: ContactListItem[];
-}
+export type GetContactListResponse = IListResponse<ContactListItem>;
 
 export interface SearchContactsRequest {
   searchTerm: string;
@@ -317,7 +315,7 @@ export class ContactService {
 
       this.logger.log(`Found ${contactList.length} contacts (${total} total)`);
       return {
-        contacts: contactList,
+        // contacts: contactList,
         data: contactList,
         total,
         page,

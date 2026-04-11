@@ -357,7 +357,7 @@ export class ContactController {
       });
       return {
         success: true,
-        message: `Found ${result.contacts.length} contacts (${result.total} total)`,
+        message: `Found ${result.data.length} contacts (${result.total} total)`,
         data: result,
       };
     } catch (error) {
@@ -408,7 +408,7 @@ export class ContactController {
       });
       return {
         success: true,
-        message: `Found ${result.contacts.length} contacts matching search (${result.total} total)`,
+        message: `Found ${result.data.length} contacts matching search (${result.total} total)`,
         data: result,
       };
     } catch (error) {
