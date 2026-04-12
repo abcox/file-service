@@ -41,6 +41,8 @@ env:
   # Log Analytics workspace for reliable ACI logging (ACI logs are unreliable without this!)
   LOG_ANALYTICS_WORKSPACE_NAME: vorba-file-service-logs
   STORAGE_ACCOUNT_NAME: ccastore01
+  # Resource group where storage account exists
+  STORAGE_RESOURCE_GROUP: cca-cc-rg-01
   CADDY_CONFIG_SHARE: aci-caddy-config
   CADDY_DATA_SHARE: aci-caddy-data
   CADDY_STATE_SHARE: aci-caddy-state
@@ -159,8 +161,22 @@ jobs:
         run: |
           echo "🔐 Preparing Azure File shares for Caddy config and certificates..."
 
+          STORAGE_ACCOUNT_RG='${{ env.STORAGE_RESOURCE_GROUP }}'
+          if [ -z "$STORAGE_ACCOUNT_RG" ]; then
+            STORAGE_ACCOUNT_RG=$(az storage account show \
+              --name ${{ env.STORAGE_ACCOUNT_NAME }} \
+              --query "resourceGroup" --output tsv)
+          fi
+
+          if [ -z "$STORAGE_ACCOUNT_RG" ]; then
+            echo "❌ Unable to determine resource group for storage account '${{ env.STORAGE_ACCOUNT_NAME }}'"
+            exit 1
+          fi
+
+          echo "📦 Storage account resource group: $STORAGE_ACCOUNT_RG"
+
           STORAGE_KEY=$(az storage account keys list \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --resource-group "$STORAGE_ACCOUNT_RG" \
             --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
             --query "[0].value" --output tsv)
 
