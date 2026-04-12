@@ -187,13 +187,6 @@ jobs:
           az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_DATA_SHARE }} --output none || true
           az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_STATE_SHARE }} --output none || true
 
-          az storage file delete \
-            --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
-            --account-key "$STORAGE_KEY" \
-            --share-name ${{ env.CADDY_CONFIG_SHARE }} \
-            --path Caddyfile \
-            --output none 2>/dev/null || true
-
           az storage file upload \
             --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
             --account-key "$STORAGE_KEY" \
