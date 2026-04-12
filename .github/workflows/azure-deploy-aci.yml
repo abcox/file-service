@@ -7,6 +7,7 @@ on:
       - 'src/**'
       - 'package.json'
       - 'Dockerfile'
+      - 'scripts/deploy/az-container-instance/**'
       - '.github/workflows/azure-deploy-aci.yml'
   workflow_dispatch:
     inputs:
@@ -27,6 +28,7 @@ on:
 env:
   ACR_NAME: vorbaacr
   ACI_NAME: vorba-file-service-4
+  ACI_LOCATION: canadaeast
   RESOURCE_GROUP: vorba-file-service-rg
   IMAGE_NAME: file-service
   IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
@@ -38,6 +40,11 @@ env:
   SQL_SERVER_NAME: vorba-sql-svr-1
   # Log Analytics workspace for reliable ACI logging (ACI logs are unreliable without this!)
   LOG_ANALYTICS_WORKSPACE_NAME: vorba-file-service-logs
+  STORAGE_ACCOUNT_NAME: ccastore01
+  CADDY_CONFIG_SHARE: aci-caddy-config
+  CADDY_DATA_SHARE: aci-caddy-data
+  CADDY_STATE_SHARE: aci-caddy-state
+  CADDY_EMAIL: ops@vorba.com
 
 jobs:
   build-and-deploy:
@@ -146,6 +153,90 @@ jobs:
           
           echo "📋 Workspace ID: $WORKSPACE_ID"
           echo "📋 Query logs with: ContainerInstanceLog_CL | where ContainerGroup_s == '${{ env.ACI_NAME }}'"
+
+      - name: Prepare Caddy storage and config
+        id: caddy-storage
+        run: |
+          echo "🔐 Preparing Azure File shares for Caddy config and certificates..."
+
+          STORAGE_KEY=$(az storage account keys list \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+            --query "[0].value" --output tsv)
+
+          echo "::add-mask::$STORAGE_KEY"
+          echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
+
+          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_CONFIG_SHARE }} --output none || true
+          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_DATA_SHARE }} --output none || true
+          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_STATE_SHARE }} --output none || true
+
+          az storage file upload \
+            --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+            --account-key "$STORAGE_KEY" \
+            --share-name ${{ env.CADDY_CONFIG_SHARE }} \
+            --source scripts/deploy/az-container-instance/Caddyfile \
+            --path Caddyfile \
+            --overwrite true \
+            --output none
+
+          echo "✅ Caddy storage ready"
+
+      - name: Generate ACI manifest with Caddy sidecar
+        id: aci-manifest
+        run: |
+          export APP_IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          export ACR_LOGIN_SERVER="${{ env.ACR_NAME }}.azurecr.io"
+          export DEPLOY_ENVIRONMENT="${{ github.event.inputs.environment || 'production' }}"
+          export CADDY_DOMAIN="${{ env.ACI_NAME }}.${{ env.ACI_LOCATION }}.azurecontainer.io"
+
+          python3 - << 'PY'
+          import os
+          from pathlib import Path
+
+          template_path = Path("scripts/deploy/az-container-instance/aci-with-caddy.template.yaml")
+          output_path = Path("aci-with-caddy.generated.yaml")
+
+          content = template_path.read_text(encoding="utf-8")
+          replacements = {
+              "__ACI_NAME__": os.environ["ACI_NAME"],
+              "__ACI_LOCATION__": os.environ["ACI_LOCATION"],
+              "__MANAGED_IDENTITY_ID__": os.environ["MANAGED_IDENTITY_ID"],
+              "__MANAGED_IDENTITY_CLIENT_ID__": os.environ["MANAGED_IDENTITY_CLIENT_ID"],
+              "__ACR_LOGIN_SERVER__": os.environ["ACR_LOGIN_SERVER"],
+              "__ACR_USERNAME__": os.environ["ACR_USERNAME"],
+              "__ACR_PASSWORD__": os.environ["ACR_PASSWORD"],
+              "__DNS_NAME_LABEL__": os.environ["ACI_NAME"],
+              "__APP_IMAGE__": os.environ["APP_IMAGE"],
+              "__DEPLOY_ENVIRONMENT__": os.environ["DEPLOY_ENVIRONMENT"],
+              "__STORAGE_ACCOUNT_NAME__": os.environ["STORAGE_ACCOUNT_NAME"],
+              "__STORAGE_ACCOUNT_KEY__": os.environ["STORAGE_ACCOUNT_KEY"],
+              "__CADDY_CONFIG_SHARE__": os.environ["CADDY_CONFIG_SHARE"],
+              "__CADDY_DATA_SHARE__": os.environ["CADDY_DATA_SHARE"],
+              "__CADDY_STATE_SHARE__": os.environ["CADDY_STATE_SHARE"],
+              "__CADDY_EMAIL__": os.environ["CADDY_EMAIL"],
+              "__CADDY_DOMAIN__": os.environ["CADDY_DOMAIN"],
+          }
+
+          for placeholder, value in replacements.items():
+              content = content.replace(placeholder, value)
+
+          output_path.write_text(content, encoding="utf-8")
+          print(f"Generated {output_path}")
+          PY
+        env:
+          ACI_NAME: ${{ env.ACI_NAME }}
+          ACI_LOCATION: ${{ env.ACI_LOCATION }}
+          MANAGED_IDENTITY_ID: ${{ env.MANAGED_IDENTITY_ID }}
+          MANAGED_IDENTITY_CLIENT_ID: ${{ env.MANAGED_IDENTITY_CLIENT_ID }}
+          ACR_USERNAME: ${{ steps.acr-credentials.outputs.username }}
+          ACR_PASSWORD: ${{ steps.acr-credentials.outputs.password }}
+          STORAGE_ACCOUNT_NAME: ${{ env.STORAGE_ACCOUNT_NAME }}
+          STORAGE_ACCOUNT_KEY: ${{ steps.caddy-storage.outputs.storage_key }}
+          CADDY_CONFIG_SHARE: ${{ env.CADDY_CONFIG_SHARE }}
+          CADDY_DATA_SHARE: ${{ env.CADDY_DATA_SHARE }}
+          CADDY_STATE_SHARE: ${{ env.CADDY_STATE_SHARE }}
+          CADDY_EMAIL: ${{ env.CADDY_EMAIL }}
           
       - name: Deploy to Azure Container Instances
         run: |
@@ -158,29 +249,12 @@ jobs:
             sleep 10
           fi
           
-          echo "Creating ACI instance with Log Analytics logging..."
+          echo "Creating ACI container group with Caddy HTTPS sidecar..."
           az container create \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name ${{ env.ACI_NAME }} \
-            --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-            --registry-login-server ${{ env.ACR_NAME }}.azurecr.io \
-            --registry-username ${{ steps.acr-credentials.outputs.username }} \
-            --registry-password ${{ steps.acr-credentials.outputs.password }} \
-            --dns-name-label ${{ env.ACI_NAME }} \
-            --os-type Linux \
-            --ports 8080 \
-            --cpu 2 \
-            --memory 4 \
-            --restart-policy OnFailure \
-            --assign-identity ${{ env.MANAGED_IDENTITY_ID }} \
+            --file aci-with-caddy.generated.yaml \
             --log-analytics-workspace ${{ steps.log-analytics.outputs.workspace_id }} \
             --log-analytics-workspace-key ${{ steps.log-analytics.outputs.workspace_key }} \
-            --environment-variables \
-              NODE_ENV=${{ github.event.inputs.environment || 'production' }} \
-              PORT=8080 \
-              PLAYWRIGHT_BROWSER_PATH=/ms-playwright/chromium-*/chrome-linux/chrome \
-              DEBUG_STARTUP=true \
-              AZURE_CLIENT_ID=${{ env.MANAGED_IDENTITY_CLIENT_ID }} \
             --output none
           
       - name: Verify Managed Identity
@@ -207,7 +281,7 @@ jobs:
             
             # Get the FQDN
             FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
-            echo "🌐 ACI URL: http://$FQDN:8080"
+            echo "🌐 ACI URL: https://$FQDN"
             echo "fqdn=$FQDN" >> $GITHUB_OUTPUT
           else
             echo "❌ ACI deployment failed with status: $ACI_STATUS"
@@ -218,14 +292,14 @@ jobs:
       - name: Post-deployment smoke tests
         run: |
           echo "🧪 Running post-deployment smoke tests..."
-          DEPLOY_URL="http://${{ steps.aci-status.outputs.fqdn }}:8080"
+          DEPLOY_URL="https://${{ steps.aci-status.outputs.fqdn }}"
           
-          # Wait for container to fully start
-          echo "⏳ Waiting for container to be ready..."
-          for i in {1..60}; do
+          # Wait for Caddy to issue certificates and app to become reachable
+          echo "⏳ Waiting for HTTPS endpoint to be ready..."
+          for i in {1..90}; do
             HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/health" --max-time 10 || echo "000")
             if [ "$HEALTH_STATUS" = "200" ]; then
-              echo "✅ Container is ready (health check passed)"
+              echo "✅ HTTPS endpoint is ready (health check passed)"
               break
             fi
             echo "   Attempt $i: HTTP $HEALTH_STATUS - waiting..."
@@ -299,7 +373,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **ACI Name**: ${{ env.ACI_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: http://$FQDN:8080" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: https://$FQDN" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Smoke Tests**: ✅ Passed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
