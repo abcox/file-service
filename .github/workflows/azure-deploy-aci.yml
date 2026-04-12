@@ -183,9 +183,22 @@ jobs:
           echo "::add-mask::$STORAGE_KEY"
           echo "storage_key=$STORAGE_KEY" >> $GITHUB_OUTPUT
 
-          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_CONFIG_SHARE }} --output none || true
-          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_DATA_SHARE }} --output none || true
-          az storage share create --account-name ${{ env.STORAGE_ACCOUNT_NAME }} --account-key "$STORAGE_KEY" --name ${{ env.CADDY_STATE_SHARE }} --output none || true
+          for SHARE in ${{ env.CADDY_CONFIG_SHARE }} ${{ env.CADDY_DATA_SHARE }} ${{ env.CADDY_STATE_SHARE }}; do
+            EXISTS=$(az storage share show \
+              --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+              --account-key "$STORAGE_KEY" \
+              --name "$SHARE" --output tsv 2>/dev/null || echo "")
+            if [ -z "$EXISTS" ]; then
+              echo "Creating share: $SHARE"
+              az storage share create \
+                --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
+                --account-key "$STORAGE_KEY" \
+                --name "$SHARE" --output none
+              echo "✅ Created share: $SHARE"
+            else
+              echo "✅ Share already exists: $SHARE"
+            fi
+          done
 
           az storage file upload \
             --account-name ${{ env.STORAGE_ACCOUNT_NAME }} \
