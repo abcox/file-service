@@ -30,6 +30,7 @@ env:
   ACI_NAME: vorba-file-service-4
   ACI_LOCATION: canadaeast
   RESOURCE_GROUP: vorba-file-service-rg
+  KEY_VAULT_NAME: vorba-file-service-kv
   IMAGE_NAME: file-service
   IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
   # User-assigned managed identity with pre-configured Key Vault access
@@ -209,6 +210,24 @@ jobs:
 
           echo "✅ Caddy storage ready"
 
+      - name: Fetch telemetry connection string from Key Vault
+        id: appinsights-secret
+        run: |
+          echo "🔐 Fetching Application Insights connection string from Key Vault..."
+          APPINSIGHTS_CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name ${{ env.KEY_VAULT_NAME }} \
+            --name azure-application-insights-connection-string \
+            --query value --output tsv)
+
+          if [ -z "$APPINSIGHTS_CONNECTION_STRING" ]; then
+            echo "❌ Failed to fetch azure-application-insights-connection-string from Key Vault"
+            exit 1
+          fi
+
+          echo "::add-mask::$APPINSIGHTS_CONNECTION_STRING"
+          echo "connection_string=$APPINSIGHTS_CONNECTION_STRING" >> $GITHUB_OUTPUT
+          echo "✅ Retrieved Application Insights connection string"
+
       - name: Generate ACI manifest with Caddy sidecar
         id: aci-manifest
         run: |
@@ -243,6 +262,8 @@ jobs:
               "__CADDY_STATE_SHARE__": os.environ["CADDY_STATE_SHARE"],
               "__CADDY_EMAIL__": os.environ["CADDY_EMAIL"],
               "__CADDY_DOMAIN__": os.environ["CADDY_DOMAIN"],
+              "__APPLICATIONINSIGHTS_CONNECTION_STRING__": os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"],
+              "__BUILD_ID__": os.environ["BUILD_ID"],
           }
 
           for placeholder, value in replacements.items():
@@ -264,6 +285,8 @@ jobs:
           CADDY_DATA_SHARE: ${{ env.CADDY_DATA_SHARE }}
           CADDY_STATE_SHARE: ${{ env.CADDY_STATE_SHARE }}
           CADDY_EMAIL: ${{ env.CADDY_EMAIL }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ steps.appinsights-secret.outputs.connection_string }}
+          BUILD_ID: ${{ github.run_id }}
           
       - name: Deploy to Azure Container Instances
         run: |

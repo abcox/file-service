@@ -1,5 +1,18 @@
 # Local Development Setup
 
+## Telemetry Bootstrap (Azure Monitor OTel)
+
+Azure Monitor telemetry bootstrap uses `APPLICATIONINSIGHTS_CONNECTION_STRING` from environment variables.
+
+Reason: OpenTelemetry instrumentation must initialize synchronously before instrumented modules (like `winston` and `http`) are first loaded. Key Vault/config resolution is asynchronous and can initialize too late.
+
+Source of truth remains Key Vault. The env var is only the delivery mechanism:
+- Local dev: set `APPLICATIONINSIGHTS_CONNECTION_STRING` in `.env` (gitignored)
+- App Service: app setting uses Key Vault reference
+- ACI: deployment workflow fetches the Key Vault secret and injects it as container env var
+
+`BUILD_ID` is also supplied as an env var by deployment workflows (GitHub run ID).
+
 ## CosmosDB Local Development (MongoDB API)
 
 ### Azure Cosmos DB Emulator Setup

@@ -53,6 +53,8 @@ properties:
         environmentVariables:
           - name: NODE_ENV
             value: __DEPLOY_ENVIRONMENT__
+          - name: BUILD_ID
+            value: __BUILD_ID__
           - name: PORT
             value: "8080"
           - name: PLAYWRIGHT_BROWSER_PATH
@@ -61,6 +63,8 @@ properties:
             value: "true"
           - name: AZURE_CLIENT_ID
             value: __MANAGED_IDENTITY_CLIENT_ID__
+          - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+            secureValue: __APPLICATIONINSIGHTS_CONNECTION_STRING__
 
     - name: caddy
       properties:

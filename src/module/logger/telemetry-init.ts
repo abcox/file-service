@@ -3,8 +3,21 @@
 // ensuring that HTTP, Winston, and other instrumentation patches are registered
 // before those modules are first required by Node.js.
 //
-// Local dev: set APPLICATIONINSIGHTS_CONNECTION_STRING in your .env file.
-// Production: set it as an Azure app setting (Key Vault reference supported).
+// WHY ENV VAR (not config module) for telemetry bootstrap:
+// OTel instrumentation must be registered synchronously, before any instrumented
+// library (Winston, HTTP, etc.) is first require()'d by Node.js. The config module
+// reads from Key Vault asynchronously, so OTel would initialize too late.
+//
+// Key Vault remains the source of truth for the connection string. It is delivered
+// as an env var at runtime by deployment:
+// - App Service: native Key Vault reference in app settings
+// - ACI: GitHub Actions fetches Key Vault secret and injects during deploy
+// - Local dev: APPLICATIONINSIGHTS_CONNECTION_STRING in .env (gitignored)
+//
+// IMPORTANT: Do not switch telemetry bootstrap to AppConfigService/KeyVaultService.
+// Their async startup path causes OTel patching to happen too late.
+// config.local-dev.json logging.azureMonitor.connectionString is intentionally NOT
+// used by this bootstrap path.
 import 'dotenv/config';
 import { useAzureMonitor } from '@azure/monitor-opentelemetry';
 
@@ -20,9 +33,9 @@ if (connectionString) {
       winston: { enabled: true }, // auto-bridge Winston logs → Azure Monitor traces
     },
   });
-  console.log('[instrument] Azure Monitor OTel initialised');
+  console.log('[telemetry-init] Azure Monitor OTel initialised');
 } else {
   console.log(
-    '[instrument] Azure Monitor skipped — APPLICATIONINSIGHTS_CONNECTION_STRING not set',
+    '[telemetry-init] Azure Monitor skipped — APPLICATIONINSIGHTS_CONNECTION_STRING not set (config file value is not used for bootstrap)',
   );
 }

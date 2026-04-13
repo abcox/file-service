@@ -11,6 +11,7 @@ env:
   NODE_VERSION: '22.14.0'
   AZURE_WEBAPP_NAME: 'vorba-file-service-3'
   AZURE_RESOURCE_GROUP: 'vorba-file-service-rg'
+  KEY_VAULT_NAME: 'vorba-file-service-kv'
   AZURE_WEBAPP_PACKAGE_PATH: '.'
   DEPLOY_ENV: 'production'
 
@@ -222,6 +223,18 @@ jobs:
         run: |
           echo "🚀 Ensuring App Service is running..."
           az webapp start --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} || true
+
+      - name: Configure App Service runtime settings
+        run: |
+          echo "⚙️ Setting runtime app settings (telemetry + build metadata)..."
+          az webapp config appsettings set \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --settings \
+              APPLICATIONINSIGHTS_CONNECTION_STRING="@Microsoft.KeyVault(SecretUri=https://${{ env.KEY_VAULT_NAME }}.vault.azure.net/secrets/azure-application-insights-connection-string/)" \
+              BUILD_ID="${{ github.run_id }}" \
+            --output none
+          echo "✅ App settings updated"
 
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
