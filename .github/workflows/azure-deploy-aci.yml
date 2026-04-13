@@ -205,7 +205,6 @@ jobs:
             --account-key "$STORAGE_KEY" \
             --share-name ${{ env.CADDY_CONFIG_SHARE }} \
             --source scripts/deploy/az-container-instance/Caddyfile \
-            --path Caddyfile \
             --output none
 
           echo "✅ Caddy storage ready"
