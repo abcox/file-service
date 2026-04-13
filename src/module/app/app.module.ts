@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { CoreModule } from '../../core/core.module';
 import { ConfigModule } from '../config/config.module';
 import { SwaggerConfigModule } from '../../config/swagger/swagger-config.module';
 import { StorageModule } from '../storage/storage.module';
@@ -26,6 +27,7 @@ import { DiagnosticModule } from '../diagnostic/diagnostic.module';
 
 @Module({
   imports: [
+    CoreModule,
     ConfigModule,
     SwaggerConfigModule,
     StorageModule,

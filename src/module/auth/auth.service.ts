@@ -429,7 +429,9 @@ export class AuthService {
 
       return { accessToken: tokenPair.accessToken };
     } catch (error) {
-      this.logger.warn('Token refresh failed', error as Error);
+      this.logger.warn('Token refresh failed', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
@@ -597,7 +599,9 @@ export class AuthService {
 
       return payload;
     } catch (error) {
-      this.logger.warn('JWT token validation failed', error as Error);
+      this.logger.warn('JWT token validation failed', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
       return null;
     }
   }

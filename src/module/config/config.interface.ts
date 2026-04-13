@@ -89,4 +89,8 @@ export interface AppConfig {
     version: string;
     path: string;
   };
+  logging: {
+    level: 'error' | 'warn' | 'info' | 'debug' | 'verbose';
+    enableConsole: boolean;
+  };
 }

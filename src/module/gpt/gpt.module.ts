@@ -35,7 +35,10 @@ import { DiagnosticService } from '../diagnostic/diagnostic.service';
         } catch (error) {
           logger.warn(
             'GPT service initialization delayed - config not ready yet',
-            error as Error,
+            {
+              errorMessage:
+                error instanceof Error ? error.message : String(error),
+            },
           );
         }
         return gptService;

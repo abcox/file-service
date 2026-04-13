@@ -41,8 +41,12 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, {
       // Increase global timeout for long-running operations
       bodyParser: true,
-      logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      // Suppress Nest's default logger during bootstrap — we take over below
+      logger: false,
     });
+
+    // Hand Nest our Winston-backed logger so framework logs also flow through it
+    app.useLogger(app.get(LoggerService));
 
     // Serve static files from assets directory
     app.useStaticAssets(join(__dirname, '..', 'assets'), {
