@@ -5,11 +5,14 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Request, Response } from 'express';
 import { AppException } from './app.exception';
 import { ErrorCode } from './error-codes.enum';
 import { LoggerService } from '../../module/logger/logger.service';
 import {
+  REQUEST_ID_HEADER,
+  BUILD_ID_HEADER,
   REQUEST_ID_KEY,
   BUILD_ID_KEY,
 } from '../interceptors/request-context.interceptor';
@@ -49,11 +52,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const req = ctx.getRequest<Request & Record<string, unknown>>();
     const res = ctx.getResponse<Response>();
 
-    const requestId = (req[REQUEST_ID_KEY] as string | undefined) || 'unknown';
+    const requestId =
+      (req[REQUEST_ID_KEY] as string | undefined) ||
+      (req.headers[REQUEST_ID_HEADER] as string | undefined) ||
+      randomUUID();
     const buildId =
       (req[BUILD_ID_KEY] as string | undefined) ||
+      (req.headers[BUILD_ID_HEADER] as string | undefined) ||
       process.env.GITHUB_RUN_ID ||
       'local';
+
+    req[REQUEST_ID_KEY] = requestId;
+    req[BUILD_ID_KEY] = buildId;
+    res.setHeader(REQUEST_ID_HEADER, requestId);
 
     const { statusCode, code, message, details, isOperational } =
       this.resolveException(exception);

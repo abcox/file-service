@@ -4,6 +4,8 @@ import {
   ExecutionContext,
   SetMetadata,
   applyDecorators,
+  UnauthorizedException,
+  ForbiddenException,
   //UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -148,7 +150,7 @@ export class JwtAuthGuard implements CanActivate {
         ip: request.ip,
         userAgent: request.get('User-Agent'),
       });
-      return false;
+      throw new UnauthorizedException('Auth token missing');
     }
 
     console.log('🔐 JwtAuthGuard: Validating token...');
@@ -165,7 +167,7 @@ export class JwtAuthGuard implements CanActivate {
         userAgent: request.get('User-Agent'),
         providedToken: `${token.substring(0, 10)}...${token.substring(token.length - 10)}`,
       });
-      return false;
+      throw new UnauthorizedException('Auth token invalid');
     }
 
     if (this.authService.isTokenExpired(basePayload)) {
@@ -175,7 +177,7 @@ export class JwtAuthGuard implements CanActivate {
         subject: basePayload.sub,
         expiredAt: new Date(basePayload.exp * 1000).toISOString(),
       });
-      return false;
+      throw new UnauthorizedException('Auth token expired');
     }
 
     // Cast to extended payload for additional claims
@@ -203,7 +205,7 @@ export class JwtAuthGuard implements CanActivate {
         requiredAudience: AuthGuardOptions.audience,
         tokenAudience: payload.aud,
       });
-      return false;
+      throw new ForbiddenException('Auth audience invalid');
     }
 
     // Check required roles
@@ -223,7 +225,7 @@ export class JwtAuthGuard implements CanActivate {
           requiredRoles: AuthGuardOptions.roles,
           tokenRoles: payload.roles || payload.role,
         });
-        return false;
+        throw new ForbiddenException('Auth roles invalid');
       }
     }
 
@@ -237,7 +239,7 @@ export class JwtAuthGuard implements CanActivate {
         requiredClaims: AuthGuardOptions.claims,
         tokenClaims: payload,
       }); */
-      return false;
+      throw new ForbiddenException('Auth claims invalid');
     }
 
     // Attach the payload to the request for use in controllers
