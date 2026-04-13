@@ -55,7 +55,10 @@
   },
   "logging": {
     "level": "info",
-    "enableConsole": true
+    "enableConsole": true,
+    "azureMonitor": {
+      "connectionString": "{{azure-application-insights-connection-string}}"
+    }
   },
   "gptConfig": {
     "apiKey": "",

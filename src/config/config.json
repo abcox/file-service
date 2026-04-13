@@ -57,7 +57,10 @@
   },
   "logging": {
     "level": "debug",
-    "enableConsole": true
+    "enableConsole": true,
+    "azureMonitor": {
+      "connectionString": ""
+    }
   },
   "gptConfig": {
     "apiKey": "",

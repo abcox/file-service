@@ -1,3 +1,4 @@
+import './module/logger/telemetry-init'; // MUST be first — initialises Azure Monitor OTel before all other modules
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './module/app/app.module';

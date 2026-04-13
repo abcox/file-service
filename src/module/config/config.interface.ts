@@ -92,5 +92,8 @@ export interface AppConfig {
   logging: {
     level: 'error' | 'warn' | 'info' | 'debug' | 'verbose';
     enableConsole: boolean;
+    azureMonitor?: {
+      connectionString?: string;
+    };
   };
 }
