@@ -3,6 +3,10 @@
 ## Table of Contents
 - [Code Organization](#code-organization)
 
+## Related Roadmaps
+
+- Logging and observability roadmap: [LOGGING_AND_OBSERVABILITY_ROADMAP.md](LOGGING_AND_OBSERVABILITY_ROADMAP.md)
+
 ## Code Organization
 
 ### Current Architecture Analysis

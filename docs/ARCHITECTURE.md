@@ -238,6 +238,31 @@ performSensitiveAction() {}
 - **Shared utilities** in `/shared` or `/common`
 - **Configuration** centralized in `/config`
 
+## Observability and Logging Generalization
+
+Logging should be treated as a cross-cutting platform capability, not a per-module implementation detail.
+
+### Core Principles
+- Use structured JSON logs for all runtime environments.
+- Standardize log shape across controllers, services, jobs, and infrastructure.
+- Include request and trace correlation fields in every log event.
+- Include build/deployment correlation fields to identify which release produced a log.
+- Apply redaction rules for sensitive values (secrets, tokens, auth headers, PII).
+
+### Standard Correlation Fields
+- `requestId`: request-level ID propagated from incoming headers or generated at ingress.
+- `traceId` and `spanId`: distributed tracing identifiers from OpenTelemetry context.
+- `buildId`: CI/CD build identifier (for example GitHub run ID or pipeline build ID).
+- `serviceVersion`: application version and/or git commit SHA.
+- `environment`: runtime environment (development, staging, production).
+
+### Logging Platform Direction
+- Use Winston as the application logging facade.
+- Use OpenTelemetry for trace/log correlation and export.
+- Export telemetry to Azure Application Insights via Azure Monitor OpenTelemetry integration.
+
+Implementation details, rollout phases, and PoC testing strategy are documented in [docs/LOGGING_AND_OBSERVABILITY_ROADMAP.md](docs/LOGGING_AND_OBSERVABILITY_ROADMAP.md).
+
 ## Development Workflow
 
 ### Code Changes
