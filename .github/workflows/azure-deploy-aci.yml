@@ -220,7 +220,8 @@ jobs:
             --query value --output tsv)
 
           if [ -z "$APPINSIGHTS_CONNECTION_STRING" ]; then
-            echo "❌ Failed to fetch azure-application-insights-connection-string from Key Vault"
+            echo "❌ Failed to fetch azure-application-insights-connection-string from Key Vault."
+            echo "   Required: grant the GitHub Actions service principal (i.e. github-actions-deployer) 'Key Vault Secrets User' on vault ${{ env.KEY_VAULT_NAME }}."
             exit 1
           fi
 
