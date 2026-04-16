@@ -1,27 +1,10 @@
+import { Controller, Get } from '@nestjs/common';
 import {
-  Controller,
-  Get,
-  //LoggerService,
-  //Post,
-  //UploadedFile,
-  //UseInterceptors,
-  //Param,
-  //Delete,
-  //Res,
-  //Query,
-} from '@nestjs/common';
-import {
-  //ApiTags,
   ApiOperation,
-  //ApiConsumes,
-  //ApiBody,
-  //ApiParam,
   ApiResponse,
-  //ApiQuery,
   //ApiBearerAuth, // use Auth decorator
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
-//import { Response } from 'express';
 import { AppService } from './app.service';
 import { Auth } from '../auth/auth.guard';
 import { LoggerService } from '../logger/logger.service';
