@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AppConfigService } from '../config/config.service';
 import { StorageService } from '../storage/storage.service';
 import { LoggerService } from '../logger/logger.service';
+import { readAssetFile } from '../../shared/util';
 
 interface UploadedFile {
   originalname: string;
@@ -10,6 +11,35 @@ interface UploadedFile {
   size: number;
   mimetype: string;
 }
+
+interface AppInfo {
+  name: string;
+  description?: string;
+  version?: string;
+}
+
+const APP_INFO_TEMPLATE_FILENAME = 'app-info.html';
+const APP_INFO_TEMPLATE_SUBFOLDER = 'templates';
+
+const APP_INFO_TEMPLATE_FALLBACK = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{name}}</title>
+</head>
+<body style="background:#0f1115;color:#e7edf5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px;">
+  <main>
+    {{logoSvg}}
+    <h1>{{name}}</h1>
+    <p>{{description}}</p>
+    <p>Version: {{version}}</p>
+    <p>Status: {{status}}</p>
+    <p>Updated: {{timestamp}}</p>
+    <p><a href="/api" style="color:#9cb4ff;">View API Docs</a></p>
+  </main>
+</body>
+</html>`;
 
 @Injectable()
 export class AppService {
@@ -27,10 +57,49 @@ export class AppService {
     });
   }
 
-  getAppInfo(): string {
-    const appInfo = this.appConfigService.getConfig().info.name;
-    this.logger.debug(`App info: ${appInfo}`);
+  getAppInfo(): AppInfo {
+    const { name, description, version } =
+      this.appConfigService.getConfig().info;
+    const appInfo: AppInfo = { name, description, version };
+    this.logger.debug('App info loaded', { appInfo });
     return appInfo;
+  }
+
+  generateAppInfoHtml(appInfo: AppInfo): string {
+    const { name, description, version } = appInfo;
+    const timestamp = new Date().toISOString();
+    const logoSvg = readAssetFile('images/vorba-logo.svg') || '';
+    const template =
+      readAssetFile(APP_INFO_TEMPLATE_FILENAME, APP_INFO_TEMPLATE_SUBFOLDER) ||
+      APP_INFO_TEMPLATE_FALLBACK;
+
+    return this.renderTemplate(template, {
+      '{{name}}': this.escapeHtml(name),
+      '{{description}}': this.escapeHtml(description || 'Service running.'),
+      '{{version}}': this.escapeHtml(version || 'unknown'),
+      '{{timestamp}}': this.escapeHtml(timestamp),
+      '{{status}}': 'Operational',
+      '{{logoSvg}}': logoSvg,
+    });
+  }
+
+  private renderTemplate(
+    template: string,
+    replacements: Record<string, string>,
+  ): string {
+    return Object.entries(replacements).reduce(
+      (result, [placeholder, value]) => result.split(placeholder).join(value),
+      template,
+    );
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
   async uploadFile(file: UploadedFile) {

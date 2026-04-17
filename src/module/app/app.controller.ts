@@ -1,10 +1,11 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req, Res } from '@nestjs/common';
 import {
   ApiOperation,
   ApiResponse,
   //ApiBearerAuth, // use Auth decorator
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
+import { Request, Response } from 'express';
 import { AppService } from './app.service';
 import { Auth } from '../auth/auth.guard';
 import { LoggerService } from '../logger/logger.service';
@@ -45,11 +46,25 @@ export class AppController {
   @ApiResponse({
     status: 200,
     description:
-      'Returns information about this service as sourced from the effective configuration.',
+      'Returns information about this service as sourced from the effective configuration. Content type varies by Accept header.',
   })
-  getAppInfo(): string {
-    this.loggerService.debug('Root endpoint requested');
-    return this.appService.getAppInfo();
+  getAppInfo(@Req() req: Request, @Res() res: Response): void {
+    const appInfo = this.appService.getAppInfo();
+    const acceptsHtml = req.accepts('html');
+    const responseType = acceptsHtml ? 'html' : 'json';
+
+    this.loggerService.info('Root endpoint served', {
+      responseType,
+      userAgent: req.get('user-agent'),
+      appInfo,
+    });
+
+    if (acceptsHtml) {
+      const html = this.appService.generateAppInfoHtml(appInfo);
+      res.type('text/html').send(html);
+    } else {
+      res.json(appInfo);
+    }
   }
 
   // TODO: remove this endpoint to new auth microservice?
