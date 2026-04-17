@@ -114,9 +114,9 @@ jobs:
       
       - name: Create release package
         run: |
-          # Zip dist/ and startup.sh from workspace root to preserve the dist/ path prefix.
-          # startup.sh expects: node dist/src/main.js — so dist/ must be at the zip root.
-          zip -r release-package.zip dist/ startup.sh
+          # Zip from workspace root to preserve paths startup.sh expects (node dist/src/main.js).
+          # node_modules/ must be included at the zip root so Node.js module resolution works.
+          zip -r release-package.zip dist/ node_modules/ startup.sh
       
       - name: Upload release
         uses: actions/upload-artifact@v4
