@@ -12,7 +12,7 @@ env:
   AZURE_WEBAPP_NAME: 'vorba-file-service-3'
   AZURE_RESOURCE_GROUP: 'vorba-file-service-rg'
   KEY_VAULT_NAME: 'vorba-file-service-kv'
-  AZURE_WEBAPP_PACKAGE_PATH: '.'
+  AZURE_WEBAPP_PACKAGE_PATH: 'release-package.zip'
   DEPLOY_ENV: 'production'
 
 jobs:
@@ -102,15 +102,8 @@ jobs:
           cd dist
           npm ci --only=production
       
-      # TODO: review this step, and if is better to make it part of the build process
-      #- name: Install Playwright browsers
-      #  run: |
-      #    cd dist
-      #    npx playwright install chromium --with-deps
-      - name: Install Playwright browsers
-        run: |
-          cd dist
-          npx playwright install chromium
+      # Playwright browser binaries can dramatically increase ZIP size and may break ZIP deploy extraction.
+      # For App Service ZIP deploy, prefer runtime-installed browser path or container deployment for Playwright-heavy workloads.
       
       - name: Copy startup script
         run: |
@@ -121,13 +114,14 @@ jobs:
       
       - name: Create release package
         run: |
-          zip -r release-${{ github.run_number }}.zip .
+          cd dist
+          zip -r ../release-package.zip .
       
       - name: Upload release
         uses: actions/upload-artifact@v4
         with:
           name: release-package
-          path: release-${{ github.run_number }}.zip
+          path: release-package.zip
           retention-days: 10
           if-no-files-found: error
           #compression-level: 9 # 1-9, 9 is best compression
@@ -136,15 +130,15 @@ jobs:
         run: |
           echo "=== POST-RELEASE INSPECTION ==="
           echo "Zip file size:"
-          ls -lh release-${{ github.run_number }}.zip
+          ls -lh release-package.zip
           
           echo ""
           echo "Zip contents:"
-          unzip -l release-${{ github.run_number }}.zip | head -20
+          unzip -l release-package.zip | head -20
           
           echo ""
           echo "Extract and show structure:"
-          unzip -q release-${{ github.run_number }}.zip -d temp-extract
+          unzip -q release-package.zip -d temp-extract
           find temp-extract -type f | head -10
           rm -rf temp-extract
           echo "=== END INSPECTION ==="
@@ -163,56 +157,6 @@ jobs:
         with:
           name: release-package
           path: ./
-
-      - name: Unzip release package
-        run: unzip release-${{ github.run_number }}.zip
-
-      - name: Inspect unzipped release contents
-        run: |
-          echo "=== UNZIPPED RELEASE INSPECTION ==="
-          echo "Current directory: $(pwd)"
-          echo ""
-          echo "📁 All files and directories:"
-          ls -la
-          echo ""
-          echo "📂 Directory structure:"
-          tree . || find . -type d | head -15
-          echo ""
-          echo "📄 JavaScript files:"
-          find . -name "*.js" | head -10
-          echo ""
-          echo "📦 Package files:"
-          find . -name "package.json" -o -name "*.json" | head -5
-          echo ""
-          echo "�� File count by type:"
-          echo "JS files: $(find . -name '*.js' | wc -l)"
-          echo "JSON files: $(find . -name '*.json' | wc -l)"
-          echo "Total files: $(find . -type f | wc -l)"
-          echo ""
-          echo "�� Key files check:"
-          if [ -f "package.json" ]; then
-            echo "✅ package.json found"
-            echo "   Dependencies: $(jq -r '.dependencies | keys | length' package.json 2>/dev/null || echo 'unknown')"
-          else
-            echo "❌ package.json not found"
-          fi
-          
-          if [ -f "dist/main.js" ]; then
-            echo "✅ dist/main.js found"
-            echo "   Size: $(ls -lh dist/main.js | awk '{print $5}')"
-          else
-            echo "❌ dist/main.js not found"
-          fi
-          
-          if [ -d "node_modules" ]; then
-            echo "✅ node_modules found"
-            echo "   Size: $(du -sh node_modules | awk '{print $1}')"
-          else
-            echo "❌ node_modules not found"
-          fi
-          
-          echo ""
-          echo "=== END INSPECTION ==="
 
       - name: Login to Azure
         uses: azure/login@v1
