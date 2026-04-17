@@ -197,39 +197,44 @@ jobs:
           
           # Wait for deployment to be ready
           echo "⏳ Waiting for deployment to be ready..."
+          READY=false
           for i in {1..60}; do
-            HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/health" || echo "000")
+            HEALTH_STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "$DEPLOY_URL/health" || echo "000")
             if [ "$HEALTH_STATUS" = "200" ]; then
               echo "✅ Deployment is ready (health check passed)"
+              READY=true
               break
             fi
             echo "   Attempt $i: HTTP $HEALTH_STATUS - waiting..."
             sleep 5
           done
-          
+
+          if [ "$READY" != "true" ]; then
+            echo "❌ Timed out waiting for health check to return 200 (last status: $HEALTH_STATUS)"
+            echo "   App may still be starting or the deployment failed to boot."
+            exit 1
+          fi
+
           # Run smoke tests against deployed app
           echo "🔍 Running smoke tests against $DEPLOY_URL"
           
           # Test health endpoint
-          HEALTH_RESPONSE=$(curl -s "$DEPLOY_URL/health")
+          HEALTH_RESPONSE=$(curl -s --max-time 10 "$DEPLOY_URL/health")
           echo "Health: $HEALTH_RESPONSE"
-          
+
           # Test Swagger endpoint (main API entry point)
-          SWAGGER_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api")
+          SWAGGER_STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api")
           echo "Swagger endpoint: HTTP $SWAGGER_STATUS"
-          
+
           # Test diagnostic endpoint
-          DIAG_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api/diagnostic/services")
+          DIAG_STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" "$DEPLOY_URL/api/diagnostic/services")
           echo "Diagnostic endpoint: HTTP $DIAG_STATUS"
-          
+
           # Validate results
-          if [ "$HEALTH_STATUS" != "200" ]; then
-            echo "❌ Health check failed"
-            exit 1
-          fi
-          
           if [ "$SWAGGER_STATUS" != "200" ]; then
-            echo "❌ Swagger endpoint failed"
+            SWAGGER_BODY=$(curl -s --max-time 10 "$DEPLOY_URL/api")
+            echo "❌ Swagger endpoint failed (HTTP $SWAGGER_STATUS)"
+            echo "   Response body: $SWAGGER_BODY"
             exit 1
           fi
           
