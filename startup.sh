@@ -6,4 +6,4 @@ echo "Set PLAYWRIGHT_BROWSER_PATH to: $PLAYWRIGHT_BROWSER_PATH"
 
 # Start the application
 echo "Starting application..."
-node dist/main.js
+node dist/src/main.js
