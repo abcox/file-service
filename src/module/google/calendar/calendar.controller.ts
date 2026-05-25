@@ -133,7 +133,8 @@ export class CalendarController {
     summary: 'Create Calendar Event',
     description: 'Creates a new event in the specified calendar.',
   })
-  @Auth({ roles: ['admin'] })
+  //@Auth({ roles: ['admin'] })
+  @Auth({ public: true })
   async createCalendarEvent(
     @Param('id') id: string,
     @Body()
