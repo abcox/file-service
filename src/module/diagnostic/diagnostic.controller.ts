@@ -8,7 +8,7 @@ import { ServiceStatusDto } from './dto/service-status.dto';
 
 @ApiTags('Diagnostic')
 @Controller('diagnostic')
-@Auth({ public: true }) // TODO: Change to { roles: ['admin'] } after testing
+@Auth({ roles: ['admin'] })
 export class DiagnosticController {
   constructor(
     private readonly logger: LoggerService,
