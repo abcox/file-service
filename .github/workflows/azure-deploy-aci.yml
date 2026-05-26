@@ -11,6 +11,11 @@ on:
       - '.github/workflows/azure-deploy-aci.yml'
   workflow_dispatch:
     inputs:
+      deploy_aci:
+        description: 'Deploy/start ACI (cost-incurring). Set to true only when needed.'
+        required: true
+        default: false
+        type: boolean
       image_tag:
         description: 'Docker image tag'
         required: false
@@ -87,6 +92,7 @@ jobs:
       
       # CRITICAL: ACI uses dynamic IPs - SQL Server firewall must allow Azure services
       - name: Configure SQL Server Firewall for ACI
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           echo "🔥 Configuring SQL Server firewall for ACI access..."
           
@@ -128,6 +134,7 @@ jobs:
       # CRITICAL: ACI logs are UNRELIABLE without Log Analytics - crashes lose stdout!
       - name: Setup Log Analytics for ACI Logging
         id: log-analytics
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           echo "📊 Setting up Log Analytics for reliable ACI logging..."
           
@@ -159,6 +166,7 @@ jobs:
 
       - name: Prepare Caddy storage and config
         id: caddy-storage
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           echo "🔐 Preparing Azure File shares for Caddy config and certificates..."
 
@@ -212,6 +220,7 @@ jobs:
 
       - name: Fetch telemetry connection string from Key Vault
         id: appinsights-secret
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           echo "🔐 Fetching Application Insights connection string from Key Vault..."
           APPINSIGHTS_CONNECTION_STRING=$(az keyvault secret show \
@@ -231,6 +240,7 @@ jobs:
 
       - name: Generate ACI manifest with Caddy sidecar
         id: aci-manifest
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           export APP_IMAGE="${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           export ACR_LOGIN_SERVER="${{ env.ACR_NAME }}.azurecr.io"
@@ -290,6 +300,7 @@ jobs:
           BUILD_ID: ${{ github.run_id }}
           
       - name: Deploy to Azure Container Instances
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           # Check if ACI exists
           ACI_EXISTS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --output json 2>/dev/null | jq -r '.name // empty')
@@ -309,6 +320,7 @@ jobs:
             --output none
           
       - name: Verify Managed Identity
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
            echo "✅ Using user-assigned managed identity: vorba-file-service-identity"
            echo "   This identity has pre-configured Key Vault access."
@@ -317,12 +329,14 @@ jobs:
       
           
       - name: Wait for ACI to be ready
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
            echo "Waiting for ACI to be ready..."
            sleep 30  # Give ACI time to provision
           
       - name: Get ACI status
         id: aci-status
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           ACI_STATUS=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "provisioningState" --output tsv)
           echo "ACI Status: $ACI_STATUS"
@@ -341,6 +355,7 @@ jobs:
 
       # Post-deployment smoke tests - validates deployed container is working correctly
       - name: Post-deployment smoke tests
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           echo "🧪 Running post-deployment smoke tests..."
           DEPLOY_URL="https://${{ steps.aci-status.outputs.fqdn }}"
@@ -391,7 +406,7 @@ jobs:
           echo "🌐 Deployed URL: $DEPLOY_URL"
           
       - name: Show ACI logs
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
            echo "📋 Recent ACI logs (from az container logs):"
            az container logs --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} || echo "No logs available from az container logs"
@@ -417,7 +432,7 @@ jobs:
            az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "{state:containers[0].instanceView.currentState.state,exitCode:containers[0].instanceView.currentState.exitCode,restartCount:containers[0].instanceView.restartCount}" --output table
           
       - name: Post deployment info
-        if: success()
+        if: success() && github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_aci == 'true'
         run: |
           FQDN=$(az container show --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "ipAddress.fqdn" --output tsv)
           echo "## 🚀 ACI Deployment Complete" >> $GITHUB_STEP_SUMMARY
@@ -438,3 +453,9 @@ jobs:
           echo "- SQL Server firewall is configured to allow ACI dynamic IPs" >> $GITHUB_STEP_SUMMARY
           echo "- Log Analytics captures logs even if container crashes (ACI native logs are unreliable!)" >> $GITHUB_STEP_SUMMARY
           echo "- Stop ACI after testing: \`az container stop --name ${{ env.ACI_NAME }} --resource-group ${{ env.RESOURCE_GROUP }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip ACI deployment (cost control)
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.deploy_aci != 'true'
+        run: |
+          echo "Skipping ACI deployment/start for cost control."
+          echo "Set workflow_dispatch input deploy_aci=true when you intentionally want to start ACI."
