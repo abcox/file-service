@@ -27,12 +27,19 @@ export class AppController {
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   health() {
+    const buildId =
+      process.env.BUILD_ID || process.env.GITHUB_RUN_ID || 'local';
+    const serviceVersion =
+      process.env.SERVICE_VERSION || process.env.npm_package_version || '1.0.0';
+
     this.loggerService.info('Health check requested');
     return {
       status: 'ok',
       timestamp: new Date().toISOString(),
       service: 'vorba-file-service',
-      version: process.env.npm_package_version || '1.0.0',
+      version: serviceVersion,
+      serviceVersion,
+      buildId,
       port: process.env.PORT || 'not set',
       environment: process.env.NODE_ENV || 'not set',
     };
