@@ -2,6 +2,42 @@
 
 This document provides a quick reference for the Azure resources deployed for the Vorba File Service.
 
+## Cost and Deployment Resource Map
+
+This section explains which deployment references map to billable Azure resources, where they live, and how they affect cost.
+
+### Scope Clarification
+- The repository currently references two hosting patterns:
+	- App Service deployment path (web app resources).
+	- Azure Container Instances deployment path via workflow `.github/workflows/azure-deploy-aci.yml`.
+- Most recent cost concern was tied to the ACI path, specifically `vorba-file-service-4`.
+
+### Deployment Reference to Billable Resource Mapping
+
+| Deployment Reference | Azure Resource | Resource Group | Cost Behavior | Notes |
+|---|---|---|---|---|
+| `RESOURCE_GROUP=vorba-file-service-rg` | Resource container for file-service stack | `vorba-file-service-rg` | No direct cost | Holds most compute/monitoring resources. |
+| `ACI_NAME=vorba-file-service-4` | Azure Container Instance container group | `vorba-file-service-rg` | Charged while running (CPU + memory per second) | Includes app container and Caddy sidecar. |
+| Caddy sidecar in ACI template | Additional container in same ACI group | `vorba-file-service-rg` | Increases runtime compute cost while ACI is running | Adds HTTPS and reverse proxy. |
+| `LOG_ANALYTICS_WORKSPACE_NAME=vorba-file-service-logs` | Log Analytics workspace | `vorba-file-service-rg` | Ingestion and retention costs | Used for ACI logging. |
+| App Insights (`vorba-file-service-4-insights`) | Application Insights component | `vorba-file-service-rg` | Data volume and retention costs | Linked to workspace-backed monitoring. |
+| `ACR_NAME=vorbaacr` | Azure Container Registry (Basic) | `vorba-file-service-rg` | Baseline registry + storage/network usage | Stores deployment images. |
+| `STORAGE_ACCOUNT_NAME=ccastore01` + Caddy shares | Azure Files shares (`aci-caddy-config`, `aci-caddy-data`, `aci-caddy-state`) | `cca-cc-rg-01` | Storage capacity/transactions | Persists Caddy config and certificate state. |
+| `SQL_SERVER_NAME=vorba-sql-svr-1` | Azure SQL logical server + databases | `vorba-file-service-rg` | Compute/storage/service tier charges | Cost independent of ACI run state. |
+| `vorba-file-service-plan` (B1) | App Service Plan | `vorba-file-service-rg` | Baseline monthly compute cost | Supports web app hosting path. |
+| `vorba-file-service`, `-2`, `-3` | App Services | `vorba-file-service-rg` | Included in plan capacity, plus optional diagnostics | Web endpoints hosted on App Service. |
+
+### Current Cost-Relevant State
+- `vorba-file-service-4` was stopped to reduce cost.
+- Additional ACI groups (`vorba-file-service-5`, `vorba-file-service-debug`) exist and should be reviewed for retention or cleanup.
+- Monitoring resources and registry/storage can still generate cost even when ACI compute is stopped.
+
+### Cost Control Priority (Dev Mode)
+1. Keep ACI-based PDF service stopped unless explicitly needed.
+2. Split PDF generation into its own on-demand service path.
+3. Consolidate overlapping monitoring workspaces/components.
+4. Keep core web/API traffic on lighter always-on hosting.
+
 ## 🏗️ Deployed Resources
 
 ### Resource Group
@@ -10,61 +46,23 @@ This document provides a quick reference for the Azure resources deployed for th
 - **Purpose**: Contains all file service resources
 
 ### App Service Plan
-- **Name**: `vorba-file-service-plan`
-- **SKU**: B1 (Basic)
-- **OS**: Linux
 - **Purpose**: Hosting plan for the web application
 
-### App Service
-- **Name**: `vorba-file-service`
-- **URL**: https://vorba-file-service.azurewebsites.net
-- **Runtime**: Node.js 18 LTS
 - **Purpose**: Hosts the NestJS file service application
 
-### Blob Storage Container
-- **Storage Account**: `ccastore01` (existing)
-- **Container**: `file-service-uploads`
-- **Purpose**: Stores uploaded files
 
 ### Key Vault Integration
-- **Key Vault**: `vorba-sand-kv-2` (existing)
-- **Access**: Managed Identity with RBAC
-- **Purpose**: Stores JWT secrets and other sensitive configuration
 
 ## 🔧 Configuration
-
-### Environment Variables
-The App Service is configured with these environment variables:
+## 🏗️ Deployed Resources - Two Deployment Paths
 - `NODE_ENV=production`
 - `AZURE_KEY_VAULT_URL=https://vorba-sand-kv-2.vault.azure.net/`
-- `AZURE_STORAGE_CONNECTION_STRING=[auto-generated]`
-- `WEBSITE_NODE_DEFAULT_VERSION=18.17.0`
-
-### Managed Identity
-- **Status**: Enabled
 - **Purpose**: Allows the app to access Key Vault and Storage without storing credentials
 
-### Key Vault Access
-- **Method**: RBAC (Role-Based Access Control)
-- **Role**: Key Vault Secrets User
-- **Scope**: App Service managed identity
-
-## 🔗 Useful URLs
 
 ### Application Endpoints
-- **Main App**: https://vorba-file-service.azurewebsites.net
-- **Health Check**: https://vorba-file-service.azurewebsites.net/health
-- **API Documentation**: https://vorba-file-service.azurewebsites.net/api (if Swagger is enabled)
-
-### Azure Portal Links
-- **App Service**: https://portal.azure.com/#@vorba.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg/providers/Microsoft.Web/sites/vorba-file-service
-- **Resource Group**: https://portal.azure.com/#@vorba.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-file-service-rg
-- **Key Vault**: https://portal.azure.com/#@vorba.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-sand-rg/providers/Microsoft.KeyVault/vaults/vorba-sand-kv-2
 - **Storage Account**: https://portal.azure.com/#@vorba.com/resource/subscriptions/236217f7-0ad4-4dd6-8553-dc4b574fd2c5/resourceGroups/vorba-sand-rg/providers/Microsoft.Storage/storageAccounts/ccastore01
 
-## 🛠️ Management Commands
-
-### Check App Service Status
 ```bash
 az webapp show --name vorba-file-service --resource-group vorba-file-service-rg
 ```
@@ -72,6 +70,7 @@ az webapp show --name vorba-file-service --resource-group vorba-file-service-rg
 ### View Logs
 ```bash
 az webapp log tail --name vorba-file-service --resource-group vorba-file-service-rg
+## 🛠️ Management Commands
 ```
 
 ### Restart App Service
@@ -123,15 +122,10 @@ Consider setting up Log Analytics for:
 
 ## 💰 Cost Estimation
 
-### Current Resources
-- **App Service Plan (B1)**: ~$13/month
-- **App Service**: Included in plan
-- **Storage**: Pay per use (~$0.02/GB/month)
-- **Key Vault**: Pay per use (~$0.03/10K operations)
+Use the mapping in **Cost and Deployment Resource Map** as the primary source for cost attribution.
 
-### Total Estimated Cost
-- **Monthly**: ~$15-20 USD
-- **Annual**: ~$180-240 USD
+For deeper analysis, action tracking, and optimization steps, see:
+- `docs/AZURE_RESOURCE_COST_BUDGET.md`
 
 ## 🚀 Scaling Options
 
