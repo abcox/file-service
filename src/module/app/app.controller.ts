@@ -31,6 +31,8 @@ export class AppController {
       process.env.BUILD_ID || process.env.GITHUB_RUN_ID || 'local';
     const serviceVersion =
       process.env.SERVICE_VERSION || process.env.npm_package_version || '1.0.0';
+    const buildTimeUtc =
+      process.env.BUILD_TIME_UTC || process.env.BUILD_TIMESTAMP || 'unknown';
 
     this.loggerService.info('Health check requested');
     return {
@@ -40,6 +42,7 @@ export class AppController {
       version: serviceVersion,
       serviceVersion,
       buildId,
+      buildTimeUtc,
       port: process.env.PORT || 'not set',
       environment: process.env.NODE_ENV || 'not set',
     };

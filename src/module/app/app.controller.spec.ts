@@ -40,6 +40,7 @@ describe('AppController', () => {
           provide: AppService,
           useValue: {
             getAppInfo: jest.fn(() => mockAppInfo),
+            generateAppInfoHtml: jest.fn(() => '<html>test</html>'),
           },
         },
         {
@@ -101,6 +102,7 @@ describe('AppController', () => {
       expect(result).toHaveProperty('service', 'vorba-file-service');
       expect(result).toHaveProperty('timestamp');
       expect(result).toHaveProperty('version');
+      expect(result).toHaveProperty('buildTimeUtc');
     });
   });
 });
