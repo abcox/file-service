@@ -1,9 +1,49 @@
 import { Injectable } from '@nestjs/common';
+import { z } from 'zod';
 import { LoggerService } from '../logger/logger.service';
 import { AppConfigService } from '../config/config.service';
 import { DiagnosticProvider } from './diagnostic-provider.interface';
-import { ServiceStatusDto, ServiceStatusLevel } from './dto/service-status.dto';
+import {
+  DiagnosticDetails,
+  ProviderServiceStatus,
+  ServiceStatusDto,
+  ServiceStatusLevel,
+} from './dto/service-status.dto';
 import { DiagnosticReportDto } from './dto/diagnostic-report.dto';
+
+const diagnosticDetailScalarSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+]);
+
+const diagnosticDetailValueSchema = z.union([
+  diagnosticDetailScalarSchema,
+  z.array(diagnosticDetailScalarSchema),
+]);
+
+const diagnosticDetailsSchema = z.record(
+  z.string(),
+  diagnosticDetailValueSchema,
+);
+
+const providerServiceStatusSchema = z.object({
+  name: z.string().min(1),
+  displayName: z.string().optional(),
+  status: z.enum(['ready', 'degraded', 'unavailable']),
+  reason: z.string().optional(),
+  details: diagnosticDetailsSchema.optional(),
+  version: z.string().optional(),
+  serviceVersion: z.string().optional(),
+  buildId: z.string().optional(),
+  buildTimeUtc: z.string().optional(),
+  environment: z.string().optional(),
+  baseUrl: z.string().optional(),
+  endpointUsed: z.string().optional(),
+  checkedAt: z.string().optional(),
+  timestamp: z.string().min(1),
+});
 
 @Injectable()
 export class DiagnosticService {
@@ -39,18 +79,32 @@ export class DiagnosticService {
     if (!provider) {
       return undefined;
     }
+    const config = this.configService.getConfig();
+
     try {
-      return provider.getDiagnosticStatus();
+      return this.normalizeServiceReport(
+        provider.getDiagnosticStatus(),
+        name,
+        config?.environment || 'unknown',
+      );
     } catch (error) {
+      const runtime = this.getRuntimeMetadata(config?.environment || 'unknown');
       this.logger.error(
         `Error getting status for service: ${name}`,
         error as Error,
       );
       return {
         name,
+        displayName: this.createDisplayName(name),
         status: 'unavailable',
         reason: `Error retrieving status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        endpointUsed: '/api/diagnostic/services',
+        checkedAt: new Date().toISOString(),
         timestamp: new Date().toISOString(),
+        environment: runtime.environment,
+        serviceVersion: runtime.serviceVersion,
+        buildId: runtime.buildId,
+        buildTimeUtc: runtime.buildTimeUtc,
       };
     }
   }
@@ -60,19 +114,36 @@ export class DiagnosticService {
    */
   getAllServiceStatuses(): ServiceStatusDto[] {
     const statuses: ServiceStatusDto[] = [];
+    const config = this.configService.getConfig();
+    const appEnvironment = config?.environment || 'unknown';
+
     for (const [name, provider] of this.providers) {
       try {
-        statuses.push(provider.getDiagnosticStatus());
+        statuses.push(
+          this.normalizeServiceReport(
+            provider.getDiagnosticStatus(),
+            name,
+            appEnvironment,
+          ),
+        );
       } catch (error) {
+        const runtime = this.getRuntimeMetadata(appEnvironment);
         this.logger.error(
           `Error getting status for service: ${name}`,
           error as Error,
         );
         statuses.push({
           name,
+          displayName: this.createDisplayName(name),
           status: 'unavailable',
           reason: `Error retrieving status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          endpointUsed: '/api/diagnostic/services',
+          checkedAt: new Date().toISOString(),
           timestamp: new Date().toISOString(),
+          environment: runtime.environment,
+          serviceVersion: runtime.serviceVersion,
+          buildId: runtime.buildId,
+          buildTimeUtc: runtime.buildTimeUtc,
         });
       }
     }
@@ -124,14 +195,89 @@ export class DiagnosticService {
     name: string,
     status: ServiceStatusLevel,
     reason?: string,
-    details?: Record<string, unknown>,
+    details?: DiagnosticDetails,
   ): ServiceStatusDto {
+    const now = new Date().toISOString();
+
     return {
       name,
+      displayName: name
+        .replace(/[-_]+/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       status,
       reason,
       details,
-      timestamp: new Date().toISOString(),
+      endpointUsed: '/api/diagnostic/services',
+      checkedAt: now,
+      timestamp: now,
     };
+  }
+
+  private normalizeServiceReport(
+    service: ProviderServiceStatus,
+    fallbackName: string,
+    fallbackEnvironment: string,
+  ): ServiceStatusDto {
+    const parsed = providerServiceStatusSchema.safeParse(service);
+    if (!parsed.success) {
+      const details = parsed.error.issues
+        .map((issue) => {
+          const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+          return `${path}: ${issue.message}`;
+        })
+        .join('; ');
+
+      throw new Error(
+        `Provider '${fallbackName}' returned invalid diagnostic status: ${details}`,
+      );
+    }
+
+    const normalizedStatus = parsed.data;
+    const runtime = this.getRuntimeMetadata(fallbackEnvironment);
+
+    const checkedAt = normalizedStatus.checkedAt || normalizedStatus.timestamp;
+
+    const name = normalizedStatus.name || fallbackName;
+
+    return {
+      ...normalizedStatus,
+      name,
+      displayName: normalizedStatus.displayName || this.createDisplayName(name),
+      endpointUsed: normalizedStatus.endpointUsed || '/api/diagnostic/services',
+      version: normalizedStatus.version,
+      serviceVersion:
+        normalizedStatus.serviceVersion ||
+        normalizedStatus.version ||
+        runtime.serviceVersion,
+      buildId: normalizedStatus.buildId || runtime.buildId,
+      buildTimeUtc: normalizedStatus.buildTimeUtc || runtime.buildTimeUtc,
+      environment: normalizedStatus.environment || runtime.environment,
+      baseUrl: normalizedStatus.baseUrl,
+      checkedAt,
+      timestamp: checkedAt,
+    };
+  }
+
+  private getRuntimeMetadata(fallbackEnvironment: string): {
+    environment: string;
+    serviceVersion: string;
+    buildId: string;
+    buildTimeUtc?: string;
+  } {
+    return {
+      environment: fallbackEnvironment,
+      serviceVersion:
+        process.env.npm_package_version ||
+        process.env.SERVICE_VERSION ||
+        'unknown',
+      buildId: process.env.GITHUB_RUN_ID || process.env.BUILD_ID || 'local',
+      buildTimeUtc: process.env.BUILD_TIME_UTC,
+    };
+  }
+
+  private createDisplayName(name: string): string {
+    return name
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 }

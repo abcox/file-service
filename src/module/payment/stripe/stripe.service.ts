@@ -37,13 +37,16 @@ export class StripeService implements DiagnosticProvider {
   getDiagnosticStatus(): ServiceStatusDto {
     const stripeConfig = this.appConfigService.getConfig()?.payment?.stripe;
     const { key, secret, version } = stripeConfig || {};
+    const now = new Date().toISOString();
 
     if (!stripeConfig) {
       return {
         name: 'stripe',
         status: 'unavailable',
         reason: 'Missing payment.stripe config section',
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://api.stripe.com',
+        version,
+        timestamp: now,
       };
     }
 
@@ -53,7 +56,9 @@ export class StripeService implements DiagnosticProvider {
         status: 'unavailable',
         reason: 'Missing Stripe API key or secret',
         details: { hasKey: !!key, hasSecret: !!secret, hasVersion: !!version },
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://api.stripe.com',
+        version,
+        timestamp: now,
       };
     }
 
@@ -63,15 +68,18 @@ export class StripeService implements DiagnosticProvider {
         status: 'degraded',
         reason: 'Stripe API version not specified',
         details: { hasKey: true, hasSecret: true, hasVersion: false },
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://api.stripe.com',
+        timestamp: now,
       };
     }
 
     return {
       name: 'stripe',
       status: 'ready',
+      baseUrl: 'https://api.stripe.com',
+      version,
       details: { hasKey: true, hasSecret: true, hasVersion: true },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 

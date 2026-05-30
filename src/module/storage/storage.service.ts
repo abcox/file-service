@@ -88,13 +88,14 @@ export class StorageService implements StorageClient, DiagnosticProvider {
    */
   getDiagnosticStatus(): ServiceStatusDto {
     const rawConfig = this.appConfigService.getConfig().storage;
+    const now = new Date().toISOString();
 
     if (!rawConfig?.type) {
       return {
         name: 'storage',
         status: 'unavailable',
         reason: 'Storage type not configured',
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -104,7 +105,7 @@ export class StorageService implements StorageClient, DiagnosticProvider {
         status: 'unavailable',
         reason: `Storage type '${rawConfig.type}' configured but initialization failed`,
         details: { configuredType: rawConfig.type },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -112,10 +113,10 @@ export class StorageService implements StorageClient, DiagnosticProvider {
       name: 'storage',
       status: 'ready',
       details: {
-        type: this.config.type,
+        type: this.config.type ?? null,
         safeMode: this.config.options?.safeMode ?? false,
       },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 

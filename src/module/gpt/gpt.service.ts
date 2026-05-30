@@ -110,12 +110,16 @@ export class GptService implements DiagnosticProvider {
    * DiagnosticProvider implementation
    */
   getDiagnosticStatus(): ServiceStatusDto {
+    const now = new Date().toISOString();
+
     if (!this.config?.apiKey && !process.env.OPENAI_API_KEY) {
       return {
         name: 'gpt',
         status: 'unavailable',
         reason: 'Missing OpenAI API key (config or OPENAI_API_KEY env)',
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://api.openai.com/v1',
+        version: this.config?.defaults?.model,
+        timestamp: now,
       };
     }
 
@@ -124,19 +128,23 @@ export class GptService implements DiagnosticProvider {
         name: 'gpt',
         status: 'degraded',
         reason: 'OpenAI client not initialized',
+        baseUrl: 'https://api.openai.com/v1',
+        version: this.config?.defaults?.model,
         details: { hasApiKey: true, isInitialized: false },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
     return {
       name: 'gpt',
       status: 'ready',
+      baseUrl: 'https://api.openai.com/v1',
+      version: this.config?.defaults?.model,
       details: {
         model: this.config?.defaults?.model,
         isInitialized: true,
       },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 

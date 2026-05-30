@@ -93,16 +93,21 @@ export class GmailService implements DiagnosticProvider {
    * DiagnosticProvider implementation
    */
   getDiagnosticStatus(): ServiceStatusDto {
+    const now = new Date().toISOString();
+
     if (!this.config) {
       return {
         name: 'gmail',
         status: 'unavailable',
         reason: 'Missing googleApis.emailServiceOptions config',
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://gmail.googleapis.com',
+        version: 'v1',
+        timestamp: now,
       };
     }
 
-    const { serviceAccountJsonKeyFilePathname, userEmail, scopes } = this.config;
+    const { serviceAccountJsonKeyFilePathname, userEmail, scopes } =
+      this.config;
 
     if (!serviceAccountJsonKeyFilePathname) {
       return {
@@ -110,7 +115,9 @@ export class GmailService implements DiagnosticProvider {
         status: 'unavailable',
         reason: 'Missing service account key file path',
         details: { hasUserEmail: !!userEmail, hasScopes: !!scopes?.length },
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://gmail.googleapis.com',
+        version: 'v1',
+        timestamp: now,
       };
     }
 
@@ -120,19 +127,23 @@ export class GmailService implements DiagnosticProvider {
         status: 'degraded',
         reason: 'Missing userEmail for domain-wide delegation',
         details: { hasKeyFile: true, hasScopes: !!scopes?.length },
-        timestamp: new Date().toISOString(),
+        baseUrl: 'https://gmail.googleapis.com',
+        version: 'v1',
+        timestamp: now,
       };
     }
 
     return {
       name: 'gmail',
       status: 'ready',
+      baseUrl: 'https://gmail.googleapis.com',
+      version: 'v1',
       details: {
         hasKeyFile: true,
         hasUserEmail: true,
         scopeCount: scopes?.length ?? 0,
       },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 

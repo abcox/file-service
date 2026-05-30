@@ -75,14 +75,17 @@ export class CalendarService implements DiagnosticProvider {
    */
   getDiagnosticStatus(): ServiceStatusDto {
     const { hasConfig, hasScopes, isInitialized } = this.configStatus;
+    const now = new Date().toISOString();
 
     if (!hasConfig) {
       return {
         name: 'google-calendar',
         status: 'unavailable',
         reason: 'Missing googleApis.calendarServiceOptions config',
+        baseUrl: 'https://www.googleapis.com/calendar/v3',
+        version: 'v3',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -91,8 +94,10 @@ export class CalendarService implements DiagnosticProvider {
         name: 'google-calendar',
         status: 'degraded',
         reason: 'No scopes configured for Calendar API',
+        baseUrl: 'https://www.googleapis.com/calendar/v3',
+        version: 'v3',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -101,16 +106,20 @@ export class CalendarService implements DiagnosticProvider {
         name: 'google-calendar',
         status: 'degraded',
         reason: 'Service not fully initialized',
+        baseUrl: 'https://www.googleapis.com/calendar/v3',
+        version: 'v3',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
     return {
       name: 'google-calendar',
       status: 'ready',
+      baseUrl: 'https://www.googleapis.com/calendar/v3',
+      version: 'v3',
       details: { hasConfig, hasScopes, isInitialized },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 

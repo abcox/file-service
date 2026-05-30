@@ -80,14 +80,17 @@ export class PeopleService implements DiagnosticProvider {
    */
   getDiagnosticStatus(): ServiceStatusDto {
     const { hasConfig, hasScopes, isInitialized } = this.configStatus;
+    const now = new Date().toISOString();
 
     if (!hasConfig) {
       return {
         name: 'google-people',
         status: 'unavailable',
         reason: 'Missing googleApis.peopleServiceOptions config',
+        baseUrl: 'https://people.googleapis.com/v1',
+        version: 'v1',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -96,8 +99,10 @@ export class PeopleService implements DiagnosticProvider {
         name: 'google-people',
         status: 'degraded',
         reason: 'No scopes configured for People API',
+        baseUrl: 'https://people.googleapis.com/v1',
+        version: 'v1',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
@@ -106,16 +111,20 @@ export class PeopleService implements DiagnosticProvider {
         name: 'google-people',
         status: 'degraded',
         reason: 'Service not fully initialized',
+        baseUrl: 'https://people.googleapis.com/v1',
+        version: 'v1',
         details: { hasConfig, hasScopes, isInitialized },
-        timestamp: new Date().toISOString(),
+        timestamp: now,
       };
     }
 
     return {
       name: 'google-people',
       status: 'ready',
+      baseUrl: 'https://people.googleapis.com/v1',
+      version: 'v1',
       details: { hasConfig, hasScopes, isInitialized },
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
   }
 
