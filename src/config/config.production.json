@@ -22,7 +22,7 @@
         "secure": false
       },
       "idleSessionConfig": {
-        "inactivityWarningSeconds": 30,
+        "inactivityWarningSeconds": 1800,
         "warningCountdownSeconds": 30
       }
     }

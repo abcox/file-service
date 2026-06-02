@@ -634,8 +634,8 @@ export class AuthService {
     const activityConfig = config?.auth?.session?.idleSessionConfig;
 
     return {
-      inactivityWarningSeconds: activityConfig?.inactivityWarningSeconds || 600, // 10 minutes
-      warningCountdownSeconds: activityConfig?.warningCountdownSeconds || 300, // 5 minutes
+      inactivityWarningSeconds: activityConfig?.inactivityWarningSeconds ?? 300, // 5 minutes
+      warningCountdownSeconds: activityConfig?.warningCountdownSeconds ?? 60, // 60 seconds
     };
   }
 }
