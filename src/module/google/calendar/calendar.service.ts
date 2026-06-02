@@ -242,6 +242,32 @@ export class CalendarService implements DiagnosticProvider {
     }
   }
 
+  async getCalendarEventListInRange(
+    calendarId: string,
+    timeMin: string,
+    timeMax: string,
+  ): Promise<calendar_v3.Schema$Event[]> {
+    try {
+      const params = {
+        calendarId,
+        timeMin,
+        timeMax,
+        maxResults: 2500,
+        singleEvents: true,
+        orderBy: 'startTime',
+      } as calendar_v3.Params$Resource$Events$List;
+
+      const response = await this.service.events.list(params);
+      return response.data.items || [];
+    } catch (error) {
+      this.logger.error(
+        `Failed to fetch ranged events for calendar ID: ${calendarId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async searchCalendarEventList(
     calendarId: string,
     query: string,

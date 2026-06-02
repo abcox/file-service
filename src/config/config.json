@@ -27,6 +27,22 @@
         }
     }
   },
+  "booking": {
+    "enabled": true,
+    "calendarId": "c_49d7426862f60afeb3f46a25701039049d914d41bb9efb3710f63403946ed398@group.calendar.google.com",
+    "timezone": "America/Toronto",
+    "maxDaysInFuture": 21,
+    "slotIntervalMinutes": 15,
+    "defaultMeetingDurationMinutes": 30,
+    "maxMinutesPerBooking": 30,
+    "workingWindows": [
+      { "dayOfWeek": 1, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 },
+      { "dayOfWeek": 2, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 },
+      { "dayOfWeek": 3, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 },
+      { "dayOfWeek": 4, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 },
+      { "dayOfWeek": 5, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 }
+    ]
+  },
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",

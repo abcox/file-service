@@ -24,6 +24,7 @@ import { PeopleModule } from '../google/people';
 import { CalendarModule } from '../google/calendar/calendar.module';
 import { PaymentModule } from '../payment/payment.module';
 import { DiagnosticModule } from '../diagnostic/diagnostic.module';
+import { BookingModule } from '../booking/booking.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { DiagnosticModule } from '../diagnostic/diagnostic.module';
     CalendarModule,
     PaymentModule,
     DiagnosticModule,
+    BookingModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

@@ -3,6 +3,21 @@ import { GptConfig } from '../gpt/gpt.service';
 import { StripeOptions } from '../payment/stripe/stripe.service';
 
 export interface AppConfig {
+  booking?: {
+    enabled?: boolean;
+    calendarId?: string;
+    timezone?: string;
+    maxDaysInFuture?: number;
+    slotIntervalMinutes?: number;
+    defaultMeetingDurationMinutes?: number;
+    maxMinutesPerBooking?: number;
+    workingWindows?: Array<{
+      dayOfWeek: number; // 0=Sunday ... 6=Saturday
+      startHour24: number;
+      endHour24: number;
+      maxMinutesPerBooking?: number;
+    }>;
+  };
   azure: {
     tenantId: string;
     subscriptionId: string;
