@@ -7,6 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { randomUUID } from 'crypto';
 import { Request } from 'express';
+import { runWithRequestContext } from '../request-context/request-context.storage';
 
 export const REQUEST_ID_HEADER = 'x-request-id';
 export const BUILD_ID_HEADER = 'x-build-id';
@@ -52,6 +53,15 @@ export class RequestContextInterceptor implements NestInterceptor {
 
     res.setHeader(REQUEST_ID_HEADER, requestId);
 
-    return next.handle();
+    return runWithRequestContext(
+      {
+        requestId,
+        buildId: this.buildId,
+        serviceVersion: this.serviceVersion,
+        method: req.method,
+        path: req.url,
+      },
+      () => next.handle(),
+    );
   }
 }

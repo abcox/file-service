@@ -1,5 +1,6 @@
 import { Injectable, LoggerService as NestLoggerService } from '@nestjs/common';
 import * as winston from 'winston';
+import { getRequestContext } from '../../core/request-context/request-context.storage';
 
 export interface LogContext {
   [key: string]: unknown;
@@ -90,16 +91,16 @@ export class LoggerService implements NestLoggerService {
 
   log(message: string, contextOrNestContext?: LogContext | string): void {
     const ctx = this.normalizeContext(contextOrNestContext);
-    this.winston.info(message, ctx ? redact(ctx) : {});
+    this.winston.info(message, this.buildLogMeta(ctx));
   }
 
   info(message: string, context?: LogContext): void {
-    this.winston.info(message, context ? redact(context) : {});
+    this.winston.info(message, this.buildLogMeta(context));
   }
 
   warn(message: string, contextOrNestContext?: LogContext | string): void {
     const ctx = this.normalizeContext(contextOrNestContext);
-    this.winston.warn(message, ctx ? redact(ctx) : {});
+    this.winston.warn(message, this.buildLogMeta(ctx));
   }
 
   error(
@@ -114,7 +115,7 @@ export class LoggerService implements NestLoggerService {
       typeof errorOrNestTrace === 'string' ? errorOrNestTrace : undefined;
 
     this.winston.error(message, {
-      ...(ctx ? redact(ctx) : {}),
+      ...this.buildLogMeta(ctx),
       ...(error ? { errorMessage: error.message, stack: error.stack } : {}),
       ...(trace ? { stack: trace } : {}),
     });
@@ -122,17 +123,17 @@ export class LoggerService implements NestLoggerService {
 
   debug(message: string, contextOrNestContext?: LogContext | string): void {
     const ctx = this.normalizeContext(contextOrNestContext);
-    this.winston.debug(message, ctx ? redact(ctx) : {});
+    this.winston.debug(message, this.buildLogMeta(ctx));
   }
 
   verbose(message: string, contextOrNestContext?: LogContext | string): void {
     const ctx = this.normalizeContext(contextOrNestContext);
-    this.winston.verbose(message, ctx ? redact(ctx) : {});
+    this.winston.verbose(message, this.buildLogMeta(ctx));
   }
 
   fatal(message: string, context?: LogContext): void {
     this.winston.error(message, {
-      ...(context ? redact(context) : {}),
+      ...this.buildLogMeta(context),
       fatal: true,
     });
   }
@@ -171,5 +172,13 @@ export class LoggerService implements NestLoggerService {
     if (value === undefined || value === null) return undefined;
     if (typeof value === 'string') return { context: value };
     return value;
+  }
+
+  private buildLogMeta(context?: LogContext): Record<string, unknown> {
+    const requestContext = getRequestContext();
+    return redact({
+      ...(requestContext ?? {}),
+      ...(context ?? {}),
+    });
   }
 }

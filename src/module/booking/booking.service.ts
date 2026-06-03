@@ -3,12 +3,12 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
-  Logger,
 } from '@nestjs/common';
 import { calendar_v3 } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
 //import { AppConfig } from '../config/config.interface';
 import { CalendarService } from '../google/calendar/calendar.service';
+import { LoggerService } from '../logger/logger.service';
 import { BookingAvailabilityResponseDto } from './dto/booking-availability-response.dto';
 import { BookingReserveRequestDto } from './dto/booking-reserve-request.dto';
 import { BookingReserveResponseDto } from './dto/booking-reserve-response.dto';
@@ -34,12 +34,30 @@ interface BookingConfig {
 
 @Injectable()
 export class BookingService {
-  private readonly logger = new Logger(BookingService.name);
+  private readonly verboseObservability =
+    process.env.BOOKING_OBSERVABILITY_VERBOSE === 'true';
 
   constructor(
     private readonly appConfigService: AppConfigService,
     private readonly calendarService: CalendarService,
+    private readonly logger: LoggerService,
   ) {}
+
+  private getServerTimezone(): string {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown';
+  }
+
+  private getObservabilityBase(config: BookingConfig) {
+    return {
+      bookingTimezone: config.timezone,
+      serverTimezone: this.getServerTimezone(),
+      includeWeekendDays: config.includeWeekendDays,
+      minBusinessDaysInFuture: config.minBusinessDaysInFuture,
+      maxDaysInFuture: config.maxDaysInFuture,
+      slotIntervalMinutes: config.slotIntervalMinutes,
+      defaultMeetingDurationMinutes: config.defaultMeetingDurationMinutes,
+    };
+  }
 
   // TODO Option B: support runtime schedule overrides from DB/admin API.
   // TODO Option C: support per-host/per-meeting-type schedule profiles.
@@ -130,6 +148,22 @@ export class BookingService {
       config.defaultMeetingDurationMinutes,
     );
 
+    this.logger.info('Booking availability evaluated', {
+      ...this.getObservabilityBase(config),
+      dateQuery: date,
+      targetDate: this.getDateOnlyString(targetDate),
+      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
+      availableSlotsCount: availableSlots.length,
+      sampleSlots: this.verboseObservability
+        ? availableSlots.slice(0, 5).map((slot) => ({
+            startUtc: slot.startUtc,
+            endUtc: slot.endUtc,
+            startLabel: slot.startLabel,
+            durationMinutes: slot.durationMinutes,
+          }))
+        : undefined,
+    });
+
     return {
       config,
       earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
@@ -188,11 +222,38 @@ export class BookingService {
       durationMinutes,
     );
 
+    this.logger.info('Booking reserve request evaluated against availability', {
+      ...this.getObservabilityBase(config),
+      requestStartUtc: request.startUtc,
+      requestedDurationMinutes: durationMinutes,
+      targetDate: this.getDateOnlyString(targetDate),
+      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
+      availableSlotsCount: availableSlots.length,
+      sampleSlots: this.verboseObservability
+        ? availableSlots.slice(0, 5).map((slot) => ({
+            startUtc: slot.startUtc,
+            endUtc: slot.endUtc,
+            startLabel: slot.startLabel,
+            durationMinutes: slot.durationMinutes,
+          }))
+        : undefined,
+    });
+
     const matchingSlot = availableSlots.find(
       (slot) => slot.startUtc === new Date(request.startUtc).toISOString(),
     );
 
     if (!matchingSlot) {
+      this.logger.warn(
+        'Booking reserve request did not match any currently available slot',
+        {
+          ...this.getObservabilityBase(config),
+          requestStartUtc: request.startUtc,
+          normalizedRequestStartUtc: new Date(request.startUtc).toISOString(),
+          targetDate: this.getDateOnlyString(targetDate),
+          availableSlotsCount: availableSlots.length,
+        },
+      );
       throw new ConflictException({
         message: 'The selected slot is no longer available.',
         date: this.getDateOnlyString(targetDate),
@@ -209,6 +270,22 @@ export class BookingService {
     ].filter(Boolean);
 
     try {
+      this.logger.info('Booking reserve creating calendar event', {
+        ...this.getObservabilityBase(config),
+        calendarId,
+        requestStartUtc: request.startUtc,
+        matchedSlotStartUtc: matchingSlot.startUtc,
+        matchedSlotEndUtc: matchingSlot.endUtc,
+        eventStart: {
+          dateTime: matchingSlot.startUtc,
+          timeZone: timezone,
+        },
+        eventEnd: {
+          dateTime: matchingSlot.endUtc,
+          timeZone: timezone,
+        },
+      });
+
       const createResult = await this.calendarService.createCalendarEvent({
         calendarId,
         event: {
@@ -233,13 +310,26 @@ export class BookingService {
         createConference: true,
       });
 
+      this.logger.info('Booking reserve calendar event created', {
+        ...this.getObservabilityBase(config),
+        calendarId,
+        requestStartUtc: request.startUtc,
+        matchedSlotStartUtc: matchingSlot.startUtc,
+        googleEventStart: createResult.event?.start,
+        googleEventEnd: createResult.event?.end,
+      });
+
       return {
         success: true,
         event: createResult.event,
         slot: matchingSlot,
       };
     } catch (error) {
-      this.logger.error('Failed to reserve booking slot', error as Error);
+      this.logger.error('Failed to reserve booking slot', error as Error, {
+        ...this.getObservabilityBase(config),
+        requestStartUtc: request.startUtc,
+        targetDate: this.getDateOnlyString(targetDate),
+      });
       throw new InternalServerErrorException('Failed to reserve booking slot.');
     }
   }
