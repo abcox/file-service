@@ -8,6 +8,9 @@ export class BookingConfigDto {
   @ApiProperty({ example: false })
   includeWeekendDays: boolean;
 
+  @ApiProperty({ example: 1 })
+  minBusinessDaysInFuture: number;
+
   @ApiProperty({ required: false })
   calendarId?: string;
 

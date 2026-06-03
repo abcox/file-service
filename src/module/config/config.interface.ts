@@ -6,6 +6,7 @@ export interface AppConfig {
   booking?: {
     enabled?: boolean;
     includeWeekendDays?: boolean;
+    minBusinessDaysInFuture?: number;
     calendarId?: string;
     timezone?: string;
     maxDaysInFuture?: number;

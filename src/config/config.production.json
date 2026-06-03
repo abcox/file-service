@@ -30,11 +30,12 @@
   "booking": {
     "enabled": true,
     "includeWeekendDays": false,
+    "minBusinessDaysInFuture": 3,
     "calendarId": "c_49d7426862f60afeb3f46a25701039049d914d41bb9efb3710f63403946ed398@group.calendar.google.com",
     "timezone": "America/Toronto",
-    "maxDaysInFuture": 21,
-    "slotIntervalMinutes": 15,
-    "defaultMeetingDurationMinutes": 30,
+    "maxDaysInFuture": 31,
+    "slotIntervalMinutes": 30,
+    "defaultMeetingDurationMinutes": 20,
     "maxMinutesPerBooking": 30,
     "workingWindows": [
       { "dayOfWeek": 1, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 },

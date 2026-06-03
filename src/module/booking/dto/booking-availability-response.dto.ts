@@ -6,6 +6,9 @@ export class BookingAvailabilityResponseDto {
   @ApiProperty({ type: BookingConfigDto })
   config: BookingConfigDto;
 
+  @ApiProperty({ example: '2026-06-08' })
+  earliestBookableDate: string;
+
   @ApiProperty({ example: '2026-06-02' })
   date: string;
 

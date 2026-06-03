@@ -10,16 +10,27 @@ import { AppConfigService } from '../config/config.service';
 //import { AppConfig } from '../config/config.interface';
 import { CalendarService } from '../google/calendar/calendar.service';
 import { BookingAvailabilityResponseDto } from './dto/booking-availability-response.dto';
-import { BookingConfigDto } from './dto/booking-config.dto';
 import { BookingReserveRequestDto } from './dto/booking-reserve-request.dto';
 import { BookingReserveResponseDto } from './dto/booking-reserve-response.dto';
 import { BookingSlotDto } from './dto/booking-slot.dto';
 import { BookingWindowDto } from './dto/booking-window.dto';
 
 type BookingWindowConfig = BookingWindowDto;
-type BookingConfig = BookingConfigDto;
 type BookingSlot = BookingSlotDto;
 type BookingReserveRequest = BookingReserveRequestDto;
+
+interface BookingConfig {
+  enabled: boolean;
+  includeWeekendDays: boolean;
+  minBusinessDaysInFuture: number;
+  calendarId?: string;
+  timezone: string;
+  maxDaysInFuture: number;
+  slotIntervalMinutes: number;
+  defaultMeetingDurationMinutes: number;
+  maxMinutesPerBooking: number;
+  workingWindows: BookingWindowConfig[];
+}
 
 @Injectable()
 export class BookingService {
@@ -35,10 +46,15 @@ export class BookingService {
   private getBookingConfig(): BookingConfig {
     const config = this.appConfigService.getConfig();
     const source = config.booking;
+    const minBusinessDaysInFuture =
+      typeof source?.minBusinessDaysInFuture === 'number'
+        ? source.minBusinessDaysInFuture
+        : 2;
 
     return {
       enabled: source?.enabled ?? true,
       includeWeekendDays: source?.includeWeekendDays ?? false,
+      minBusinessDaysInFuture,
       calendarId: source?.calendarId,
       timezone: source?.timezone ?? config.api?.timeZone ?? 'America/Toronto',
       maxDaysInFuture: source?.maxDaysInFuture ?? 21,
@@ -85,9 +101,11 @@ export class BookingService {
     date?: string,
   ): Promise<BookingAvailabilityResponseDto> {
     const config = this.getBookingConfig();
+    const earliestBookableDate = this.computeEarliestBookableDate(config);
     if (!config.enabled) {
       return {
         config,
+        earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
         date: this.getDateOnlyString(new Date()),
         availableSlots: [] as BookingSlot[],
         generatedAtUtc: new Date().toISOString(),
@@ -95,8 +113,14 @@ export class BookingService {
       };
     }
 
-    const targetDate = this.resolveRequestedDate(date);
-    this.validateDateWithinRange(targetDate, config.maxDaysInFuture);
+    const targetDate = date
+      ? this.resolveRequestedDate(date)
+      : new Date(earliestBookableDate);
+    this.validateDateWithinRange(
+      targetDate,
+      config.maxDaysInFuture,
+      earliestBookableDate,
+    );
 
     const calendarId = await this.resolveCalendarId(config);
     const availableSlots = await this.computeAvailableSlotsForDate(
@@ -108,6 +132,7 @@ export class BookingService {
 
     return {
       config,
+      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
       date: this.getDateOnlyString(targetDate),
       availableSlots,
       generatedAtUtc: new Date().toISOString(),
@@ -135,7 +160,12 @@ export class BookingService {
 
     const dateOnly = this.getDateOnlyString(startDate);
     const targetDate = this.resolveRequestedDate(dateOnly);
-    this.validateDateWithinRange(targetDate, config.maxDaysInFuture);
+    const earliestBookableDate = this.computeEarliestBookableDate(config);
+    this.validateDateWithinRange(
+      targetDate,
+      config.maxDaysInFuture,
+      earliestBookableDate,
+    );
 
     const durationMinutes =
       request.durationMinutes ?? config.defaultMeetingDurationMinutes;
@@ -220,6 +250,10 @@ export class BookingService {
     calendarId: string,
     durationMinutes: number,
   ): Promise<BookingSlot[]> {
+    if (!this.isBookableDate(targetDate, config)) {
+      return [];
+    }
+
     const dayOfWeek = targetDate.getDay();
     const windows = config.workingWindows.filter(
       (window) => window.dayOfWeek === dayOfWeek,
@@ -329,18 +363,64 @@ export class BookingService {
     return value;
   }
 
-  private validateDateWithinRange(date: Date, maxDaysInFuture: number): void {
+  private validateDateWithinRange(
+    date: Date,
+    maxDaysInFuture: number,
+    earliestBookableDate?: Date,
+  ): void {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
+    const minDate = earliestBookableDate ?? now;
 
     const maxDate = new Date(now);
     maxDate.setDate(maxDate.getDate() + maxDaysInFuture);
 
-    if (date < now || date > maxDate) {
+    if (date < minDate || date > maxDate) {
       throw new BadRequestException(
-        `Requested date must be between today and ${maxDaysInFuture} days in the future.`,
+        `Requested date must be between ${this.getDateOnlyString(minDate)} and ${this.getDateOnlyString(maxDate)}.`,
       );
     }
+  }
+
+  private computeEarliestBookableDate(config: BookingConfig): Date {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const minBusinessDaysInFuture =
+      typeof config.minBusinessDaysInFuture === 'number'
+        ? config.minBusinessDaysInFuture
+        : 0;
+
+    let remainingBusinessDays = Math.max(0, minBusinessDaysInFuture);
+    const cursor = new Date(start);
+
+    for (let i = 0; i < 366; i++) {
+      if (this.isBookableDate(cursor, config)) {
+        if (remainingBusinessDays === 0) {
+          return new Date(cursor);
+        }
+
+        remainingBusinessDays -= 1;
+      }
+
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(0, 0, 0, 0);
+    }
+
+    throw new InternalServerErrorException(
+      'No bookable date could be resolved from booking configuration.',
+    );
+  }
+
+  private isBookableDate(date: Date, config: BookingConfig): boolean {
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    if (!config.includeWeekendDays && isWeekend) {
+      return false;
+    }
+
+    return config.workingWindows.some(
+      (window) => window.dayOfWeek === dayOfWeek,
+    );
   }
 
   private getDateOnlyString(date: Date): string {
