@@ -5,6 +5,7 @@ import { StripeOptions } from '../payment/stripe/stripe.service';
 export interface AppConfig {
   booking?: {
     enabled?: boolean;
+    includeWeekendDays?: boolean;
     calendarId?: string;
     timezone?: string;
     maxDaysInFuture?: number;

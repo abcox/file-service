@@ -38,6 +38,7 @@ export class BookingService {
 
     return {
       enabled: source?.enabled ?? true,
+      includeWeekendDays: source?.includeWeekendDays ?? false,
       calendarId: source?.calendarId,
       timezone: source?.timezone ?? config.api?.timeZone ?? 'America/Toronto',
       maxDaysInFuture: source?.maxDaysInFuture ?? 21,

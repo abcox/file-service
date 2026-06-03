@@ -29,6 +29,7 @@
   },
   "booking": {
     "enabled": true,
+    "includeWeekendDays": false,
     "calendarId": "c_49d7426862f60afeb3f46a25701039049d914d41bb9efb3710f63403946ed398@group.calendar.google.com",
     "timezone": "America/Toronto",
     "maxDaysInFuture": 21,
