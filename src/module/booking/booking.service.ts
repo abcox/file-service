@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { format as formatTz, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { calendar_v3 } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
 //import { AppConfig } from '../config/config.interface';
@@ -123,8 +124,11 @@ export class BookingService {
     if (!config.enabled) {
       return {
         config,
-        earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
-        date: this.getDateOnlyString(new Date()),
+        earliestBookableDate: this.getDateOnlyString(
+          earliestBookableDate,
+          config.timezone,
+        ),
+        date: this.getDateOnlyString(new Date(), config.timezone),
         availableSlots: [] as BookingSlot[],
         generatedAtUtc: new Date().toISOString(),
         message: 'Booking is currently disabled.',
@@ -132,12 +136,13 @@ export class BookingService {
     }
 
     const targetDate = date
-      ? this.resolveRequestedDate(date)
+      ? this.resolveRequestedDate(date, config.timezone)
       : new Date(earliestBookableDate);
     this.validateDateWithinRange(
       targetDate,
       config.maxDaysInFuture,
       earliestBookableDate,
+      config.timezone,
     );
 
     const calendarId = await this.resolveCalendarId(config);
@@ -151,8 +156,11 @@ export class BookingService {
     this.logger.info('Booking availability evaluated', {
       ...this.getObservabilityBase(config),
       dateQuery: date,
-      targetDate: this.getDateOnlyString(targetDate),
-      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
+      targetDate: this.getDateOnlyString(targetDate, config.timezone),
+      earliestBookableDate: this.getDateOnlyString(
+        earliestBookableDate,
+        config.timezone,
+      ),
       availableSlotsCount: availableSlots.length,
       sampleSlots: this.verboseObservability
         ? availableSlots.slice(0, 5).map((slot) => ({
@@ -166,8 +174,11 @@ export class BookingService {
 
     return {
       config,
-      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
-      date: this.getDateOnlyString(targetDate),
+      earliestBookableDate: this.getDateOnlyString(
+        earliestBookableDate,
+        config.timezone,
+      ),
+      date: this.getDateOnlyString(targetDate, config.timezone),
       availableSlots,
       generatedAtUtc: new Date().toISOString(),
     };
@@ -192,13 +203,14 @@ export class BookingService {
       throw new BadRequestException('Invalid startUtc date-time value.');
     }
 
-    const dateOnly = this.getDateOnlyString(startDate);
-    const targetDate = this.resolveRequestedDate(dateOnly);
+    const dateOnly = this.getDateOnlyString(startDate, config.timezone);
+    const targetDate = this.resolveRequestedDate(dateOnly, config.timezone);
     const earliestBookableDate = this.computeEarliestBookableDate(config);
     this.validateDateWithinRange(
       targetDate,
       config.maxDaysInFuture,
       earliestBookableDate,
+      config.timezone,
     );
 
     const durationMinutes =
@@ -226,8 +238,11 @@ export class BookingService {
       ...this.getObservabilityBase(config),
       requestStartUtc: request.startUtc,
       requestedDurationMinutes: durationMinutes,
-      targetDate: this.getDateOnlyString(targetDate),
-      earliestBookableDate: this.getDateOnlyString(earliestBookableDate),
+      targetDate: this.getDateOnlyString(targetDate, config.timezone),
+      earliestBookableDate: this.getDateOnlyString(
+        earliestBookableDate,
+        config.timezone,
+      ),
       availableSlotsCount: availableSlots.length,
       sampleSlots: this.verboseObservability
         ? availableSlots.slice(0, 5).map((slot) => ({
@@ -250,13 +265,13 @@ export class BookingService {
           ...this.getObservabilityBase(config),
           requestStartUtc: request.startUtc,
           normalizedRequestStartUtc: new Date(request.startUtc).toISOString(),
-          targetDate: this.getDateOnlyString(targetDate),
+          targetDate: this.getDateOnlyString(targetDate, config.timezone),
           availableSlotsCount: availableSlots.length,
         },
       );
       throw new ConflictException({
         message: 'The selected slot is no longer available.',
-        date: this.getDateOnlyString(targetDate),
+        date: this.getDateOnlyString(targetDate, config.timezone),
         config,
         availableSlots,
       });
@@ -328,7 +343,7 @@ export class BookingService {
       this.logger.error('Failed to reserve booking slot', error as Error, {
         ...this.getObservabilityBase(config),
         requestStartUtc: request.startUtc,
-        targetDate: this.getDateOnlyString(targetDate),
+        targetDate: this.getDateOnlyString(targetDate, config.timezone),
       });
       throw new InternalServerErrorException('Failed to reserve booking slot.');
     }
@@ -344,7 +359,7 @@ export class BookingService {
       return [];
     }
 
-    const dayOfWeek = targetDate.getDay();
+    const dayOfWeek = this.getDayOfWeek(targetDate, config.timezone);
     const windows = config.workingWindows.filter(
       (window) => window.dayOfWeek === dayOfWeek,
     );
@@ -353,10 +368,20 @@ export class BookingService {
       return [];
     }
 
-    const dayStart = new Date(targetDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(targetDate);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayStart = this.getDateTimeInTimezone(
+      targetDate,
+      0,
+      0,
+      config.timezone,
+    );
+    const dayEnd = this.getDateTimeInTimezone(
+      targetDate,
+      23,
+      59,
+      config.timezone,
+      59,
+      999,
+    );
 
     const events = await this.calendarService.getCalendarEventListInRange(
       calendarId,
@@ -373,11 +398,19 @@ export class BookingService {
         window.maxMinutesPerBooking ?? config.maxMinutesPerBooking;
       const slotDuration = Math.min(durationMinutes, maxForWindow);
 
-      const windowStart = new Date(targetDate);
-      windowStart.setHours(window.startHour24, 0, 0, 0);
+      const windowStart = this.getDateTimeInTimezone(
+        targetDate,
+        window.startHour24,
+        0,
+        config.timezone,
+      );
 
-      const windowEnd = new Date(targetDate);
-      windowEnd.setHours(window.endHour24, 0, 0, 0);
+      const windowEnd = this.getDateTimeInTimezone(
+        targetDate,
+        window.endHour24,
+        0,
+        config.timezone,
+      );
 
       for (
         let slotStartMs = windowStart.getTime();
@@ -398,7 +431,7 @@ export class BookingService {
         slots.push({
           startUtc: slotStart.toISOString(),
           endUtc: slotEnd.toISOString(),
-          startLabel: this.formatTimeLabel(slotStart),
+          startLabel: this.formatTimeLabel(slotStart, config.timezone),
           durationMinutes: slotDuration,
         });
       }
@@ -432,24 +465,22 @@ export class BookingService {
     );
   }
 
-  private formatTimeLabel(date: Date): string {
-    // TODO Option B/C: use a timezone-aware date library and format by config.timezone.
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+  private formatTimeLabel(date: Date, timezone: string): string {
+    return formatTz(date, 'h:mm a', { timeZone: timezone });
   }
 
-  private resolveRequestedDate(date?: string): Date {
-    const value = date ? new Date(`${date}T00:00:00`) : new Date();
+  private resolveRequestedDate(
+    date: string | undefined,
+    timezone: string,
+  ): Date {
+    const dateOnly = date ?? this.getDateOnlyString(new Date(), timezone);
+    const value = fromZonedTime(`${dateOnly}T00:00:00`, timezone);
     if (Number.isNaN(value.getTime())) {
       throw new BadRequestException(
         'Invalid date query value. Use YYYY-MM-DD.',
       );
     }
 
-    value.setHours(0, 0, 0, 0);
     return value;
   }
 
@@ -457,13 +488,17 @@ export class BookingService {
     date: Date,
     maxDaysInFuture: number,
     earliestBookableDate?: Date,
+    timezone?: string,
   ): void {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+    const effectiveTimezone = timezone ?? 'UTC';
+    const now = this.resolveRequestedDate(undefined, effectiveTimezone);
     const minDate = earliestBookableDate ?? now;
 
-    const maxDate = new Date(now);
-    maxDate.setDate(maxDate.getDate() + maxDaysInFuture);
+    const maxDate = this.addDaysInTimezone(
+      now,
+      maxDaysInFuture,
+      effectiveTimezone,
+    );
 
     if (date < minDate || date > maxDate) {
       throw new BadRequestException(
@@ -473,8 +508,7 @@ export class BookingService {
   }
 
   private computeEarliestBookableDate(config: BookingConfig): Date {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = this.resolveRequestedDate(undefined, config.timezone);
     const minBusinessDaysInFuture =
       typeof config.minBusinessDaysInFuture === 'number'
         ? config.minBusinessDaysInFuture
@@ -492,8 +526,8 @@ export class BookingService {
         remainingBusinessDays -= 1;
       }
 
-      cursor.setDate(cursor.getDate() + 1);
-      cursor.setHours(0, 0, 0, 0);
+      const nextDay = this.addDaysInTimezone(cursor, 1, config.timezone);
+      cursor.setTime(nextDay.getTime());
     }
 
     throw new InternalServerErrorException(
@@ -502,7 +536,7 @@ export class BookingService {
   }
 
   private isBookableDate(date: Date, config: BookingConfig): boolean {
-    const dayOfWeek = date.getDay();
+    const dayOfWeek = this.getDayOfWeek(date, config.timezone);
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     if (!config.includeWeekendDays && isWeekend) {
       return false;
@@ -513,11 +547,50 @@ export class BookingService {
     );
   }
 
-  private getDateOnlyString(date: Date): string {
+  private getDateOnlyString(date: Date, timezone?: string): string {
+    if (timezone) {
+      return formatTz(date, 'yyyy-MM-dd', { timeZone: timezone });
+    }
+
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private getDayOfWeek(date: Date, timezone: string): number {
+    return Number(formatTz(date, 'i', { timeZone: timezone })) % 7;
+  }
+
+  private getDateTimeInTimezone(
+    date: Date,
+    hour24: number,
+    minute: number,
+    timezone: string,
+    second = 0,
+    millisecond = 0,
+  ): Date {
+    const dateOnly = this.getDateOnlyString(date, timezone);
+    const hours = String(hour24).padStart(2, '0');
+    const minutes = String(minute).padStart(2, '0');
+    const seconds = String(second).padStart(2, '0');
+    const value = fromZonedTime(
+      `${dateOnly}T${hours}:${minutes}:${seconds}`,
+      timezone,
+    );
+
+    if (millisecond !== 0) {
+      value.setUTCMilliseconds(millisecond);
+    }
+
+    return value;
+  }
+
+  private addDaysInTimezone(date: Date, days: number, timezone: string): Date {
+    const zonedDate = toZonedTime(date, timezone);
+    zonedDate.setHours(0, 0, 0, 0);
+    zonedDate.setDate(zonedDate.getDate() + days);
+    return fromZonedTime(zonedDate, timezone);
   }
 
   private async resolveCalendarId(config: BookingConfig): Promise<string> {
