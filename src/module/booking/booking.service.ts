@@ -4,7 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { format as formatTz, fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { calendar_v3 } from 'googleapis';
 import { AppConfigService } from '../config/config.service';
 //import { AppConfig } from '../config/config.interface';
@@ -466,7 +466,7 @@ export class BookingService {
   }
 
   private formatTimeLabel(date: Date, timezone: string): string {
-    return formatTz(date, 'h:mm a', { timeZone: timezone });
+    return formatInTimeZone(date, timezone, 'h:mm a');
   }
 
   private resolveRequestedDate(
@@ -549,7 +549,7 @@ export class BookingService {
 
   private getDateOnlyString(date: Date, timezone?: string): string {
     if (timezone) {
-      return formatTz(date, 'yyyy-MM-dd', { timeZone: timezone });
+      return formatInTimeZone(date, timezone, 'yyyy-MM-dd');
     }
 
     const year = date.getFullYear();
@@ -559,7 +559,7 @@ export class BookingService {
   }
 
   private getDayOfWeek(date: Date, timezone: string): number {
-    return Number(formatTz(date, 'i', { timeZone: timezone })) % 7;
+    return toZonedTime(date, timezone).getDay();
   }
 
   private getDateTimeInTimezone(
