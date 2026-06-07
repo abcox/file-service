@@ -108,7 +108,19 @@ export interface AppConfig {
   };
   logging: {
     level: 'error' | 'warn' | 'info' | 'debug' | 'verbose';
-    enableConsole: boolean;
+    consoleEnabled: boolean;
+    file: {
+      enabled: boolean;
+      path: string;
+      // These modes describe what happens at startup and as the current log file grows.
+      mode: 'clean' | 'rolling-size';
+      roll: {
+        strategy: 'size';
+        maxSizeBytes: number;
+        maxFiles: number;
+        tailable?: boolean;
+      };
+    };
     azureMonitor?: {
       connectionString?: string;
     };

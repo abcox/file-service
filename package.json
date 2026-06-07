@@ -12,7 +12,6 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
-    "start:dev:log": "powershell -ExecutionPolicy Bypass -File start-dev-log.ps1",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "start:azure": "./startup.sh",

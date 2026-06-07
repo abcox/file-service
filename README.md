@@ -56,6 +56,22 @@ env/
 └── config.production.json  ← Production settings
 ```
 
+### Config File Resolution (Current Runtime Behavior)
+
+Actual runtime loading is based on `NODE_ENV` and file presence:
+
+1. `NODE_ENV=development|test`:
+  - First: `src/config/config.local-dev.json` (gitignored, machine-local secrets/settings)
+  - Fallback: `src/config/config.json` (committed baseline/default)
+2. `NODE_ENV=production`:
+  - Loads: `dist/config.json`
+  - This file is produced by build/deploy steps from an environment source (commonly `src/config/config.production.json`)
+
+In short:
+- `config.local-dev.json` = your private local override
+- `config.json` = default committed baseline
+- `config.production.json` = production source template used to generate `dist/config.json`
+
 ### Environment Variables
 
 **Basic (.env file):**
