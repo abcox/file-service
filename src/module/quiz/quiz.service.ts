@@ -1,8 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Error as MongooseError } from 'mongoose';
+import { z } from 'zod';
 import { Quiz } from '../db/doc/entity/quiz/quiz';
 import { quizSeed } from '../db/doc/seed/quiz-seed';
+
+const quizImportOptionSchema = z.object({
+  id: z.number(),
+  content: z.string().min(1),
+  archetypeId: z.number(),
+  context: z.string().min(1),
+});
+
+const quizImportQuestionSchema = z.object({
+  id: z.number(),
+  content: z.string().min(1),
+  dimension: z.string().min(1),
+  options: z.array(quizImportOptionSchema).min(1),
+});
+
+const quizImportSchema = z.object({
+  title: z.string().min(1),
+  questions: z.array(quizImportQuestionSchema).min(1),
+});
 
 @Injectable()
 export class QuizService {
@@ -33,6 +53,71 @@ export class QuizService {
     }
   }
 
+  async importFromJson(payload: unknown, upsert = true): Promise<Quiz> {
+    // 1) Validate the incoming payload shape before touching persistence.
+    const parsed = quizImportSchema.safeParse(payload);
+    if (!parsed.success) {
+      const issueSummary = parsed.error.issues
+        .map((issue) => {
+          const issuePath = issue.path.join('.') || 'root';
+          return `${issuePath}: ${issue.message}`;
+        })
+        .join('; ');
+      throw new Error(`Invalid quiz import payload: ${issueSummary}`);
+    }
+
+    // 2) Normalize to the current Quiz domain shape used by the service.
+    const quizData = parsed.data as Omit<
+      Quiz,
+      '_id' | 'createdAt' | 'updatedAt'
+    >;
+
+    // 3) Enforce domain-level integrity rules that are easier to read here
+    // than relying on DB validation errors alone.
+    this.assertUniqueQuestionAndOptionIds(quizData);
+
+    // 4) Optional create-only mode: fail if title already exists.
+    if (!upsert) {
+      return this.createQuiz(quizData);
+    }
+
+    try {
+      // 5) Upsert mode: update by title if found, otherwise insert.
+      this.logger.log(
+        `Importing quiz via upsert with title: ${quizData.title}`,
+      );
+
+      const upsertedQuiz = await this.quizModel
+        .findOneAndUpdate(
+          { title: quizData.title },
+          { $set: quizData },
+          {
+            new: true,
+            upsert: true,
+            runValidators: true,
+            setDefaultsOnInsert: true,
+          },
+        )
+        .exec();
+
+      if (!upsertedQuiz) {
+        // Defensive guard: findOneAndUpdate should return a document when
+        // new=true + upsert=true, but keep this for explicit failure handling.
+        throw new Error('Quiz upsert returned no document');
+      }
+
+      return upsertedQuiz;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(
+        `Failed to import quiz with title '${quizData.title}'`,
+        errorMessage,
+      );
+      throw new Error(`Failed to import quiz: ${errorMessage}`);
+    }
+  }
+
   async getQuizByTitle(title: string): Promise<Quiz | null> {
     try {
       this.logger.log(`Fetching quiz with title: ${title}`);
@@ -53,6 +138,29 @@ export class QuizService {
         errorMessage,
       );
       throw new Error(`Failed to fetch quiz: ${errorMessage}`);
+    }
+  }
+
+  private assertUniqueQuestionAndOptionIds(
+    quizData: Omit<Quiz, '_id' | 'createdAt' | 'updatedAt'>,
+  ): void {
+    const questionIds = new Set<number>();
+
+    for (const question of quizData.questions) {
+      if (questionIds.has(question.id)) {
+        throw new Error(`Duplicate question id found: ${question.id}`);
+      }
+      questionIds.add(question.id);
+
+      const optionIds = new Set<number>();
+      for (const option of question.options) {
+        if (optionIds.has(option.id)) {
+          throw new Error(
+            `Duplicate option id ${option.id} found in question id ${question.id}`,
+          );
+        }
+        optionIds.add(option.id);
+      }
     }
   }
 

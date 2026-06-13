@@ -25,6 +25,52 @@ import { CreateQuizDto } from './dto/create-quiz.dto';
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
+  @Post('import')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Import quiz from validated JSON payload' })
+  @ApiQuery({
+    name: 'upsert',
+    required: false,
+    description:
+      'When true, update existing quiz by title or create if missing',
+  })
+  @ApiBody({ description: 'Quiz JSON payload to import' })
+  @ApiResponse({ status: 201, description: 'Quiz imported successfully' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid payload or import failure',
+  })
+  async importQuizFromJson(
+    @Body() payload: unknown,
+    @Query('upsert') upsert?: string,
+  ): Promise<QuizResponseDto> {
+    try {
+      const shouldUpsert =
+        upsert === undefined ? true : upsert.toLowerCase() === 'true';
+
+      const importedQuiz = await this.quizService.importFromJson(
+        payload,
+        shouldUpsert,
+      );
+
+      const response = new QuizResponseDto();
+      response.success = true;
+      response.message = shouldUpsert
+        ? 'Quiz imported successfully (upsert)'
+        : 'Quiz imported successfully (create)';
+      response.data = importedQuiz;
+      return response;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const response = new QuizResponseDto();
+      response.success = false;
+      response.message = errorMessage;
+      response.errors = [errorMessage];
+      return response;
+    }
+  }
+
   @Post('generate-seed')
   @Auth({ roles: ['admin'] })
   @ApiOperation({ summary: 'Generate and seed quiz data into Cosmos DB' })
