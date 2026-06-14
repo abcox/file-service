@@ -137,6 +137,28 @@ export class QuizController {
     }
   }
 
+  @Get(':id')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Get quiz by ID' })
+  @ApiResponse({
+    type: QuizResponseDto,
+    status: 200,
+    description: 'Quiz found',
+  })
+  @ApiResponse({
+    type: QuizResponseDto,
+    status: 404,
+    description: 'Quiz not found',
+  })
+  async getQuizById(@Param('id') id: string): Promise<QuizResponseDto> {
+    const quiz = await this.quizService.getQuizById(id);
+    const response = new QuizResponseDto();
+    response.success = !!quiz;
+    response.message = quiz ? `Quiz found` : `Quiz not found with id: ${id}`;
+    response.data = quiz || undefined;
+    return response;
+  }
+
   @Post('create')
   @Auth({ /* public: true ,*/ roles: ['admin'] })
   @ApiOperation({ summary: 'Create a new quiz' })

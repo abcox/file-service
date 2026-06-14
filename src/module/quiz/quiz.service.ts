@@ -118,6 +118,26 @@ export class QuizService {
     }
   }
 
+  async getQuizById(id: string): Promise<Quiz | null> {
+    try {
+      this.logger.log(`Fetching quiz with id: ${id}`);
+      const quiz = await this.quizModel.findById(id).exec();
+
+      if (!quiz) {
+        this.logger.warn(`Quiz with id '${id}' not found`);
+        return null;
+      }
+
+      this.logger.log(`Quiz found: ${quiz.title}`);
+      return quiz;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to fetch quiz by id '${id}'`, errorMessage);
+      throw new Error(`Failed to fetch quiz: ${errorMessage}`);
+    }
+  }
+
   async getQuizByTitle(title: string): Promise<Quiz | null> {
     try {
       this.logger.log(`Fetching quiz with title: ${title}`);
