@@ -226,6 +226,61 @@ export class QuizService {
     }
   }
 
+  async updateQuizById(
+    id: string,
+    quizData: Omit<Quiz, '_id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Quiz> {
+    try {
+      this.logger.log(`Updating quiz with ID: ${id}`);
+
+      const existingQuiz = await this.quizModel.findById(id).exec();
+      if (!existingQuiz) {
+        this.logger.warn(`Quiz with ID '${id}' not found`);
+        throw new Error(`Quiz with ID '${id}' not found`);
+      }
+
+      const titleConflict = await this.quizModel
+        .findOne({ title: quizData.title, _id: { $ne: id } })
+        .exec();
+      if (titleConflict) {
+        this.logger.warn(`Quiz title '${quizData.title}' already exists`);
+        throw new Error(`Quiz with title '${quizData.title}' already exists`);
+      }
+
+      const updatedQuiz = await this.quizModel
+        .findByIdAndUpdate(
+          id,
+          { $set: quizData },
+          {
+            new: true,
+            runValidators: true,
+          },
+        )
+        .exec();
+
+      if (!updatedQuiz) {
+        throw new Error(`Quiz with ID '${id}' not found`);
+      }
+
+      this.logger.log(`Quiz with ID '${id}' updated successfully`);
+      return updatedQuiz;
+    } catch (error) {
+      if (error instanceof MongooseError.ValidationError) {
+        const validationErrors = Object.values(error.errors).map(
+          (err) => err.message,
+        );
+        const errorMessage = `Validation failed: ${validationErrors.join(', ')}`;
+        this.logger.warn(`Quiz update validation failed: ${errorMessage}`);
+        throw new Error(errorMessage);
+      }
+
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to update quiz with ID '${id}'`, errorMessage);
+      throw new Error(`Failed to update quiz: ${errorMessage}`);
+    }
+  }
+
   async deleteQuiz(id: string): Promise<{ message: string }> {
     try {
       this.logger.log(`Attempting to delete quiz with ID: ${id}`);

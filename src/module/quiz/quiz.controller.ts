@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Put,
   Get,
   Delete,
   Query,
@@ -176,6 +177,35 @@ export class QuizController {
       response.success = true;
       response.message = 'Quiz created successfully';
       response.data = newQuiz;
+      return response;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const response = new QuizResponseDto();
+      response.success = false;
+      response.message = errorMessage;
+      response.errors = [errorMessage];
+      return response;
+    }
+  }
+
+  @Put(':id')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Update an existing quiz by ID' })
+  @ApiBody({ description: 'Quiz data to update' })
+  @ApiResponse({ status: 200, description: 'Quiz updated successfully' })
+  @ApiResponse({ status: 404, description: 'Quiz not found' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation failed' })
+  async updateQuizById(
+    @Param('id') id: string,
+    @Body() quizData: CreateQuizDto,
+  ): Promise<QuizResponseDto> {
+    try {
+      const updatedQuiz = await this.quizService.updateQuizById(id, quizData);
+      const response = new QuizResponseDto();
+      response.success = true;
+      response.message = 'Quiz updated successfully';
+      response.data = updatedQuiz;
       return response;
     } catch (error) {
       const errorMessage =
