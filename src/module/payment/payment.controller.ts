@@ -14,6 +14,7 @@ import { ProductDto } from './dto/product.dto';
 import { ProductCreateDto } from './dto/product-create.dto';
 import { ProductDetailDto } from './dto/product-detail.dto';
 import {
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiProperty,
@@ -25,12 +26,104 @@ import { CustomerCreateRequestDto } from './dto/customer-create-request.dto';
 import { PaymentIntentCreateRequestDto } from './dto/payment-intent-create-request.dto';
 import { PaymentMethodListRequestDto } from './dto/payment-method-list-request.dto';
 import { PaymentIntentListResponseDto } from './dto/payment-intent-list-response.dto';
+import {
+  CheckoutDraftCreateRequestDto,
+  CheckoutDraftResponseDto,
+  CheckoutDraftUpdateRequestDto,
+  CheckoutInitRequestDto,
+  CheckoutInitResponseDto,
+  CheckoutStatusResponseDto,
+} from './dto/checkout.dto';
+import { PublicCatalogResponseDto } from './dto/public-catalog-response.dto';
+import { PaymentCheckoutService } from './payment-checkout.service';
 
 @Controller('payment')
 export class PaymentController {
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(
+    private readonly stripeService: StripeService,
+    private readonly paymentCheckoutService: PaymentCheckoutService,
+  ) {}
 
   //#region Public APIs
+
+  //#region Public Checkout APIs
+
+  @Get('catalog/public')
+  @Auth({ public: true })
+  @ApiOperation({ description: 'Get active sellable catalog items' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sellable catalog items',
+    type: PublicCatalogResponseDto,
+  })
+  async getPublicCatalog(): Promise<PublicCatalogResponseDto> {
+    return await this.paymentCheckoutService.getPublicCatalog();
+  }
+
+  @Post('checkout/draft')
+  @Auth({ public: true })
+  @ApiOperation({ description: 'Create a checkout draft' })
+  @ApiBody({ type: CheckoutDraftCreateRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Checkout draft created',
+    type: CheckoutDraftResponseDto,
+  })
+  createCheckoutDraft(
+    @Body() request: CheckoutDraftCreateRequestDto,
+  ): CheckoutDraftResponseDto {
+    return this.paymentCheckoutService.createDraft(request);
+  }
+
+  @Post('checkout/draft/:id/update')
+  @Auth({ public: true })
+  @ApiOperation({ description: 'Update a checkout draft' })
+  @ApiBody({ type: CheckoutDraftUpdateRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Checkout draft updated',
+    type: CheckoutDraftResponseDto,
+  })
+  updateCheckoutDraft(
+    @Param('id') id: string,
+    @Body() request: CheckoutDraftUpdateRequestDto,
+  ): CheckoutDraftResponseDto {
+    return this.paymentCheckoutService.updateDraft(id, request);
+  }
+
+  @Post('checkout/init')
+  @Auth({ public: true })
+  @ApiOperation({
+    description:
+      'Initialize checkout: validate draft, compute total, and create payment intent',
+  })
+  @ApiBody({ type: CheckoutInitRequestDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Checkout initialized for payment',
+    type: CheckoutInitResponseDto,
+  })
+  async initializeCheckout(
+    @Body() request: CheckoutInitRequestDto,
+  ): Promise<CheckoutInitResponseDto> {
+    return await this.paymentCheckoutService.initializeCheckout(request);
+  }
+
+  @Get('checkout/:id/status')
+  @Auth({ public: true })
+  @ApiOperation({ description: 'Get public-safe checkout status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Checkout status',
+    type: CheckoutStatusResponseDto,
+  })
+  async getCheckoutStatus(
+    @Param('id') id: string,
+  ): Promise<CheckoutStatusResponseDto> {
+    return await this.paymentCheckoutService.getCheckoutStatus(id);
+  }
+
+  //#endregion Public Checkout APIs
 
   @Get('balance/detail')
   @ApiOperation({ description: 'Get balance detail' })

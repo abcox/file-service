@@ -18,6 +18,8 @@ export interface StripeOptions {
   version: string;
 }
 
+type ExpandableWithId = { id: string };
+
 @Injectable()
 export class StripeService implements DiagnosticProvider {
   private _stripe: Stripe | null = null;
@@ -29,6 +31,18 @@ export class StripeService implements DiagnosticProvider {
   ) {
     // Register with diagnostic service
     this.diagnosticService.registerProvider('stripe', this);
+  }
+
+  /**
+   * Safely resolve a Stripe expandable field to its id string.
+   * Stripe returns expandable fields as either a plain id string or a fully
+   * expanded object. Always use this to extract the id safely.
+   */
+  public static getNormalizedStripeObjectId(
+    value: string | ExpandableWithId | null | undefined,
+  ): string | undefined {
+    if (!value) return undefined;
+    return typeof value === 'string' ? value : value.id;
   }
 
   /**
