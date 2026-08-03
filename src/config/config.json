@@ -45,6 +45,14 @@
       { "dayOfWeek": 5, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 }
     ]
   },
+  "scheduler": {
+    "enabled": true,
+    "heartbeat": {
+      "enabled": true,
+      "cron": "*/5 * * * *",
+      "timeZone": "America/New_York"
+    }
+  },
   "azure": {
     "tenantId": "a7f7a08d-4e79-4d3d-812f-10bd18abbcfb",
     "subscriptionId": "236217f7-0ad4-4dd6-8553-dc4b574fd2c5",

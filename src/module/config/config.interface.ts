@@ -3,6 +3,14 @@ import { GptConfig } from '../gpt/gpt.service';
 import { StripeOptions } from '../payment/stripe/stripe.service';
 
 export interface AppConfig {
+  scheduler?: {
+    enabled?: boolean;
+    heartbeat?: {
+      enabled?: boolean;
+      cron?: string;
+      timeZone?: string;
+    };
+  };
   booking?: {
     enabled?: boolean;
     includeWeekendDays?: boolean;

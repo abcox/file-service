@@ -25,6 +25,7 @@ import { CalendarModule } from '../google/calendar/calendar.module';
 import { PaymentModule } from '../payment/payment.module';
 import { DiagnosticModule } from '../diagnostic/diagnostic.module';
 import { BookingModule } from '../booking/booking.module';
+import { SchedulerAppModule } from '../scheduler/scheduler.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { BookingModule } from '../booking/booking.module';
     PaymentModule,
     DiagnosticModule,
     BookingModule,
+    SchedulerAppModule,
   ],
   controllers: [AppController, ConfigController],
   providers: [AppService],

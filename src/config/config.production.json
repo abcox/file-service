@@ -45,6 +45,14 @@
       { "dayOfWeek": 5, "startHour24": 9, "endHour24": 11, "maxMinutesPerBooking": 30 }
     ]
   },
+  "scheduler": {
+    "enabled": true,
+    "heartbeat": {
+      "enabled": true,
+      "cron": "*/5 * * * *",
+      "timeZone": "America/New_York"
+    }
+  },
   "info": {
     "name": "Vorba File Service",
     "description": "A file service supporting local and Azure Blob Storage - v1.0.0003",

@@ -278,6 +278,10 @@ Implementation details, rollout phases, and PoC testing strategy are documented 
 - **Update examples** when patterns evolve
 - **Keep this guide current** with actual codebase
 
+For queued architecture and technical backlog items, see [docs/ROADMAP.md](docs/ROADMAP.md).
+
+For background processing and cron-style service design choices, see [docs/SCHEDULED_SERVICE_OPTIONS.md](docs/SCHEDULED_SERVICE_OPTIONS.md).
+
 ---
 
 ## Pattern Examples from Codebase

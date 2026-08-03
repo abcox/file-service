@@ -1,11 +1,46 @@
 # Development Roadmap
 
 ## Table of Contents
+- [Backlog](#backlog)
 - [Code Organization](#code-organization)
 
 ## Related Roadmaps
 
 - Logging and observability roadmap: [LOGGING_AND_OBSERVABILITY_ROADMAP.md](LOGGING_AND_OBSERVABILITY_ROADMAP.md)
+
+## Backlog
+
+This section acts as the lightweight project backlog for architectural and technical improvements.
+
+Status legend:
+- `proposed`: idea captured, not yet planned
+- `planned`: accepted and queued for implementation
+- `in-progress`: currently being implemented
+- `done`: implemented and verified
+
+| ID | Priority | Status | Title | Summary |
+|---|---|---|---|---|
+| ARCH-001 | High | proposed | Promote timezone to system scope | Move timezone default from API scope to a system-level config and keep scheduler-level timezone as an explicit override. |
+
+### Backlog Details
+
+#### ARCH-001: Promote timezone to system scope
+
+Problem:
+- `api.timeZone` is currently used beyond API concerns, including scheduler behavior.
+- This creates ambiguous ownership because timezone is a cross-cutting system concern, not only an API concern.
+
+Proposed direction:
+- Introduce `system.timeZone` as the global default timezone.
+- Keep `scheduler.heartbeat.timeZone` as an optional module-level override.
+- Migrate scheduler fallback behavior to use `system.timeZone` first.
+- Deprecate `api.timeZone` after a migration window.
+
+Acceptance criteria:
+- Scheduler uses `scheduler.heartbeat.timeZone` when present.
+- Scheduler falls back to `system.timeZone` when scheduler timezone is not set.
+- API and other modules use `system.timeZone` as default where timezone is needed.
+- Configuration docs include migration notes and deprecation guidance for `api.timeZone`.
 
 ## Code Organization
 
