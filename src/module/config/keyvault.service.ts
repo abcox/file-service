@@ -32,6 +32,40 @@ export class KeyVaultService {
 
     try {
       const credential = new DefaultAzureCredential();
+      void credential
+        .getToken('https://vault.azure.net/.default')
+        .then((token) => {
+          if (token) {
+            this.logger.info('Key Vault authentication successful', {
+              vaultUrl,
+              tokenExpiresOn: new Date(token.expiresOnTimestamp).toISOString(),
+            });
+          } else {
+            this.logger.error(
+              'Key Vault authentication failed - no token received',
+              undefined,
+              this.buildCredentialGuidanceContext(vaultUrl),
+            );
+          }
+        })
+        .catch((error: unknown) => {
+          const guidance = this.buildCredentialGuidanceContext(vaultUrl, error);
+          const aadstsCode =
+            this.extractAadstsCode(
+              error instanceof Error ? error.message : String(error),
+            ) || 'unknown';
+
+          const message =
+            aadstsCode === 'AADSTS7000222'
+              ? 'Key Vault authentication failed: expired client secret detected (AADSTS7000222)'
+              : 'Key Vault authentication failed during token acquisition (for unknown or undefined reasons)';
+
+          this.logger.error(
+            message,
+            error instanceof Error ? error : new Error(String(error)),
+            guidance,
+          );
+        });
       this.secretClient = new SecretClient(vaultUrl, credential);
     } catch (error) {
       this.logger.error(
@@ -332,5 +366,55 @@ export class KeyVaultService {
    */
   private configPathToSecretName(path: string): string {
     return path.split('.').join('--');
+  }
+
+  private extractAadstsCode(message: string): string | null {
+    const match = message.match(/AADSTS\d{7}/i);
+    return match ? match[0].toUpperCase() : null;
+  }
+
+  private buildAppRegistrationCredentialsUrl(clientId?: string): string | null {
+    if (!clientId) {
+      return null;
+    }
+
+    return `https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Credentials/appId/${clientId}`;
+  }
+
+  private buildCredentialGuidanceContext(
+    vaultUrl: string,
+    error?: unknown,
+  ): Record<string, unknown> {
+    const clientId = process.env.AZURE_CLIENT_ID;
+    const tenantId = process.env.AZURE_TENANT_ID;
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : error
+          ? JSON.stringify(error)
+          : '';
+    const aadstsCode = errorMessage
+      ? this.extractAadstsCode(errorMessage)
+      : null;
+
+    return {
+      vaultUrl,
+      aadstsCode,
+      hasAzureClientId: !!clientId,
+      hasAzureTenantId: !!tenantId,
+      hasAzureClientSecret: !!process.env.AZURE_CLIENT_SECRET,
+      appRegistrationClientId: clientId || null,
+      appRegistrationCredentialsUrl:
+        this.buildAppRegistrationCredentialsUrl(clientId),
+      remediation:
+        aadstsCode === 'AADSTS7000222'
+          ? 'Client secret appears expired. Create a new secret in App Registration > Certificates & secrets, update AZURE_CLIENT_SECRET in App Service settings, then restart the app.'
+          : 'Verify AZURE_CLIENT_ID, AZURE_TENANT_ID, and AZURE_CLIENT_SECRET (or Managed Identity), then confirm Key Vault access permissions.',
+      docs: {
+        newClientSecret: 'https://aka.ms/NewClientSecret',
+        envCredentialTroubleshooting:
+          'https://aka.ms/azsdk/js/identity/environmentcredential/troubleshoot',
+      },
+    };
   }
 }
