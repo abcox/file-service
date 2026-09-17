@@ -21,6 +21,7 @@ Status legend:
 | ID | Priority | Status | Title | Summary |
 |---|---|---|---|---|
 | ARCH-001 | High | proposed | Promote timezone to system scope | Move timezone default from API scope to a system-level config and keep scheduler-level timezone as an explicit override. |
+| ARCH-002 | High | proposed | Move scheduler jobs to code-first defaults with DB overrides | Define job defaults in code, use DB records as runtime overrides, and reconcile missing/deprecated jobs on startup without overwriting existing operator-managed schedule values. |
 
 ### Backlog Details
 
@@ -41,6 +42,27 @@ Acceptance criteria:
 - Scheduler falls back to `system.timeZone` when scheduler timezone is not set.
 - API and other modules use `system.timeZone` as default where timezone is needed.
 - Configuration docs include migration notes and deprecation guidance for `api.timeZone`.
+
+#### ARCH-002: Move scheduler jobs to code-first defaults with DB overrides
+
+Problem:
+- Scheduler job identity currently comes from code registration, while schedule defaults still depend on external config and DB state.
+- Startup reconciliation currently syncs registered jobs into the DB metadata store, but it does not yet treat code as the source of truth for default `enabled`, `cron`, and `timeZone`.
+- The next scheduler admin/editor flow needs a stable persisted view of current runtime config without losing code-owned defaults.
+
+Proposed direction:
+- Extend the scheduler job contract so each job implementation declares its default schedule in code.
+- Use the DB job config collection as the persisted override layer and runtime view for operators.
+- On startup, reconcile registered job implementations into the DB by creating missing records, refreshing code-owned metadata, and deprecating removed jobs.
+- Do not overwrite existing DB schedule values during startup reconciliation unless an explicit reset-to-default action is requested.
+- Reduce `scheduler.jobs` config JSON to a transitional bootstrap role and remove it as the long-term primary source once code defaults are in place.
+
+Acceptance criteria:
+- Each registered scheduler job exposes code-owned default schedule values.
+- Startup reconciliation creates missing DB records from implementation defaults.
+- Startup reconciliation updates code-owned metadata such as `jobKey`, `jobName`, and `description` without overwriting existing DB `enabled`, `cron`, or `timeZone` values.
+- Effective runtime scheduling resolves from code defaults first and then overlays DB overrides.
+- Deprecated DB records remain visible for audit purposes but are not scheduled.
 
 ## Code Organization
 

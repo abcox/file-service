@@ -51,6 +51,26 @@
       "enabled": true,
       "cron": "*/5 * * * *",
       "timeZone": "America/New_York"
+    },
+    "jobs": [
+      {
+        "name": "funnel.invite-pilot",
+        "enabled": false,
+        "cron": "0 */4 * * *",
+        "timeZone": "America/New_York"
+      }
+    ]
+  },
+  "funnel": {
+    "invitation": {
+      "enabled": false,
+      "recipientEmail": "",
+      "senderEmail": "",
+      "funnelBaseUrl": "https://vorba.com/funnel",
+      "campaignType": "email",
+      "campaignId": "invite-pilot",
+      "channel": "campaign",
+      "subjectPrefix": "[PILOT]"
     }
   },
   "info": {

@@ -49,6 +49,11 @@ Best fit:
 
 ### Option 1 Configuration (In-Process Scheduler)
 
+Current implementation note:
+- The in-process scheduler work has now started in `file-service` with code-registered jobs, DB-backed job config records, and admin endpoints for status/reload/manual execution.
+- The current implementation is still transitional: heartbeat and job schedule defaults are partly config-driven, while job identity and behavior are code-driven.
+- The intended direction is code-first job defaults with DB-backed runtime overrides and a future job-config admin/editor experience.
+
 Current configuration location:
 - [src/config/config.json](../src/config/config.json)
 - [src/config/config.production.json](../src/config/config.production.json)
@@ -71,6 +76,19 @@ Field reference:
 - `scheduler.heartbeat.enabled`: enables the heartbeat job used to verify scheduler activity.
 - `scheduler.heartbeat.cron`: cron expression used by the in-process scheduler.
 - `scheduler.heartbeat.timeZone`: timezone used to interpret the cron expression.
+
+Job configuration direction:
+- Job implementations should become the source of truth for default job identity and default schedule values.
+- The DB job config collection should become the persisted override layer and the current operational view of job configuration.
+- Startup reconciliation should create missing DB config records from code defaults, refresh code-owned metadata, and mark removed jobs as deprecated.
+- Startup reconciliation should not overwrite an existing DB schedule override unless an operator explicitly resets that job back to implementation defaults.
+- The `scheduler.jobs` block in config JSON should be treated as transitional bootstrap input and retired as the primary source once all job defaults are expressed in code.
+
+Recommended target model:
+1. Code owns `jobKey`, `jobName`, `description`, and default `enabled` / `cron` / `timeZone`.
+2. DB owns operator overrides and the editable runtime view.
+3. Scheduler startup reconciles code into DB additively, without destroying existing overrides.
+4. Admin tooling can safely edit the DB layer while preserving a reset path back to code defaults.
 
 Cron format notes:
 - Uses standard 5-field cron format: `minute hour day-of-month month day-of-week`.

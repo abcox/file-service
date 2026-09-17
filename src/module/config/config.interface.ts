@@ -2,14 +2,53 @@ import { GoogleApis } from '../google/google.config';
 import { GptConfig } from '../gpt/gpt.service';
 import { StripeOptions } from '../payment/stripe/stripe.service';
 
+export interface SchedulerJobConfig {
+  name: string;
+  enabled?: boolean;
+  cron?: string;
+  timeZone?: string;
+}
+
+export interface SchedulerHeartbeatConfig {
+  enabled?: boolean;
+  cron?: string;
+  timeZone?: string;
+}
+
+export interface SchedulerInvitePilotConfig {
+  enabled?: boolean;
+  recipientEmail?: string;
+  senderEmail?: string;
+  funnelBaseUrl?: string;
+  campaignType?: string;
+  campaignId?: string;
+  channel?: 'campaign' | 'organic';
+  subjectPrefix?: string;
+}
+
+export interface FunnelInvitationConfig {
+  enabled?: boolean;
+  recipientEmail?: string;
+  senderEmail?: string;
+  funnelBaseUrl?: string;
+  campaignType?: string;
+  campaignId?: string;
+  channel?: 'campaign' | 'organic';
+  subjectPrefix?: string;
+}
+
+export interface SchedulerConfig {
+  enabled?: boolean;
+  heartbeat?: SchedulerHeartbeatConfig;
+  jobs?: SchedulerJobConfig[];
+  // Legacy location for invite pilot config. Prefer funnel.invitation.
+  invitePilot?: SchedulerInvitePilotConfig;
+}
+
 export interface AppConfig {
-  scheduler?: {
-    enabled?: boolean;
-    heartbeat?: {
-      enabled?: boolean;
-      cron?: string;
-      timeZone?: string;
-    };
+  scheduler?: SchedulerConfig;
+  funnel?: {
+    invitation?: FunnelInvitationConfig;
   };
   booking?: {
     enabled?: boolean;
