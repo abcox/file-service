@@ -34,11 +34,16 @@ export class UserService {
   async createUser(createUserDto: CreateUserDto): Promise<UserDto> {
     // Hash the password before creating user
     const passwordHash = Buffer.from(createUserDto.password).toString('base64');
+    const normalizedAccess = this.normalizeAccessFields(
+      createUserDto.roles ?? [],
+      false,
+    );
 
     const user = await this.userDb.createUser({
       ...createUserDto,
       passwordHash,
-      roles: createUserDto.roles || ['user'],
+      isAdmin: normalizedAccess.isAdmin,
+      roles: normalizedAccess.roles.length ? normalizedAccess.roles : ['user'],
     });
 
     return UserMapper.toSafeDto(user);
@@ -101,7 +106,24 @@ export class UserService {
     updateUserDto: UpdateUserDto,
   ): Promise<UserUpdateResponse> {
     try {
-      const result = await this.userDb.updateUser(userId, updateUserDto);
+      const currentUser = await this.userDb.getUserById(userId);
+      if (!currentUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      const mergedRoles = updateUserDto.roles ?? currentUser.roles ?? [];
+      const normalizedAccess = this.normalizeAccessFields(
+        mergedRoles,
+        updateUserDto.isAdmin ?? currentUser.isAdmin,
+      );
+
+      const normalizedUpdate: UpdateUserDto = {
+        ...updateUserDto,
+        isAdmin: normalizedAccess.isAdmin,
+        roles: normalizedAccess.roles,
+      };
+
+      const result = await this.userDb.updateUser(userId, normalizedUpdate);
       if ((result.affected ?? 0) === 0) {
         throw new NotFoundException('User not found');
       }
@@ -164,6 +186,8 @@ export class UserService {
         throw new NotFoundException('User not found or already inactive');
       }
 
+      await this.authService.revokeRefreshToken(userId);
+
       const user = await this.userDb.getUserById(userId);
       if (!user) {
         throw new NotFoundException('User not found after deactivation');
@@ -171,7 +195,7 @@ export class UserService {
 
       return {
         success: true,
-        message: 'User deactivated successfully',
+        message: 'User deactivated successfully and refresh tokens revoked',
         data: UserMapper.toSafeDto(user),
       };
     } catch (error) {
@@ -186,5 +210,20 @@ export class UserService {
 
   async deleteUser(userId: string): Promise<void> {
     await this.userDb.deleteUser(userId);
+  }
+
+  private normalizeAccessFields(
+    roles: string[] | undefined,
+    isAdmin: boolean,
+  ): { roles: string[]; isAdmin: boolean } {
+    const normalizedRoles = Array.from(new Set(roles ?? [])).filter(Boolean);
+    const shouldBeAdmin = isAdmin || normalizedRoles.includes('admin');
+
+    return {
+      isAdmin: shouldBeAdmin,
+      roles: shouldBeAdmin
+        ? Array.from(new Set([...normalizedRoles, 'admin']))
+        : normalizedRoles.filter((role) => role !== 'admin'),
+    };
   }
 }

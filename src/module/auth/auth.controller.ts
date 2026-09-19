@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Req } from '@nestjs/common';
 import {
   ApiBody,
   ApiExcludeEndpoint,
@@ -17,6 +17,14 @@ import {
 } from './dto/refresh-token.dto';
 import { UserEntity } from '../../database/entities/user.entity';
 import { UserSearchRequest } from './dto/user/user-search-request.dto';
+import { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    sub?: string;
+    roles?: string[];
+  };
+}
 
 @Controller('auth')
 export class AuthController {
@@ -83,6 +91,7 @@ export class AuthController {
         success: true,
         message: 'Token refreshed successfully',
         accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
       };
     } catch (error) {
       console.error('Token refresh failed:', error);
@@ -90,8 +99,72 @@ export class AuthController {
         success: false,
         message: (error as Error).message || 'Token refresh failed',
         accessToken: '',
+        refreshToken: '',
       };
     }
+  }
+
+  @Post('refresh/admin-experiment')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({
+    summary:
+      'Admin-only refresh endpoint that can mint a new token pair with custom durations',
+  })
+  @ApiBody({ type: RefreshTokenRequestDto })
+  @ApiResponse({
+    type: RefreshTokenResponseDto,
+    status: 200,
+    description: 'Experimental token pair minted successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  @ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  async refreshTokenAdminExperiment(
+    @Req() requestContext: AuthenticatedRequest,
+    @Body() request: RefreshTokenRequestDto,
+  ): Promise<RefreshTokenResponseDto> {
+    try {
+      const accessTokenDurationSeconds = this.toOptionalDurationSeconds(
+        request.experimentalAccessTokenDurationSeconds,
+      );
+      const refreshTokenDurationSeconds = this.toOptionalDurationSeconds(
+        request.experimentalRefreshTokenDurationSeconds,
+      );
+
+      const result = await this.authService.refreshToken(request.refreshToken, {
+        expectedUserId: requestContext.user?.sub,
+        tokenDurationOverrides: {
+          accessTokenDurationSeconds,
+          refreshTokenDurationSeconds,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Experimental token refresh succeeded',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      };
+    } catch (error) {
+      console.error('Admin experimental token refresh failed:', error);
+      return {
+        success: false,
+        message:
+          (error as Error).message || 'Experimental token refresh failed',
+        accessToken: '',
+        refreshToken: '',
+      };
+    }
+  }
+
+  private toOptionalDurationSeconds(rawValue: unknown): number | undefined {
+    if (typeof rawValue !== 'number' || Number.isNaN(rawValue)) {
+      return undefined;
+    }
+
+    return Math.floor(rawValue);
   }
 
   @Get('user/list')
@@ -109,5 +182,27 @@ export class AuthController {
     @Body() request: UserSearchRequest,
   ): Promise<UserEntity[]> {
     return await this.authService.searchUsers(request);
+  }
+
+  @Post('user/:userId/revoke-refresh-tokens')
+  @Auth({ roles: ['admin'] })
+  @ApiOperation({ summary: 'Revoke all active refresh tokens for a user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Refresh tokens revoked successfully',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - admin access required',
+  })
+  async revokeUserRefreshTokens(
+    @Param('userId') userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    await Promise.resolve(this.authService.revokeRefreshToken(userId));
+
+    return {
+      success: true,
+      message: 'Refresh tokens revoked successfully',
+    };
   }
 }

@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { FileEntity } from './file.entity';
+import { UserRefreshTokenEntity } from './user-refresh-token.entity';
 
 @Entity('users')
 export class UserEntity {
@@ -86,5 +87,8 @@ export class UserEntity {
   //#region Relationships
   @OneToMany(() => FileEntity, (file) => file.uploadedByUser)
   files: FileEntity[];
+
+  @OneToMany(() => UserRefreshTokenEntity, (token) => token.user)
+  refreshTokens: UserRefreshTokenEntity[];
   //#endregion
 }

@@ -5,6 +5,7 @@ import { AppConfigService } from '../module/config/config.service';
 import { getDatabaseConfig } from './database.config';
 import { FileEntity } from './entities/file.entity';
 import { UserEntity } from './entities/user.entity';
+import { UserRefreshTokenEntity } from './entities/user-refresh-token.entity';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { UserEntity } from './entities/user.entity';
       },
       inject: [AppConfigService],
     }),
-    TypeOrmModule.forFeature([FileEntity, UserEntity]),
+    TypeOrmModule.forFeature([FileEntity, UserEntity, UserRefreshTokenEntity]),
   ],
   exports: [TypeOrmModule],
 })

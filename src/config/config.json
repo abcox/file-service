@@ -14,8 +14,9 @@
   "auth": {
     "enabled": true,
     "session": {
-      "accessTokenDurationSeconds": 3600,
-      "refreshTokenDurationSeconds": 604800,
+      "accessTokenDurationSeconds": 300,
+      "refreshTokenDurationSeconds": 14400,
+      "proactiveRefreshLeadSeconds": 60,
       "secret": "",
       "name": "vorba-file-service-session",
       "cookie": {

@@ -4,10 +4,13 @@ import {
   FindOptionsOrder,
   FindOptionsWhere,
   //Like,
+  IsNull,
+  MoreThan,
   Repository,
   UpdateResult,
 } from 'typeorm';
 import { UserEntity } from '../entities/user.entity';
+import { UserRefreshTokenEntity } from '../entities/user-refresh-token.entity';
 import { LoggerService } from '../../module/logger/logger.service';
 import { UpdateUserDto } from '../../shared/model/user/update-user.dto';
 import { UserSearchRequest } from '../../module/auth/dto/user/user-search-request.dto';
@@ -25,6 +28,8 @@ export class UserDbService {
   constructor(
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(UserRefreshTokenEntity)
+    private refreshTokenRepository: Repository<UserRefreshTokenEntity>,
     private logger: LoggerService,
   ) {}
 
@@ -33,6 +38,7 @@ export class UserDbService {
     email: string;
     passwordHash: string;
     name?: string;
+    isAdmin?: boolean;
     roles?: string[];
     azureObjectId?: string;
     azureTenantId?: string;
@@ -250,6 +256,87 @@ export class UserDbService {
     const result = await this.userRepository.update(userId, {
       passwordResetFailedAttempts: attempts,
     });
+    return result?.affected ?? 0;
+  }
+
+  async createRefreshTokenRecord(option: {
+    userId: string;
+    jti: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<UserRefreshTokenEntity> {
+    const entity = this.refreshTokenRepository.create({
+      userId: option.userId,
+      jti: option.jti,
+      tokenHash: option.tokenHash,
+      expiresAt: option.expiresAt,
+    });
+
+    return await this.refreshTokenRepository.save(entity);
+  }
+
+  async getActiveRefreshTokenRecord(option: {
+    userId: string;
+    jti: string;
+  }): Promise<UserRefreshTokenEntity | null> {
+    return await this.refreshTokenRepository.findOne({
+      where: {
+        userId: option.userId,
+        jti: option.jti,
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(new Date()),
+      },
+    });
+  }
+
+  async markRefreshTokenUsed(option: {
+    userId: string;
+    jti: string;
+  }): Promise<number> {
+    const result = await this.refreshTokenRepository.update(
+      {
+        userId: option.userId,
+        jti: option.jti,
+      },
+      {
+        lastUsedAt: new Date(),
+      },
+    );
+
+    return result?.affected ?? 0;
+  }
+
+  async revokeRefreshTokenRecord(option: {
+    userId: string;
+    jti: string;
+    replacedByJti?: string;
+  }): Promise<number> {
+    const result = await this.refreshTokenRepository.update(
+      {
+        userId: option.userId,
+        jti: option.jti,
+        revokedAt: IsNull(),
+      },
+      {
+        revokedAt: new Date(),
+        replacedByJti: option.replacedByJti,
+      },
+    );
+
+    return result?.affected ?? 0;
+  }
+
+  async revokeAllActiveRefreshTokens(userId: string): Promise<number> {
+    const result = await this.refreshTokenRepository.update(
+      {
+        userId,
+        revokedAt: IsNull(),
+      },
+      {
+        revokedAt: new Date(),
+      },
+    );
+
     return result?.affected ?? 0;
   }
 }

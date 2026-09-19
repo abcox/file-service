@@ -115,6 +115,7 @@ export interface AppConfig {
       };
       accessTokenDurationSeconds?: number; // Default: 3600 (1 hour)
       refreshTokenDurationSeconds?: number; // Default: 604800 (7 days)
+      proactiveRefreshLeadSeconds?: number; // Frontend hint: refresh this many seconds before access token expiry
       idleSessionConfig?: {
         inactivityWarningSeconds?: number; // Default: 600 (10 minutes) - Show warning after X seconds of inactivity
         warningCountdownSeconds?: number; // Default: 300 (5 minutes) - Warning dialog countdown before logout

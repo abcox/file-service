@@ -38,16 +38,28 @@ export interface User {
 interface TokenPair {
   accessToken: string;
   refreshToken: string;
+  refreshTokenJti: string;
+}
+
+interface TokenDurationOverrides {
+  accessTokenDurationSeconds?: number;
+  refreshTokenDurationSeconds?: number;
+}
+
+interface RefreshTokenOptions {
+  expectedUserId?: string;
+  tokenDurationOverrides?: TokenDurationOverrides;
 }
 
 const DEFAULT_SESSION_DURATION_SECONDS = 3600;
 const DEFAULT_REFRESH_TOKEN_DURATION_SECONDS = 604800;
+const MIN_TOKEN_DURATION_SECONDS = 1;
+const MAX_TOKEN_DURATION_SECONDS = 2592000;
 
 @Injectable()
 export class AuthService {
   private config: AppConfig;
   private user: User;
-  private refreshTokens = new Map<string, string>(); // userId -> refreshTokenHash
 
   constructor(
     private jwtService: NestJwtService,
@@ -401,7 +413,10 @@ export class AuthService {
     } as UserRegistrationResponse;
   }
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+  async refreshToken(
+    refreshToken: string,
+    options?: RefreshTokenOptions,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const payload = this.jwtService.verify(
         refreshToken,
@@ -411,13 +426,29 @@ export class AuthService {
         throw new UnauthorizedException('Invalid refresh token type');
       }
 
-      // Verify refresh token is still valid in memory
-      const storedTokenHash = this.refreshTokens.get(payload.sub);
+      if (!payload.jti) {
+        throw new UnauthorizedException('Missing refresh token identifier');
+      }
+
+      if (options?.expectedUserId && payload.sub !== options.expectedUserId) {
+        throw new UnauthorizedException('Refresh token subject mismatch');
+      }
+
+      // Verify refresh token is still active in persistent storage
+      const tokenRecord = await this.userDb.getActiveRefreshTokenRecord({
+        userId: payload.sub,
+        jti: payload.jti,
+      });
       const providedTokenHash = this.hashToken(refreshToken);
 
-      if (!storedTokenHash || storedTokenHash !== providedTokenHash) {
+      if (!tokenRecord || tokenRecord.tokenHash !== providedTokenHash) {
         throw new UnauthorizedException('Refresh token revoked or invalid');
       }
+
+      await this.userDb.markRefreshTokenUsed({
+        userId: payload.sub,
+        jti: payload.jti,
+      });
 
       // Get user and generate new token pair
       const user = await this.userDb.getUserById(payload.sub);
@@ -425,9 +456,21 @@ export class AuthService {
         throw new UnauthorizedException('User not found');
       }
 
-      const tokenPair = await this.generateTokenPair(user);
+      const tokenPair = await this.generateTokenPair(
+        user,
+        options?.tokenDurationOverrides,
+      );
 
-      return { accessToken: tokenPair.accessToken };
+      await this.userDb.revokeRefreshTokenRecord({
+        userId: payload.sub,
+        jti: payload.jti,
+        replacedByJti: tokenPair.refreshTokenJti,
+      });
+
+      return {
+        accessToken: tokenPair.accessToken,
+        refreshToken: tokenPair.refreshToken,
+      };
     } catch (error) {
       this.logger.warn('Token refresh failed', {
         errorMessage: error instanceof Error ? error.message : String(error),
@@ -436,8 +479,8 @@ export class AuthService {
     }
   }
 
-  revokeRefreshToken(userId: string): void {
-    this.refreshTokens.delete(userId);
+  async revokeRefreshToken(userId: string): Promise<void> {
+    await this.userDb.revokeAllActiveRefreshTokens(userId);
   }
 
   //#endregion
@@ -485,7 +528,11 @@ export class AuthService {
     }
   }
 
-  async generateTokenPair(user: UserEntity): Promise<TokenPair> {
+  async generateTokenPair(
+    user: UserEntity,
+    durationOverrides?: TokenDurationOverrides,
+  ): Promise<TokenPair> {
+    const userWithUpdatedRoles = this.getUserWithUpdatedRoles(user);
     const config = this.configService.getConfig();
     const secret = config?.auth?.session?.secret;
     if (!secret) {
@@ -493,23 +540,31 @@ export class AuthService {
     }
 
     // Get session duration from config with defaults
-    const sessionDuration =
+    const defaultSessionDuration =
       config?.auth?.session?.accessTokenDurationSeconds ||
       DEFAULT_SESSION_DURATION_SECONDS;
-    const refreshTokenDuration =
+    const defaultRefreshTokenDuration =
       config?.auth?.session?.refreshTokenDurationSeconds ||
       DEFAULT_REFRESH_TOKEN_DURATION_SECONDS;
+    const sessionDuration = this.resolveTokenDuration(
+      durationOverrides?.accessTokenDurationSeconds,
+      defaultSessionDuration,
+    );
+    const refreshTokenDuration = this.resolveTokenDuration(
+      durationOverrides?.refreshTokenDurationSeconds,
+      defaultRefreshTokenDuration,
+    );
 
     // Generate access token with configured duration
     const accessToken = await this.jwtService.signAsync(
       {
-        sub: user.id,
+        sub: userWithUpdatedRoles.id,
         type: 'access',
-        email: user.email,
+        email: userWithUpdatedRoles.email,
         iat: Math.floor(Date.now() / 1000),
-        id: user.id,
-        name: user.name,
-        roles: user.roles,
+        id: userWithUpdatedRoles.id,
+        name: userWithUpdatedRoles.name,
+        roles: userWithUpdatedRoles.roles,
       },
       {
         secret: secret,
@@ -518,11 +573,13 @@ export class AuthService {
     );
 
     // Generate refresh token with configured duration
+    const refreshTokenJti = crypto.randomUUID();
+
     const refreshToken = await this.jwtService.signAsync(
       {
-        sub: user.id,
+        sub: userWithUpdatedRoles.id,
         type: 'refresh',
-        jti: crypto.randomUUID(),
+        jti: refreshTokenJti,
         iat: Math.floor(Date.now() / 1000),
       },
       {
@@ -531,14 +588,36 @@ export class AuthService {
       },
     );
 
-    // Store refresh token hash for validation
-    this.refreshTokens.set(user.id, this.hashToken(refreshToken));
+    const expiresAt = new Date(Date.now() + refreshTokenDuration * 1000);
 
-    return { accessToken, refreshToken };
+    await this.userDb.createRefreshTokenRecord({
+      userId: userWithUpdatedRoles.id,
+      jti: refreshTokenJti,
+      tokenHash: this.hashToken(refreshToken),
+      expiresAt,
+    });
+
+    return { accessToken, refreshToken, refreshTokenJti };
   }
 
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  private resolveTokenDuration(
+    requestedDuration: number | undefined,
+    fallbackDuration: number,
+  ): number {
+    if (!Number.isFinite(requestedDuration)) {
+      return fallbackDuration;
+    }
+
+    const roundedDuration = Math.floor(requestedDuration as number);
+
+    return Math.min(
+      MAX_TOKEN_DURATION_SECONDS,
+      Math.max(MIN_TOKEN_DURATION_SECONDS, roundedDuration),
+    );
   }
 
   validateToken(token: string): JwtPayload | null {
