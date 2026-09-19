@@ -26,6 +26,8 @@ export interface SchedulerJobContext {
 }
 
 export interface SchedulerJob {
+  readonly key?: string;
   readonly name: string;
+  readonly description?: string;
   execute(context: SchedulerJobContext): Promise<void>;
 }

@@ -3,6 +3,10 @@ import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from '../auth/auth.guard';
 import { SchedulerService } from './scheduler.service';
 
+type UpdateSchedulerJobMetadataRequest = {
+  description?: string;
+};
+
 type UpdateSchedulerJobConfigRequest = {
   enabled?: boolean;
   cron?: string;
@@ -41,6 +45,44 @@ export class SchedulerController {
   async reloadScheduler() {
     return {
       reload: await this.schedulerService.reloadJobSchedules(),
+    };
+  }
+
+  @Post('jobs/sync-metadata')
+  @Auth({ roles: ['admin'], claims: { type: 'system' } })
+  @ApiOperation({
+    summary:
+      'Sync code-registered jobs into the DB metadata store; source of truth remains code',
+  })
+  @ApiResponse({ status: 200, description: 'Scheduler metadata sync result' })
+  async syncJobMetadata() {
+    return {
+      sync: await this.schedulerService.syncRegisteredJobsMetadata(),
+      warning:
+        'Job metadata is code-owned. Changes to description/job label should be made in the implementation, not through external config updates.',
+    };
+  }
+
+  @Post('jobs/:jobName/metadata')
+  @Auth({ roles: ['admin'], claims: { type: 'system' } })
+  @ApiOperation({
+    summary:
+      'Update code-owned metadata for a scheduler job via protected system flow',
+  })
+  @ApiResponse({ status: 200, description: 'Metadata update response' })
+  async updateJobMetadata(
+    @Param('jobName') jobName: string,
+    @Body() body: UpdateSchedulerJobMetadataRequest,
+  ) {
+    return {
+      warning:
+        'Job metadata is managed by code as source of truth. Prefer updating the implementation description instead of external DB metadata.',
+      result: await this.schedulerService.upsertJobConfig(jobName, {
+        enabled: undefined,
+        cron: undefined,
+        timeZone: undefined,
+      }),
+      metadata: body,
     };
   }
 
