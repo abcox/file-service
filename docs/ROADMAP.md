@@ -7,6 +7,8 @@
 ## Related Roadmaps
 
 - Logging and observability roadmap: [LOGGING_AND_OBSERVABILITY_ROADMAP.md](LOGGING_AND_OBSERVABILITY_ROADMAP.md)
+- Configuration reference: [CONFIGURATION.md](CONFIGURATION.md)
+- Troubleshooting and startup diagnostics: [ENHANCED_TROUBLESHOOTING.md](ENHANCED_TROUBLESHOOTING.md)
 
 ## Backlog
 
@@ -22,6 +24,10 @@ Status legend:
 |---|---|---|---|---|
 | ARCH-001 | High | proposed | Promote timezone to system scope | Move timezone default from API scope to a system-level config and keep scheduler-level timezone as an explicit override. |
 | ARCH-002 | High | proposed | Move scheduler jobs to code-first defaults with DB overrides | Define job defaults in code, use DB records as runtime overrides, and reconcile missing/deprecated jobs on startup without overwriting existing operator-managed schedule values. |
+| ARCH-003 | High | proposed | Config governance aligned to NestJS standards | Consolidate configuration loading to clear source precedence, typed config namespaces, and validated startup contracts with no secrets in committed JSON files. |
+| REL-001 | High | proposed | Dependency health aggregation contract | Provide a single aggregated readiness model for core dependencies (storage, GPT, DB, Key Vault, external APIs) with severity and operator action hints. |
+| REL-002 | High | proposed | Dependency-failure UX guidance path | Standardize API error mapping so dependency failures are explicit (not generic 500), and provide user-facing guidance for retry/fallback paths in frontend flows. |
+| OBS-001 | Medium | proposed | Actionable observability for dependency failures | Extend diagnostics and logs with dependency-specific error classification, correlation metadata, and dashboard-friendly fields for fast triage. |
 
 ### Backlog Details
 
@@ -63,6 +69,86 @@ Acceptance criteria:
 - Startup reconciliation updates code-owned metadata such as `jobKey`, `jobName`, and `description` without overwriting existing DB `enabled`, `cron`, or `timeZone` values.
 - Effective runtime scheduling resolves from code defaults first and then overlays DB overrides.
 - Deprecated DB records remain visible for audit purposes but are not scheduled.
+
+#### ARCH-003: Config governance aligned to NestJS standards
+
+Problem:
+- Current config behavior is functional but mixed: local JSON overlays, environment variables, and Key Vault resolution are not represented as a strict, documented precedence contract.
+- Sensitive values have appeared in local JSON usage patterns, increasing accidental secret exposure risk.
+- Runtime diagnostics are useful, but startup validation is not yet a strict contract that fails early with typed guidance for missing critical settings.
+
+Proposed direction:
+- Adopt a NestJS-first configuration pattern using `@nestjs/config` as the primary integration surface while preserving `AppConfigService` as the typed facade.
+- Define explicit source precedence by environment and document it as code-level policy:
+	1) environment variables,
+	2) local override file (development only, gitignored),
+	3) baseline config file,
+	4) Key Vault secret resolution (environment-dependent).
+- Introduce schema validation at bootstrap (zod or joi) with fail-fast behavior for required fields and clear diagnostics.
+- Split configuration into typed domains/namespaces (`auth`, `storage`, `gpt`, `observability`, `database`) and remove ad-hoc key access patterns.
+- Enforce "no secrets in committed config" and provide a sanctioned `.env`/Key Vault path per environment.
+
+Acceptance criteria:
+- A single documented and tested precedence contract exists and matches runtime behavior.
+- Startup fails fast for missing required secrets in production with actionable error context.
+- Development supports local overrides without requiring secret values in committed JSON files.
+- Configuration access across modules uses typed facade methods or typed namespace contracts only.
+- Config docs and local setup docs are consistent with the implemented behavior.
+
+#### REL-001: Dependency health aggregation contract
+
+Problem:
+- Service-level diagnostics exist, but operators and UI flows need one aggregated dependency view with severity and readiness semantics.
+- Current health signals do not consistently express "ready vs degraded vs unavailable" by user-impacting capability.
+
+Proposed direction:
+- Define a dependency registry for critical services (`storage`, `gpt`, `database`, `key-vault`, `gmail`, optional externals).
+- Extend diagnostic aggregation to include:
+	- severity (`critical`, `important`, `optional`),
+	- capability impact (`upload`, `analysis`, `auth-refresh`, `notifications`),
+	- recommended operator action.
+- Publish a stable response contract for `/api/diagnostic/services` and an aggregated readiness endpoint for frontend consumption.
+
+Acceptance criteria:
+- Aggregated readiness returns deterministic overall state from dependency severity.
+- Each dependency reports impact and action hints suitable for support/runbooks.
+- Smoke tests validate the diagnostic endpoint contract for at least one degraded scenario.
+
+#### REL-002: Dependency-failure UX guidance path
+
+Problem:
+- Dependency failures are often surfaced as generic 500 responses, obscuring root cause and next actions for users.
+- Frontend flows (upload, analysis/report generation) need predictable error classes to guide user behavior.
+
+Proposed direction:
+- Introduce error classification and mapping for dependency failures:
+	- `dependency_unavailable`,
+	- `dependency_quota_exceeded`,
+	- `dependency_timeout`,
+	- `dependency_auth_failed`.
+- Return structured API error payloads with machine-readable codes and human guidance.
+- Define frontend UX patterns per error class (retry, switch mode, try later, contact support).
+
+Acceptance criteria:
+- Workflow endpoints return classified dependency errors instead of generic internal failures for known external failure modes.
+- Frontend can branch on stable error codes and display guidance text.
+- Logs include correlated classification fields for each mapped error.
+
+#### OBS-001: Actionable observability for dependency failures
+
+Problem:
+- Logging and diagnostics are improving, but dependency-specific triage still requires manual interpretation.
+- Incidents need quickly searchable fields for dependency, capability impact, and remediation hints.
+
+Proposed direction:
+- Extend structured logs and diagnostics with fields such as `dependencyName`, `dependencyOperation`, `failureClass`, and `userImpact`.
+- Align these fields with the logging/observability roadmap so dashboards and alerts can group failures by dependency class.
+- Add alert-friendly thresholds for recurring dependency failures and quota-related events.
+
+Acceptance criteria:
+- Dependency-related errors emit consistent structured fields across modules.
+- At least one dashboard/query recipe is documented for dependency triage.
+- Alert rules are defined for repeated critical dependency failures.
 
 ## Code Organization
 
