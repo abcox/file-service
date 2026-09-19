@@ -20,6 +20,7 @@
 // used by this bootstrap path.
 import 'dotenv/config';
 import { useAzureMonitor } from '@azure/monitor-opentelemetry';
+import { bootstrapLog } from './bootstrap-log';
 
 const connectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
 
@@ -33,9 +34,9 @@ if (connectionString) {
       winston: { enabled: true }, // auto-bridge Winston logs → Azure Monitor traces
     },
   });
-  console.log('[telemetry-init] Azure Monitor OTel initialised');
+  bootstrapLog('[telemetry-init] Azure Monitor OTel initialised');
 } else {
-  console.log(
+  bootstrapLog(
     '[telemetry-init] Azure Monitor skipped — APPLICATIONINSIGHTS_CONNECTION_STRING not set (config file value is not used for bootstrap)',
   );
 }

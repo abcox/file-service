@@ -11,15 +11,16 @@ import { ConfigDebugService } from './module/config/config-debug.service';
 import { AppConfigService } from './module/config/config.service';
 import { AppConfig } from './module/config/config.interface';
 import { configureApp } from './config/app-bootstrap';
+import { bootstrapError, bootstrapLog } from './module/logger/bootstrap-log';
 
 async function bootstrap() {
-  console.log('Starting application...');
-  console.log('PORT:', process.env.PORT || 'not set');
-
-  // Create a basic logger for startup diagnostics
-  const startupLogger = new LoggerService();
-
   try {
+    bootstrapLog('Starting application...');
+    bootstrapLog(`PORT: ${process.env.PORT || 'not set'}`);
+
+    // Create a basic logger for startup diagnostics
+    const startupLogger = new LoggerService();
+
     // Run startup diagnostics if DEBUG_STARTUP is enabled
     if (process.env.DEBUG_STARTUP === 'true') {
       startupLogger.info(
@@ -61,12 +62,14 @@ async function bootstrap() {
       next();
     });
 
-    console.log('Application created.');
+    bootstrapLog('Application created.');
 
     const configSvc = app.get(AppConfigService);
-    console.log('Config service:', configSvc);
+    bootstrapLog(`Config service: ${configSvc ? 'resolved' : 'missing'}`);
     const config: AppConfig = configSvc.getConfig();
-    console.log('Config:', config);
+    bootstrapLog(
+      `Config loaded: ${config ? 'yes' : 'no'} (api path: ${config?.api?.path || 'not set'})`,
+    );
     if (!config) {
       throw new Error('Api configuration not found');
     }
@@ -78,15 +81,15 @@ async function bootstrap() {
       allowedHeaders: ['Content-Type', 'Authorization'],
     }); */
     if (!apiCfg) {
-      console.log('Api configuration not found');
+      bootstrapLog('Api configuration not found');
     } else {
       if (apiCfg.cors.enabled) {
         app.enableCors(apiCfg.cors);
       } else {
-        console.warn('CORS is disabled');
+        bootstrapLog('CORS is disabled');
       }
       // Note: Global prefix is set below after logger is available
-      console.log(`API path configured as: ${apiCfg.path}`);
+      bootstrapLog(`API path configured as: ${apiCfg.path}`);
     }
 
     // Get the logger service from the app
@@ -127,7 +130,7 @@ async function bootstrap() {
 
     logger.info(`Application available at http://localhost:${port}`);
   } catch (error) {
-    startupLogger.error('❌ Application startup failed', error as Error);
+    bootstrapError('❌ Application startup failed', error as Error);
 
     // Enhanced error reporting
     const errorDetails = {
@@ -138,7 +141,7 @@ async function bootstrap() {
       timestamp: new Date().toISOString(),
     };
 
-    startupLogger.info('🔍 Startup Error Details', errorDetails);
+    bootstrapLog(`🔍 Startup Error Details: ${JSON.stringify(errorDetails)}`);
 
     // Provide troubleshooting hints
     const troubleshootingHints = [
@@ -149,12 +152,12 @@ async function bootstrap() {
       'Review application logs for specific error details',
     ];
 
-    startupLogger.info('🔧 Troubleshooting Hints', {
-      hints: troubleshootingHints,
-    });
+    bootstrapLog(
+      `🔧 Troubleshooting Hints: ${troubleshootingHints.join(' | ')}`,
+    );
 
     process.exit(1);
   }
 }
 
-bootstrap();
+void bootstrap();
