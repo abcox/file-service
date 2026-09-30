@@ -31,6 +31,10 @@
       "coverage",
       "uploads",
       "azurite"
+    ],
+    "excludeFiles": [
+      "src/config/config.local-dev.json",
+      "src/config/config.json"
     ]
   }
 }
