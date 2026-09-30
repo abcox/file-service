@@ -365,6 +365,7 @@ export class PdfService {
     const textContent = html
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
+      .replace(/<!--[\s\S]*?-->/g, '') // Remove HTML comments
       .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n# $1\n') // Convert h1 to markdown-style
       .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n## $1\n') // Convert h2 to markdown-style
       .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n### $1\n') // Convert h3 to markdown-style
