@@ -358,28 +358,21 @@ export class AuthService {
       email: request.email,
     });
     if (existingUser) {
-      const tokenPair = await this.generateTokenPair(existingUser);
-
-      // Get session duration from config
-      const config = this.configService.getConfig();
-      const sessionDuration =
-        config?.auth?.session?.accessTokenDurationSeconds ||
-        DEFAULT_SESSION_DURATION_SECONDS;
-      const tokenExpiry = Math.floor(Date.now() / 1000) + sessionDuration;
-
       return {
-        user: existingUser,
-        success: true,
-        message: 'User already exists',
-        token: tokenPair.accessToken,
-        refreshToken: tokenPair.refreshToken,
-        tokenExpiry: tokenExpiry,
-        sessionDurationSeconds: sessionDuration,
-        activityConfig: this.getActivityConfig(),
+        user: null,
+        success: false,
+        message:
+          'An account already exists for this email. Sign in to continue.',
+        token: '',
+        refreshToken: '',
+        tokenExpiry: 0,
+        sessionDurationSeconds: 0,
+        activityConfig: null,
+        requiresAuthentication: true,
       } as UserRegistrationResponse;
     }
 
-    const passwordHash = request.email; // TODO:  this is a temporary solution to avoid hashing the password (using bcrypt)
+    const passwordHash = `pending:${crypto.randomBytes(32).toString('hex')}`;
     const user = {
       email: request.email,
       passwordHash: passwordHash,

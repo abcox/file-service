@@ -53,6 +53,15 @@ export class UserRegistrationResponse {
   @ApiProperty({
     description: 'Registered user information',
     type: UserDto,
+    nullable: true,
   })
-  user: UserDto;
+  user: UserDto | null;
+
+  @ApiProperty({
+    description:
+      'Whether the email requires authentication instead of registration',
+    required: false,
+    example: true,
+  })
+  requiresAuthentication?: boolean;
 }
