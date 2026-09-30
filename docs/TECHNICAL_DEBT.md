@@ -1,5 +1,40 @@
 # Technical Debt
 
+## Passwords Stored and Compared in Plaintext
+
+### Current Status
+- **Issue**: `UserEntity.passwordHash` holds raw passwords, not hashes
+- **Severity**: High — blocks production launch
+- **Location**: `src/module/auth/auth.service.ts`, `validatePassword()`
+
+### What Is Wrong
+The field is named `passwordHash`, but nothing hashes it. Validation is a direct
+string comparison:
+
+```typescript
+if (user.passwordHash !== password) {
+```
+
+Registration writes the value straight through, and `passwordReset()` writes a
+generated temp password the same way. Anyone able to read the user collection can
+read every password, and those passwords are likely reused on other sites.
+
+Soft-registered survey accounts are not exposed in practice, because their value
+is `pending:<32 random bytes>` and is never sent to the user. The risk applies to
+accounts where a person chose the password.
+
+### Future Tasks
+- [ ] Hash with argon2id (or bcrypt) on registration and password reset
+- [ ] Replace the equality check with a verify call from the same library
+- [ ] Migrate existing rows: force reset, or rehash on next successful login
+- [ ] Remove the plaintext temp-password log in `passwordReset()`
+- [ ] Keep the `pending:` prefix meaningful after hashing, so soft-registered
+      accounts can still be detected (store a separate flag rather than relying on
+      the stored credential's shape)
+
+### Related
+- `src/module/auth/README.md` — soft registration and account reclaim design
+
 ## Key Vault Authentication Bypass
 
 ### Current Status
